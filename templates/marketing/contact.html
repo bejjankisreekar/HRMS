@@ -1,0 +1,20 @@
+{% extends "marketing/base_marketing.html" %}
+{% load static %}
+
+{% block title %}Contact — HRMS Suite | Talk to Sales & Support{% endblock %}
+{% block og_title %}Contact HRMS Suite — Demos, Sales & Support{% endblock %}
+
+{% block marketing_extra_head %}
+<meta name="description" content="Contact HRMS Suite for demos, sales inquiries, and support. Average response within 4 business hours. Bengaluru HQ — serving 500+ companies.">
+<link rel="stylesheet" href="{% static 'contact.css' %}">
+{% endblock %}
+
+{% block marketing_content %}
+  {% include "marketing/contact/_hero.html" %}
+  {% include "marketing/contact/_form.html" %}
+  {% include "marketing/contact/_sections.html" %}
+{% endblock %}
+
+{% block marketing_extra_js %}
+<script src="{% static 'contact.js' %}" defer></script>
+{% endblock %}

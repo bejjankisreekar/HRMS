@@ -1,0 +1,50 @@
+<div class="grid gap-4 sm:grid-cols-3">
+  <div class="attendance-stat border-emerald-200 dark:border-emerald-500/30">
+    <p class="text-xs font-medium text-slate-500">Attendance rate</p>
+    <p class="mt-1 text-3xl font-bold text-emerald-600">{{ employee_stats.attendance_rate }}%</p>
+    <p class="mt-1 text-xs text-slate-500">{{ employee_stats.present }} present of {{ employee_stats.total_days }} days</p>
+  </div>
+  <div class="attendance-stat border-indigo-200 dark:border-indigo-500/30">
+    <p class="text-xs font-medium text-slate-500">Punctuality</p>
+    <p class="mt-1 text-3xl font-bold text-indigo-600">{{ employee_stats.punctuality_rate }}%</p>
+    <p class="mt-1 text-xs text-slate-500">{{ employee_stats.on_time }} on-time of {{ employee_stats.present }} present</p>
+  </div>
+  <div class="attendance-stat border-amber-200 dark:border-amber-500/30">
+    <p class="text-xs font-medium text-slate-500">Late rate</p>
+    <p class="mt-1 text-3xl font-bold text-amber-600">{{ employee_stats.late_rate }}%</p>
+    <p class="mt-1 text-xs text-slate-500">{{ employee_stats.late }} late marks in period</p>
+  </div>
+</div>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+  <div class="attendance-stat">
+    <p class="text-xs font-medium text-slate-500">Present</p>
+    <p class="mt-1 text-2xl font-bold text-emerald-600">{{ employee_stats.present }}</p>
+  </div>
+  <div class="attendance-stat">
+    <p class="text-xs font-medium text-slate-500">Absent</p>
+    <p class="mt-1 text-2xl font-bold text-rose-600">{{ employee_stats.absent }}</p>
+  </div>
+  <div class="attendance-stat">
+    <p class="text-xs font-medium text-slate-500">Late</p>
+    <p class="mt-1 text-2xl font-bold text-amber-600">{{ employee_stats.late }}</p>
+  </div>
+  <div class="attendance-stat">
+    <p class="text-xs font-medium text-slate-500">On leave</p>
+    <p class="mt-1 text-2xl font-bold text-sky-600">{{ employee_stats.leave }}</p>
+  </div>
+  <div class="attendance-stat">
+    <p class="text-xs font-medium text-slate-500">Working hours</p>
+    <p class="mt-1 text-2xl font-bold text-indigo-600">{{ employee_stats.working_hours }}</p>
+  </div>
+  <div class="attendance-stat">
+    <p class="text-xs font-medium text-slate-500">Overtime</p>
+    <p class="mt-1 text-2xl font-bold text-violet-600">{{ employee_stats.overtime }}</p>
+  </div>
+</div>
+<p class="text-xs text-slate-500">
+  Summary for
+  {% if history_period == 'day' %}{{ selected_date|date:"l, d M Y" }}
+  {% elif history_period == 'week' %}{{ stats_from|date:"d M" }} – {{ stats_to|date:"d M Y" }}
+  {% else %}{{ stats_from|date:"F Y" }}{% endif %}
+</p>

@@ -1,0 +1,72 @@
+<form method="post"
+      class="login-form"
+      id="portal-panel"
+      role="tabpanel"
+      @submit="onSubmit()"
+      novalidate>
+  {% csrf_token %}
+
+  <input type="hidden" name="portal" :value="portal">
+
+  <div class="login-field">
+    <label for="id_username" class="login-label">Email or username</label>
+    <div class="login-field__wrap">
+      <span class="login-field__icon"><i data-lucide="mail"></i></span>
+      <input id="id_username"
+             name="username"
+             type="text"
+             required
+             autocomplete="username"
+             value="{{ form.username.value|default:'' }}"
+             placeholder="you@company.com"
+             class="login-input {% if form.username.errors %}login-input--error{% endif %}">
+    </div>
+    {% if form.username.errors %}<p class="login-error">{{ form.username.errors.0 }}</p>{% endif %}
+  </div>
+
+  <div class="login-field">
+    <label for="id_password" class="login-label">Password</label>
+    <div class="login-field__wrap">
+      <span class="login-field__icon"><i data-lucide="lock"></i></span>
+      <input id="id_password"
+             name="password"
+             :type="showPwd ? 'text' : 'password'"
+             required
+             autocomplete="current-password"
+             placeholder="Enter your password"
+             class="login-input login-input--password {% if form.password.errors %}login-input--error{% endif %}">
+      <button type="button"
+              class="login-field__toggle"
+              @click="showPwd = !showPwd"
+              :aria-label="showPwd ? 'Hide password' : 'Show password'">
+        <i :data-lucide="showPwd ? 'eye-off' : 'eye'"></i>
+      </button>
+    </div>
+    {% if form.password.errors %}<p class="login-error">{{ form.password.errors.0 }}</p>{% endif %}
+  </div>
+
+  <div class="login-form__meta">
+    <label class="login-checkbox">
+      <input type="checkbox"
+             name="remember_me"
+             value="1"
+             {% if form.remember_me.value %}checked{% endif %}>
+      <span>Remember me</span>
+    </label>
+    <a href="#" class="login-link login-link--sm">Forgot password?</a>
+  </div>
+
+  <button type="submit"
+          class="login-submit login-submit--{{ selected_portal.accent }}"
+          :class="'login-submit--' + activePortal.accent"
+          :disabled="loading">
+    <span x-show="!loading">Sign in securely</span>
+    <span x-show="loading" x-cloak class="login-submit__loading">
+      <svg class="login-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle class="login-spinner__track" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="login-spinner__head" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+      </svg>
+      Signing in…
+    </span>
+  </button>
+</form>

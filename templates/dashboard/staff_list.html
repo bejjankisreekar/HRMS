@@ -1,0 +1,343 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Staff Management · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'attendance.css' %}">
+<link rel="stylesheet" href="{% static 'platform-forms.css' %}">
+<link rel="stylesheet" href="{% static 'staff-management.css' %}">
+<script src="{% static 'staff-management.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div id="staff-management" class="attendance-page stf-page hrms-page-fluid w-full space-y-6">
+
+  {# ── Hero (matches attendance page) ── #}
+  <div class="attendance-hero">
+    <div class="attendance-hero-inner flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="users" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">HRMS · People</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            {% if is_hr_view %}My employees{% else %}Staff management{% endif %}
+          </h1>
+          <p class="mt-1.5 text-sm text-violet-100/90">
+            {% if is_hr_view %}
+            Employees assigned to you — profiles, roles, and org structure.
+            {% else %}
+            Manage HR staff and employees across {{ organization.name }}.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-medium backdrop-blur">
+          <i data-lucide="users-round" class="h-4 w-4 opacity-80"></i>
+          {{ result_count }} shown
+        </div>
+        <a href="{% url 'dashboard:staff_export' %}?{{ filter_query }}"
+           class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">
+          <i data-lucide="download" class="h-3.5 w-3.5"></i> Export all
+        </a>
+        {% if can_create %}
+        <a href="{% url 'dashboard:staff_create' %}"
+           class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-lg hover:bg-violet-50">
+          <i data-lucide="user-plus" class="h-4 w-4"></i> Add member
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── KPI stats ── #}
+  {% if kpis %}
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Total staff</p>
+          <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ kpis.total }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-violet-500/15 text-violet-600">
+          <i data-lucide="users" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Active</p>
+          <p class="mt-1 text-2xl font-bold text-emerald-600">{{ kpis.active }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-emerald-500/15 text-emerald-600">
+          <i data-lucide="user-check" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">HR staff</p>
+          <p class="mt-1 text-2xl font-bold text-sky-600">{{ kpis.hr_count }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-sky-500/15 text-sky-600">
+          <i data-lucide="shield" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Employees</p>
+          <p class="mt-1 text-2xl font-bold text-indigo-600">{{ kpis.employee_count }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-indigo-500/15 text-indigo-600">
+          <i data-lucide="briefcase" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">{{ dept_label_plural|default:"Departments" }}</p>
+          <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ kpis.departments }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-amber-500/15 text-amber-600">
+          <i data-lucide="layers" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Recent joinees</p>
+          <p class="mt-1 text-2xl font-bold text-violet-600">{{ kpis.recent_joins }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-violet-500/15 text-violet-600">
+          <i data-lucide="user-plus" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">On leave today</p>
+          <p class="mt-1 text-2xl font-bold text-rose-600">{{ kpis.on_leave }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-rose-500/15 text-rose-600">
+          <i data-lucide="palmtree" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Filters (compact) ── #}
+  <form method="get" class="attendance-panel stf-filters-compact">
+    <div class="stf-filters-bar">
+      <span class="stf-filters-bar__label"><i data-lucide="sliders-horizontal" class="h-3.5 w-3.5"></i> Filters</span>
+
+      <div class="stf-filters-grid">
+        <div class="stf-filter-field stf-filter-field--search">
+          <label class="stf-filter-label" for="stf-q">Search</label>
+          <input id="stf-q" type="search" name="q" value="{{ filters.q|default:'' }}" placeholder="Name, email, ID…" class="stf-filter-input">
+        </div>
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-status">Account</label>
+          <select id="stf-status" name="status" class="stf-filter-input">
+            <option value="active" {% if filters.status == "active" or not filters.status %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if filters.status == "inactive" %}selected{% endif %}>Inactive</option>
+            <option value="archived" {% if filters.status == "archived" %}selected{% endif %}>Archived</option>
+            <option value="all" {% if filters.status == "all" %}selected{% endif %}>All</option>
+          </select>
+        </div>
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-emp-status">Employment</label>
+          <select id="stf-emp-status" name="employment_status" class="stf-filter-input">
+            <option value="">All</option>
+            {% for val, label in employment_status_choices %}
+            <option value="{{ val }}" {% if filters.employment_status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if not is_hr_view %}
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-role">Role</label>
+          <select id="stf-role" name="role" class="stf-filter-input">
+            <option value="">All</option>
+            {% for val, label in filter_role_choices %}
+            <option value="{{ val }}" {% if filters.role == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-dept">{{ dept_label|default:"Dept" }}</label>
+          <select id="stf-dept" name="department" class="stf-filter-input">
+            <option value="">All</option>
+            {% for dept in filter_departments %}
+            <option value="{{ dept.pk }}" {% if filters.department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-grade">Grade</label>
+          <select id="stf-grade" name="grade" class="stf-filter-input">
+            <option value="">All</option>
+            {% for g in filter_grades %}
+            <option value="{{ g.pk }}" {% if filters.grade == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-desig">Designation</label>
+          <select id="stf-desig" name="designation" class="stf-filter-input">
+            <option value="">All</option>
+            {% for d in filter_designations %}
+            <option value="{{ d.pk }}" {% if filters.designation == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-mgr">Manager</label>
+          <select id="stf-mgr" name="manager" class="stf-filter-input">
+            <option value="">All</option>
+            {% for m in filter_managers %}
+            <option value="{{ m.pk }}" {% if filters.manager == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if not is_hr_view %}
+        <div class="stf-filter-field">
+          <label class="stf-filter-label" for="stf-hr">HR owner</label>
+          <select id="stf-hr" name="hr" class="stf-filter-input">
+            <option value="">All</option>
+            {% for h in filter_hr_users %}
+            <option value="{{ h.pk }}" {% if filters.hr == h.pk|stringformat:"s" %}selected{% endif %}>{{ h.choice_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="stf-filters-actions">
+        <button type="submit" class="stf-filter-btn stf-filter-btn--primary">Apply</button>
+        <a href="{% url 'dashboard:staff_list' %}" class="stf-filter-btn stf-filter-btn--ghost">Reset</a>
+        {% if has_active_filters %}
+        <a href="{% url 'dashboard:staff_list' %}" class="stf-filter-btn stf-filter-btn--link">Clear</a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  {# ── Staff table panel ── #}
+  <div class="attendance-panel attendance-table-wrap stf-table-wrap">
+    <div class="attendance-panel-head">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Team directory</h2>
+        <p class="text-xs text-slate-500">{{ result_count }} people{% if page_obj.paginator.num_pages > 1 %} · page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="stf-table-scroll">
+      <table class="stf-table attendance-table attendance-table--nowrap min-w-full">
+        <thead>
+          <tr class="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/[0.03]">
+            <th class="px-4 py-3">Emp. ID</th>
+            <th class="px-4 py-3">Employee</th>
+            <th class="px-3 py-3">Role</th>
+            <th class="px-3 py-3">Grade</th>
+            <th class="px-3 py-3">{{ dept_label|default:"Dept" }}</th>
+            <th class="px-3 py-3">Designation</th>
+            <th class="px-3 py-3">Manager</th>
+            <th class="px-3 py-3">Email</th>
+            <th class="px-3 py-3">Phone</th>
+            <th class="px-3 py-3">Joined</th>
+            <th class="px-3 py-3">Status</th>
+            <th class="px-3 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+          {% for u in staff %}
+          <tr>
+            <td class="px-4 py-3 font-mono text-xs">{{ u.employee_id|default:"—" }}</td>
+            <td class="px-4 py-3">
+              <div class="stf-name-cell">
+                <div class="stf-avatar attendance-avatar">
+                  {% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="">{% else %}{{ u.display_name|slice:":1"|upper }}{% endif %}
+                </div>
+                <div>
+                  <a href="{% url 'dashboard:staff_detail' u.pk %}" class="font-semibold text-slate-900 hover:text-violet-600 dark:text-white">{{ u.display_name }}</a>
+                  <span>@{{ u.username }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="px-3 py-3">
+              {% if u.role == "HR" %}<span class="stf-badge stf-badge--hr">HR</span>
+              {% else %}<span class="stf-badge stf-badge--employee">Employee</span>{% endif %}
+            </td>
+            <td class="px-3 py-3">{{ u.grade_name|default:"—" }}</td>
+            <td class="px-3 py-3">{{ u.department_name|default:"—" }}</td>
+            <td class="px-3 py-3">{{ u.designation_label|default:"—" }}</td>
+            <td class="px-3 py-3">{% if u.reporting_manager %}{{ u.reporting_manager.display_name }}{% else %}—{% endif %}</td>
+            <td class="px-3 py-3 text-xs">{{ u.email }}</td>
+            <td class="px-3 py-3">{{ u.phone|default:"—" }}</td>
+            <td class="px-3 py-3">{% if u.date_of_joining %}{{ u.date_of_joining|date:"M j, Y" }}{% else %}—{% endif %}</td>
+            <td class="px-3 py-3">
+              {% if u.employment_status == "ACTIVE" or u.employment_status == "PROBATION" %}
+              <span class="stf-badge stf-badge--active">{{ u.get_employment_status_display }}</span>
+              {% elif u.employment_status == "SUSPENDED" or u.employment_status == "TERMINATED" %}
+              <span class="stf-badge stf-badge--suspended">{{ u.get_employment_status_display }}</span>
+              {% else %}
+              <span class="stf-badge stf-badge--inactive">{{ u.get_employment_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="stf-actions-cell px-3 py-3">
+              <div class="stf-actions">
+                <button type="button" class="stf-actions-btn" data-stf-actions-toggle aria-label="Row actions"><i data-lucide="more-vertical" class="h-4 w-4"></i></button>
+                <div class="stf-actions-menu" hidden role="menu">
+                  <a href="{% url 'dashboard:staff_detail' u.pk %}" role="menuitem"><i data-lucide="eye" class="h-3.5 w-3.5"></i> View profile</a>
+                  {% if u.pk|stringformat:"s" in manageable_ids %}
+                  <a href="{% url 'dashboard:staff_edit' u.pk %}" role="menuitem"><i data-lucide="pencil" class="h-3.5 w-3.5"></i> Edit employee</a>
+                  {% endif %}
+                  <a href="{% url 'dashboard:attendance' %}" role="menuitem"><i data-lucide="calendar-check" class="h-3.5 w-3.5"></i> Attendance</a>
+                  <a href="{% url 'payroll:management' %}" role="menuitem"><i data-lucide="wallet" class="h-3.5 w-3.5"></i> Payroll</a>
+                  <a href="{% url 'dashboard:orgchart:tree' %}" role="menuitem"><i data-lucide="git-branch" class="h-3.5 w-3.5"></i> Org tree</a>
+                  {% if u.pk|stringformat:"s" in manageable_ids %}
+                  <a href="{% url 'dashboard:staff_delete' u.pk %}" class="danger" role="menuitem"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i> Remove</a>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="12" class="px-4 py-12 text-center text-sm text-slate-500">
+              {% if has_active_filters %}No matches. <a href="{% url 'dashboard:staff_list' %}" class="font-semibold text-violet-600">Clear filters</a>
+              {% else %}No team members yet.{% if can_create %} <a href="{% url 'dashboard:staff_create' %}" class="font-semibold text-violet-600">Add your first member</a>{% endif %}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="stf-pagination border-t border-slate-100 dark:border-white/10">
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}" class="stf-btn stf-btn--ghost">Previous</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}" class="stf-btn stf-btn--ghost">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

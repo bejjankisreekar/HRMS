@@ -1,0 +1,71 @@
+<section class="pro-analytics" aria-label="Analytics dashboard">
+  <h2 class="pro-section-title">Analytics overview</h2>
+
+  <div class="pro-analytics__tabs" role="tablist">
+    <button type="button" class="pro-tab pro-tab--active" data-tab="workforce">Workforce</button>
+    <button type="button" class="pro-tab" data-tab="attendance">Attendance</button>
+    <button type="button" class="pro-tab" data-tab="payroll">Payroll</button>
+  </div>
+
+  <!-- Workforce -->
+  <div class="pro-tab-panel pro-tab-panel--active" data-panel="workforce">
+    <div class="pro-chart-grid">
+      <article class="pro-card">
+        <h3>Employee growth</h3>
+        <div class="pro-chart"><canvas id="pro-chart-growth"></canvas></div>
+      </article>
+      <article class="pro-card">
+        <h3>Department distribution</h3>
+        <div class="pro-chart pro-chart--pie"><canvas id="pro-chart-depts"></canvas></div>
+      </article>
+      <article class="pro-card pro-card--wide">
+        <h3>Hiring trends</h3>
+        <div class="pro-chart"><canvas id="pro-chart-hiring"></canvas></div>
+      </article>
+    </div>
+  </div>
+
+  <!-- Attendance -->
+  <div class="pro-tab-panel" data-panel="attendance" hidden>
+    <div class="pro-chart-grid">
+      <article class="pro-card">
+        <h3>Attendance rate trend</h3>
+        <div class="pro-chart"><canvas id="pro-chart-att-trend"></canvas></div>
+      </article>
+      <article class="pro-card">
+        <h3>Late arrivals</h3>
+        <div class="pro-chart"><canvas id="pro-chart-late"></canvas></div>
+      </article>
+      <article class="pro-card">
+        <h3>Shift distribution</h3>
+        <div class="pro-chart pro-chart--pie"><canvas id="pro-chart-shifts"></canvas></div>
+      </article>
+      <article class="pro-card">
+        <h3>Weekday attendance heatmap</h3>
+        <div class="pro-heatmap" id="pro-heatmap"></div>
+      </article>
+    </div>
+  </div>
+
+  <!-- Payroll -->
+  <div class="pro-tab-panel" data-panel="payroll" hidden>
+    <div class="pro-chart-grid">
+      <article class="pro-card">
+        <h3>Payroll breakdown</h3>
+        <div class="pro-chart pro-chart--pie"><canvas id="pro-chart-pay-breakdown"></canvas></div>
+      </article>
+      <article class="pro-card">
+        <h3>Salary distribution</h3>
+        <div class="pro-chart"><canvas id="pro-chart-salary"></canvas></div>
+      </article>
+      <article class="pro-card">
+        <h3>Cost center (by dept)</h3>
+        <div class="pro-chart"><canvas id="pro-chart-cost"></canvas></div>
+      </article>
+      <article class="pro-card pro-card--wide">
+        <h3>Payroll trend</h3>
+        <div class="pro-chart"><canvas id="pro-chart-pay-trend"></canvas></div>
+      </article>
+    </div>
+  </div>
+</section>

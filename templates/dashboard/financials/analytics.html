@@ -1,0 +1,28 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_extra_head %}
+<script>
+window.FINANCIALS_CONFIG.charts = {
+  revenue: {{ revenue_chart_json|safe }},
+  subscriptions: {{ subscription_chart_json|safe }},
+  plans: {{ plan_breakdown_json|safe }},
+  forecast: {{ forecast_json|safe }}
+};
+</script>
+{% endblock %}
+
+{% block financials_content %}
+<div class="fin-grid-2">
+  <section class="fin-panel"><h2 class="fin-panel__title">MRR / revenue (18 mo)</h2><canvas id="fin-chart-revenue" height="140"></canvas></section>
+  <section class="fin-panel"><h2 class="fin-panel__title">Revenue forecast</h2><canvas id="fin-chart-forecast" height="140"></canvas></section>
+</div>
+<div class="fin-grid-2">
+  <section class="fin-panel"><h2 class="fin-panel__title">Subscription growth</h2><canvas id="fin-chart-subs" height="140"></canvas></section>
+  <section class="fin-panel"><h2 class="fin-panel__title">Plan distribution</h2><canvas id="fin-chart-plans" height="140"></canvas></section>
+</div>
+<section class="fin-panel">
+  <h2 class="fin-panel__title">Trial → paid conversion</h2>
+  <p class="fin-kpi__value">{{ trial_conversion.rate }}%</p>
+  <p class="fin-muted">{{ trial_conversion.converted }} converted · {{ trial_conversion.trials }} active trials</p>
+</section>
+{% endblock %}

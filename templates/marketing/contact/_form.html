@@ -1,0 +1,117 @@
+<section class="hrms-section hrms-contact-main" id="contact-form">
+  <div class="hrms-container hrms-contact-main__grid">
+    <div class="hrms-contact-form-wrap hrms-reveal">
+      <div class="hrms-contact-form-card">
+        <h2 class="hrms-contact-form-card__title">Send us a message</h2>
+        <p class="hrms-contact-form-card__desc">Tell us about your team — we'll recommend the right plan and next steps.</p>
+
+        {% if form_sent %}
+        <div class="hrms-contact-alert hrms-contact-alert--success" role="status">
+          <i data-lucide="circle-check" class="h-5 w-5"></i>
+          <div>
+            <strong>Message received!</strong>
+            <p>Our team will reach out within 4 business hours.</p>
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post"
+              action="{% url 'accounts:contact' %}#contact-form"
+              class="hrms-contact-form"
+              data-contact-form
+              {% if formsubmit_enabled %}data-formsubmit-url="{{ formsubmit_ajax_url }}"
+              data-formsubmit-enabled="true"
+              data-site-url="{{ site_url }}"{% endif %}
+              novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="contact">
+
+          <div class="hrms-contact-form__grid">
+            {% include "marketing/contact/_field.html" with field=contact_form.full_name %}
+            {% include "marketing/contact/_field.html" with field=contact_form.company_name %}
+            {% include "marketing/contact/_field.html" with field=contact_form.work_email %}
+            {% include "marketing/contact/_field.html" with field=contact_form.phone_number %}
+            <div class="hrms-contact-form__full">
+              {% include "marketing/contact/_field.html" with field=contact_form.employee_count %}
+            </div>
+          </div>
+
+          <fieldset class="hrms-contact-modules">
+            <legend class="hrms-contact-modules__legend">Interested modules</legend>
+            <div class="hrms-contact-modules__grid">
+              {% for checkbox in contact_form.interested_modules %}
+              <label class="hrms-contact-module-chip">
+                {{ checkbox.tag }}
+                <span>{{ checkbox.choice_label }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <div class="hrms-contact-form__full">
+            {% include "marketing/contact/_field.html" with field=contact_form.message %}
+          </div>
+
+          <button type="submit" class="hrms-btn hrms-btn--primary hrms-btn--lg w-full sm:w-auto" data-contact-submit>
+            <span data-submit-label>Send message</span>
+            <span data-submit-loading class="hidden">
+              <svg class="hrms-contact-spinner" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4" stroke-linecap="round"/></svg>
+              Sending…
+            </span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <aside class="hrms-contact-sidebar hrms-reveal hrms-reveal--delay">
+      <div class="hrms-contact-info-card">
+        <h3>Contact information</h3>
+        <ul class="hrms-contact-info-list">
+          <li>
+            <span class="hrms-contact-info-list__icon"><i data-lucide="mail" class="h-4 w-4"></i></span>
+            <div>
+              <strong>Email</strong>
+              <a href="mailto:{{ contact_inbox_email }}">{{ contact_inbox_email }}</a>
+            </div>
+          </li>
+          <li>
+            <span class="hrms-contact-info-list__icon"><i data-lucide="phone" class="h-4 w-4"></i></span>
+            <div>
+              <strong>Phone</strong>
+              <a href="tel:+911800000000">+91 1800-000-0000</a>
+            </div>
+          </li>
+          <li>
+            <span class="hrms-contact-info-list__icon"><i data-lucide="map-pin" class="h-4 w-4"></i></span>
+            <div>
+              <strong>Office</strong>
+              <span>91 Springboard, Koramangala<br>Bengaluru, Karnataka 560034</span>
+            </div>
+          </li>
+          <li>
+            <span class="hrms-contact-info-list__icon"><i data-lucide="clock" class="h-4 w-4"></i></span>
+            <div>
+              <strong>Business hours</strong>
+              <span>Mon – Fri, 10:00 – 18:00 IST</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="hrms-contact-trust-mini">
+        {% for value, label in trust_stats %}
+        <div>
+          <strong>{{ value }}</strong>
+          <span>{{ label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="hrms-contact-badges">
+        <span><i data-lucide="shield-check" class="h-3.5 w-3.5"></i> SOC-ready</span>
+        <span><i data-lucide="lock" class="h-3.5 w-3.5"></i> GDPR aligned</span>
+        <span><i data-lucide="cloud" class="h-3.5 w-3.5"></i> 99.9% uptime</span>
+      </div>
+    </aside>
+  </div>
+</section>

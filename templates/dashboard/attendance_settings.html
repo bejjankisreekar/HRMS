@@ -1,0 +1,100 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Attendance settings · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'platform-forms.css' %}">
+<link rel="stylesheet" href="{% static 'settings-pages.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:settings' as settings_url %}
+  {% include "dashboard/_back_button.html" with back_url=settings_url back_label="Settings" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="settings-page platform-form w-full space-y-6">
+  <div class="settings-hero">
+    <h1>Attendance settings</h1>
+    <p>Control how HR marks team attendance and who appears on the mark-attendance screen.</p>
+  </div>
+
+  <section class="settings-panel">
+    <div class="settings-panel-header">
+      <h2 class="text-sm font-semibold">HR mark attendance</h2>
+    </div>
+    <div class="settings-panel-body">
+      <form method="post" class="space-y-5">
+        {% csrf_token %}
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 dark:border-white/10">
+          <input type="checkbox"
+                 name="hr_self_in_mark_attendance"
+                 class="mt-1 h-4 w-4 shrink-0 accent-violet-600"
+                 {% if organization.hr_self_in_mark_attendance %}checked{% endif %}>
+          <span>
+            <span class="block text-sm font-semibold text-slate-900 dark:text-white">Show HR in mark-attendance table</span>
+            <span class="mt-1 block text-sm text-slate-600 dark:text-slate-400">
+              When off (default), HR users do not see their own row in mark attendance and cannot edit their login/logout there.
+              They can still view their times in the read-only “My attendance today” summary.
+            </span>
+          </span>
+        </label>
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
+            Save settings
+          </button>
+          <a href="{% url 'dashboard:attendance_team' %}" class="text-sm font-semibold text-violet-600 hover:text-violet-500">
+            Open staff attendance →
+          </a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="settings-panel">
+    <div class="settings-panel-header">
+      <h2 class="text-sm font-semibold">Configuration</h2>
+    </div>
+    <div class="settings-panel-body">
+      <div class="settings-grid">
+        <a href="{% url 'dashboard:attendance_shifts' %}" class="settings-card">
+          <div class="settings-card-icon"><i data-lucide="clock" class="h-5 w-5"></i></div>
+          <h3>Work shifts</h3>
+          <p>Shift timings, grace period, and staff assignment.</p>
+        </a>
+        <a href="{% url 'shifts:management' %}" class="settings-card">
+          <div class="settings-card-icon"><i data-lucide="calendar-clock" class="h-5 w-5"></i></div>
+          <h3>Advanced shifts</h3>
+          <p>Rotations, weekly off, and schedule management.</p>
+        </a>
+        <a href="{% url 'dashboard:work_calendar' %}" class="settings-card">
+          <div class="settings-card-icon"><i data-lucide="calendar-days" class="h-5 w-5"></i></div>
+          <h3>Work calendar</h3>
+          <p>Weekends, rotating off days, and holiday calendar.</p>
+        </a>
+        <a href="{% url 'leaves:management' %}" class="settings-card">
+          <div class="settings-card-icon"><i data-lucide="palmtree" class="h-5 w-5"></i></div>
+          <h3>Leave policies</h3>
+          <p>Leave types, quotas, and approvals.</p>
+        </a>
+        <a href="{% url 'dashboard:attendance_corrections' %}" class="settings-card">
+          <div class="settings-card-icon"><i data-lucide="clipboard-check" class="h-5 w-5"></i></div>
+          <h3>Corrections</h3>
+          <p>Approve or reject attendance regularization requests.</p>
+        </a>
+        <a href="{% url 'attendance:reports' %}" class="settings-card">
+          <div class="settings-card-icon"><i data-lucide="bar-chart-3" class="h-5 w-5"></i></div>
+          <h3>Full reports</h3>
+          <p>Analytics, exports, and team attendance reports.</p>
+        </a>
+        <div class="settings-card opacity-80 cursor-default">
+          <div class="settings-card-icon"><i data-lucide="scan-face" class="h-5 w-5"></i></div>
+          <h3>Biometric / devices</h3>
+          <p>Future: connect fingerprint or card devices. Schema ready (`BIOMETRIC` source).</p>
+          <div class="settings-card-footer"><span class="text-slate-400">Coming soon</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

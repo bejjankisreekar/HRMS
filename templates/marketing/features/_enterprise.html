@@ -1,0 +1,17 @@
+<section class="hrms-section hrms-feat-enterprise" aria-labelledby="enterprise-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Growth ready</span>
+      <h2 id="enterprise-heading" class="hrms-section__title">Built for security, scale, and compliance</h2>
+    </div>
+    <div class="hrms-feat-enterprise__grid">
+      {% for title, desc, icon in enterprise_features %}
+      <article class="hrms-feat-enterprise-card hrms-reveal">
+        <i data-lucide="{{ icon }}" class="h-7 w-7 text-violet-400"></i>
+        <h3>{{ title }}</h3>
+        <p>{{ desc }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

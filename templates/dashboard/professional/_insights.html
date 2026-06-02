@@ -1,0 +1,25 @@
+<section class="pro-panel pro-insights" aria-label="HR insights">
+  <div class="pro-panel__head">
+    <h2><i data-lucide="lightbulb"></i> HR insights</h2>
+    {% if pending_approvals %}<span class="pro-tag pro-tag--amber">{{ pending_approvals }} pending</span>{% endif %}
+  </div>
+  {% if insights %}
+  <ul class="pro-insights__list">
+    {% for item in insights %}
+    <li class="pro-insight pro-insight--{{ item.type }}">
+      <span class="pro-insight__icon"><i data-lucide="{{ item.icon }}"></i></span>
+      <div class="pro-insight__body">
+        <strong>{{ item.title }}</strong>
+        <p>{{ item.body }}</p>
+        <a href="{% url item.action_url %}" class="pro-link">{{ item.action_label }} →</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="pro-empty pro-empty--compact">
+    <i data-lucide="check-circle-2"></i>
+    <p>All clear — no critical alerts right now.</p>
+  </div>
+  {% endif %}
+</section>

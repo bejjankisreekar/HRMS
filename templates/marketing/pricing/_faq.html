@@ -1,0 +1,16 @@
+<section class="hrms-section hrms-price-faq" id="faq" aria-labelledby="price-faq-heading">
+  <div class="hrms-container hrms-price-faq__layout">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">FAQ</span>
+      <h2 id="price-faq-heading" class="hrms-section__title">Pricing questions</h2>
+    </div>
+    <div class="hrms-accordion hrms-reveal" data-accordion>
+      {% for question, answer in pricing_faq %}
+      <details class="hrms-accordion__item">
+        <summary>{{ question }}</summary>
+        <p>{{ answer }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>

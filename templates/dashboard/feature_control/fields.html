@@ -1,0 +1,20 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Field-level control</h2></div>
+  {% regroup fields by form_context as groups %}
+  {% for group in groups %}
+  <div class="fcc-group">
+    <h3 class="fcc-group__title">{{ group.grouper|default:"General"|title }}</h3>
+    <div class="fcc-toggle-grid">
+      {% for field in group.list %}
+      <label class="fcc-toggle-row">
+        <span><strong>{{ field.name }}</strong> <code>{{ field.key }}</code></span>
+        <input type="checkbox" class="fcc-switch fcc-field-toggle" data-field-id="{{ field.pk }}"{% if field.is_globally_visible %} checked{% endif %}>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

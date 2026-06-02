@@ -1,0 +1,27 @@
+{% extends "marketing/base_marketing.html" %}
+{% load static %}
+
+{% block title %}Features — HRMS Suite | Enterprise HR Platform{% endblock %}
+{% block og_title %}HRMS Suite Features — Complete HR Ecosystem{% endblock %}
+
+{% block marketing_extra_head %}
+<meta name="description" content="Explore HRMS Suite features: Core HR, attendance, payroll, leave, performance, analytics, and enterprise security. Start your free trial.">
+<meta name="keywords" content="HRMS features, employee management, payroll software, attendance tracking, leave management, HR analytics">
+<link rel="stylesheet" href="{% static 'features.css' %}">
+{% endblock %}
+
+{% block marketing_content %}
+  {% include "marketing/features/_hero.html" %}
+  {% include "marketing/features/_category_nav.html" %}
+  {% include "marketing/features/_categories.html" %}
+  {% include "marketing/features/_demo_preview.html" %}
+  {% include "marketing/features/_comparison.html" %}
+  {% include "marketing/features/_enterprise.html" %}
+  {% include "marketing/features/_integrations.html" %}
+  {% include "marketing/features/_mobile.html" %}
+  {% include "marketing/features/_cta_strip.html" %}
+{% endblock %}
+
+{% block marketing_extra_js %}
+<script src="{% static 'features.js' %}" defer></script>
+{% endblock %}

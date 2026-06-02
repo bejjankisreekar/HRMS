@@ -1,0 +1,43 @@
+{% extends "dashboard/feature_control/_base.html" %}
+
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head fcc-toolbar">
+    <div>
+      <h2 class="fin-panel__title">Global feature control</h2>
+      <p class="fin-muted">Disable a feature globally to hide it from all organizations, navigation, and routes.</p>
+    </div>
+    <form method="get" class="fcc-search">
+      <input type="search" name="q" value="{{ search_q }}" placeholder="Search features…" class="fcc-input">
+      <select name="category" class="fcc-input">
+        <option value="">All categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}"{% if filter_category == cat %} selected{% endif %}>{{ cat|title }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="fin-btn fin-btn--ghost fin-btn--sm">Filter</button>
+    </form>
+  </div>
+
+  {% regroup features by category as groups %}
+  {% for group in groups %}
+  <div class="fcc-group">
+    <h3 class="fcc-group__title">{{ group.grouper|default:"General"|title }}</h3>
+    <div class="fcc-toggle-grid">
+      {% for feat in group.list %}
+      <label class="fcc-toggle-row" data-feature-id="{{ feat.pk }}">
+        <span class="fcc-toggle-row__info">
+          <strong>{{ feat.name }}</strong>
+          <code>{{ feat.key }}</code>
+          {% if feat.module %}<span class="fcc-tag">{{ feat.module.name }}</span>{% endif %}
+        </span>
+        <input type="checkbox" class="fcc-switch fcc-global-toggle" data-feature-id="{{ feat.pk }}"{% if feat.is_globally_enabled %} checked{% endif %}>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% empty %}
+  <p class="fin-muted">No features found. Run <code>seed_feature_control</code>.</p>
+  {% endfor %}
+</section>
+{% endblock %}

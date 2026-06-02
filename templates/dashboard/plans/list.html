@@ -1,0 +1,39 @@
+{% extends "dashboard/plans/_base.html" %}
+
+{% block plans_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head">
+    <h2 class="fin-panel__title">Subscription plans</h2>
+    <p class="fin-muted">Basic · Professional · Growth — fully configurable without code changes.</p>
+  </div>
+  <div class="fin-plan-grid">
+    {% for plan in plans %}
+    <article class="fin-plan-card{% if not plan.is_active %} is-disabled{% endif %}">
+      <div class="fin-plan-card__head">
+        <h3>{{ plan.name }}</h3>
+        <span class="pm-badge{% if plan.is_active %} is-active{% endif %}">{{ plan.is_active|yesno:"Active,Disabled" }}</span>
+      </div>
+      <p class="fin-muted">{{ plan.description|truncatechars:90|default:"No description" }}</p>
+      <dl class="fin-plan-meta">
+        <div><dt>Employees</dt><dd>{% if plan.employee_limit %}{{ plan.employee_limit }}{% else %}Unlimited{% endif %}</dd></div>
+        <div><dt>Storage</dt><dd>{% if plan.storage_limit_mb %}{{ plan.storage_limit_mb }} MB{% else %}Custom{% endif %}</dd></div>
+        <div><dt>Features</dt><dd>{{ plan.feature_count }}</dd></div>
+        <div><dt>Menu items</dt><dd>{{ plan.menu_count }}</dd></div>
+        <div><dt>Monthly</dt><dd>₹{{ plan.monthly_price_inr|floatformat:0 }}</dd></div>
+        <div><dt>Subscribers</dt><dd>{{ plan.sub_count }}</dd></div>
+      </dl>
+      <div class="pm-card-actions">
+        <a href="{% url 'dashboard:super_plan_features' plan.pk %}" class="fin-btn fin-btn--primary fin-btn--sm">Feature control</a>
+        <a href="{% url 'dashboard:plans:detail' plan.pk %}" class="fin-btn fin-btn--primary fin-btn--sm">Configure</a>
+        <form method="post" action="{% url 'dashboard:plans:clone' plan.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="fin-btn fin-btn--ghost fin-btn--sm">Clone</button>
+        </form>
+      </div>
+    </article>
+    {% empty %}
+    <p class="fin-muted">Run <code>python manage.py seed_billing_catalog</code> then <code>seed_plan_features</code>.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

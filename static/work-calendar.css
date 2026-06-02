@@ -1,0 +1,129 @@
+.wc-page .wc-policy-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dark .wc-page .wc-policy-option {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.wc-page .wc-policy-option:has(input:checked) {
+  border-color: rgb(139 92 246);
+  background: rgb(139 92 246 / 0.06);
+}
+
+.wc-page .wc-policy-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(30 41 59);
+}
+
+.dark .wc-page .wc-policy-label {
+  color: rgb(226 232 240);
+}
+
+.wc-panel {
+  display: none;
+}
+
+.wc-panel.is-visible {
+  display: block;
+}
+
+.wc-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(226 232 240);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.wc-day-chip:has(input:checked) {
+  background: rgb(139 92 246 / 0.12);
+  border-color: rgb(139 92 246);
+  color: rgb(109 40 217);
+}
+
+.wc-rotation-step {
+  border-radius: 0.75rem;
+  border: 1px dashed rgb(203 213 225);
+  padding: 0.75rem;
+}
+
+.wc-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.wc-cal-head {
+  text-align: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: rgb(100 116 139);
+  padding: 0.25rem;
+}
+
+.wc-cal-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  background: rgb(248 250 252);
+  position: relative;
+}
+
+.dark .wc-cal-cell {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wc-cal-cell--off {
+  background: rgb(254 243 199);
+  color: rgb(180 83 9);
+}
+
+.wc-cal-cell--holiday {
+  background: rgb(196 181 253);
+  color: rgb(91 33 182);
+  font-weight: 600;
+}
+
+.wc-cal-cell--empty {
+  background: transparent;
+}
+
+.wc-cal-dot {
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.wc-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background: rgb(241 245 249);
+  font-weight: 700;
+}
+
+.wc-nav-btn:hover {
+  background: rgb(226 232 240);
+}

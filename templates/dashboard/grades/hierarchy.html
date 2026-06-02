@@ -1,0 +1,49 @@
+{% extends "dashboard/grades/_base.html" %}
+
+{% block grades_content %}
+<p class="grd-muted">Visual grade hierarchy — parent/child relationships. For people reporting lines, use the <a href="{% url 'dashboard:orgchart:tree' %}" class="text-teal-600 font-semibold">Organization tree</a>.</p>
+
+<div class="grd-grid-2 mt-4">
+  <section class="grd-panel">
+    <h2 class="grd-panel__title">HR hierarchy</h2>
+    {% include "dashboard/grades/_tree.html" with nodes=hr_tree %}
+  </section>
+  <section class="grd-panel">
+    <h2 class="grd-panel__title">Employee hierarchy</h2>
+    {% include "dashboard/grades/_tree.html" with nodes=employee_tree %}
+  </section>
+  <section class="grd-panel">
+    <h2 class="grd-panel__title">Management grades</h2>
+    {% include "dashboard/grades/_tree.html" with nodes=management_tree %}
+  </section>
+  <section class="grd-panel">
+    <h2 class="grd-panel__title">Executive / Technical / Contractual</h2>
+    {% include "dashboard/grades/_tree.html" with nodes=all_trees.EXECUTIVE %}
+    {% include "dashboard/grades/_tree.html" with nodes=all_trees.TECHNICAL %}
+    {% include "dashboard/grades/_tree.html" with nodes=all_trees.CONTRACTUAL %}
+  </section>
+</div>
+
+<section class="grd-panel mt-4">
+  <h2 class="grd-panel__title">Employee mapping (grade · designation · reporting)</h2>
+  <table class="grd-table">
+    <thead>
+      <tr><th>Employee</th><th>Auth role</th><th>Grade</th><th>Designation</th><th>Department</th><th>Reports to</th></tr>
+    </thead>
+    <tbody>
+      {% for u in staff_mapping %}
+      <tr>
+        <td>{{ u.display_name }}</td>
+        <td>{{ u.get_role_display }}</td>
+        <td>{% if u.job_grade %}{{ u.job_grade.name }}{% else %}<span class="grd-muted">Unassigned</span>{% endif %}</td>
+        <td>{{ u.designation_label|default:"—" }}</td>
+        <td>{{ u.department_name|default:"—" }}</td>
+        <td>{% if u.reporting_manager %}{{ u.reporting_manager.display_name }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="grd-muted">No staff found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+<section class="pro-kpis" aria-label="Key performance indicators">
+  {% for kpi in kpis %}
+  <a href="{% if kpi.url_name != '#' %}{% url kpi.url_name %}{% else %}#{% endif %}"
+     class="pro-kpi pro-kpi--{{ kpi.accent }}">
+    <div class="pro-kpi__top">
+      <span class="pro-kpi__icon"><i data-lucide="{{ kpi.icon }}"></i></span>
+      <span class="pro-kpi__trend {% if kpi.trend_up %}pro-kpi__trend--up{% else %}pro-kpi__trend--down{% endif %}">
+        <i data-lucide="{% if kpi.trend_up %}trending-up{% else %}trending-down{% endif %}"></i>
+      </span>
+    </div>
+    <span class="pro-kpi__value">{{ kpi.value }}</span>
+    <span class="pro-kpi__label">{{ kpi.label }}</span>
+    <span class="pro-kpi__hint">{{ kpi.trend }}</span>
+  </a>
+  {% endfor %}
+</section>

@@ -1,0 +1,41 @@
+<section class="hrms-section hrms-price-compare" aria-labelledby="compare-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Compare plans</span>
+      <h2 id="compare-heading" class="hrms-section__title">Side-by-side feature comparison</h2>
+    </div>
+
+    <div class="hrms-price-compare__wrap hrms-reveal">
+      <table class="hrms-price-compare__table">
+        <thead>
+          <tr>
+            <th scope="col">Feature</th>
+            {% for plan in pricing_plans %}
+            <th scope="col" {% if plan.popular %}class="hrms-price-compare__highlight"{% endif %}>{{ plan.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in comparison_features %}
+          {% if row.is_category %}
+          <tr class="hrms-price-compare__category">
+            <th colspan="{{ pricing_plans|length|add:1 }}">{{ row.label }}</th>
+          </tr>
+          {% else %}
+          <tr>
+            <th scope="row">{{ row.label }}</th>
+            {% for cell in row.values %}
+            <td{% if cell.popular %} class="hrms-price-compare__highlight"{% endif %}>
+              {% if cell.val == True %}<i data-lucide="check" class="hrms-price-check"></i>
+              {% elif cell.val == False %}<i data-lucide="minus" class="hrms-price-dash"></i>
+              {% else %}{{ cell.val }}{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

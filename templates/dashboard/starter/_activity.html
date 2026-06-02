@@ -1,0 +1,21 @@
+<section class="starter-activity starter-card" aria-label="Recent activity">
+  <div class="starter-card__head">
+    <h3>Recent activity</h3>
+  </div>
+
+  {% if has_activities %}
+  <ul class="starter-activity__list">
+    {% for item in activities %}
+    <li class="starter-activity__item starter-activity__item--{{ item.color }}">
+      <span class="starter-activity__icon"><i data-lucide="{{ item.icon }}"></i></span>
+      <div class="starter-activity__body">
+        <p class="starter-activity__title">{{ item.title }}</p>
+        <p class="starter-activity__meta">{{ item.meta }} · {{ item.time|timesince }} ago</p>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% include "dashboard/starter/_empty_state.html" with variant="notifications" compact=True %}
+  {% endif %}
+</section>

@@ -1,0 +1,30 @@
+{% extends "dashboard/plans/_base.html" %}
+
+{% block plans_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head">
+    <h2 class="fin-panel__title">Feature catalog</h2>
+    <p class="fin-muted">All platform features — assign to plans from each plan's detail page.</p>
+  </div>
+  <div class="pm-feature-catalog">
+    {% regroup features by category as groups %}
+    {% for group in groups %}
+    <div class="pm-feature-group">
+      <h3 class="pm-feature-group__title">{{ group.grouper|default:"General"|title }}</h3>
+      <table class="pm-table">
+        <thead><tr><th>Feature</th><th>Key</th><th>Gated routes</th></tr></thead>
+        <tbody>
+          {% for feat in group.list %}
+          <tr>
+            <td>{{ feat.name }}</td>
+            <td><code>{{ feat.key }}</code></td>
+            <td class="fin-muted">{% for u in feat.url_names %}<code>{{ u }}</code>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

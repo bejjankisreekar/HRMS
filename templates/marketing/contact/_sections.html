@@ -1,0 +1,110 @@
+<section class="hrms-section hrms-contact-support" aria-labelledby="support-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Support channels</span>
+      <h2 id="support-heading" class="hrms-section__title">Reach the right team</h2>
+    </div>
+    <div class="hrms-contact-support__grid">
+      {% for channel in support_channels %}
+      <article class="hrms-contact-support-card hrms-reveal">
+        <i data-lucide="{{ channel.icon }}" class="h-7 w-7 text-violet-400"></i>
+        <h3>{{ channel.title }}</h3>
+        <p>{{ channel.description }}</p>
+        <a href="mailto:{{ channel.email }}" class="hrms-contact-support-card__email">{{ channel.email }}</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-contact-map" aria-labelledby="map-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Visit us</span>
+      <h2 id="map-heading" class="hrms-section__title">Our Bengaluru office</h2>
+    </div>
+    <div class="hrms-contact-map__frame hrms-reveal">
+      <div class="hrms-contact-map__placeholder">
+        <i data-lucide="map" class="h-12 w-12 text-violet-400"></i>
+        <p>91 Springboard, Koramangala, Bengaluru</p>
+        <a href="https://maps.google.com/?q=Koramangala+Bengaluru" target="_blank" rel="noopener noreferrer" class="hrms-btn hrms-btn--outline hrms-btn--sm mt-3">
+          Open in Google Maps
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-contact-testimonials" aria-labelledby="contact-testimonials-heading">
+  <div class="hrms-container">
+    <h2 id="contact-testimonials-heading" class="sr-only">Testimonials</h2>
+    <div class="hrms-contact-testimonials__grid">
+      {% for t in contact_testimonials %}
+      <blockquote class="hrms-contact-testimonial hrms-reveal">
+        <p>"{{ t.quote }}"</p>
+        <footer><strong>{{ t.name }}</strong> · {{ t.role }}</footer>
+      </blockquote>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-contact-faq" id="faq" aria-labelledby="contact-faq-heading">
+  <div class="hrms-container hrms-contact-faq__layout">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Quick help</span>
+      <h2 id="contact-faq-heading" class="hrms-section__title">Common questions</h2>
+    </div>
+    <div class="hrms-accordion hrms-reveal">
+      {% for question, answer in contact_faq %}
+      <details class="hrms-accordion__item">
+        <summary>{{ question }}</summary>
+        <p>{{ answer }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-contact-leads" id="newsletter" aria-labelledby="leads-heading">
+  <div class="hrms-container">
+    <div class="hrms-contact-leads__grid hrms-reveal">
+      <div class="hrms-contact-leads__newsletter">
+        <h2 id="leads-heading" class="text-lg font-bold">Stay updated</h2>
+        <p class="mt-1 text-sm text-slate-400">HR trends, product updates, and launch announcements.</p>
+        <form method="post" action="{% url 'accounts:contact' %}#newsletter" class="hrms-contact-newsletter-form mt-4">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="newsletter">
+          <div class="hrms-field">
+            {{ newsletter_form.email }}
+            <label for="{{ newsletter_form.email.id_for_label }}" class="hrms-field__label">Work email</label>
+          </div>
+          <button type="submit" class="hrms-btn hrms-btn--primary w-full sm:w-auto">Subscribe</button>
+        </form>
+      </div>
+      <div class="hrms-contact-leads__brochure">
+        <i data-lucide="file-down" class="h-8 w-8 text-cyan-400"></i>
+        <h3 class="mt-3 font-bold">Product brochure</h3>
+        <p class="mt-1 text-sm text-slate-400">Download our overview PDF for stakeholders and leadership teams.</p>
+        <a href="{% url 'accounts:features' %}" class="hrms-btn hrms-btn--outline mt-4">
+          <i data-lucide="download" class="h-4 w-4"></i>
+          View features overview
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-contact-cta" aria-labelledby="contact-cta-heading">
+  <div class="hrms-container">
+    <div class="hrms-cta__box hrms-reveal">
+      <div class="hrms-cta__glow" aria-hidden="true"></div>
+      <h2 id="contact-cta-heading" class="hrms-cta__title">Ready to modernize your HR stack?</h2>
+      <p class="hrms-cta__desc">Start a free trial or talk to sales — no commitment required.</p>
+      <div class="hrms-cta__actions">
+        <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--white hrms-btn--lg">Start free trial</a>
+        <button type="button" class="hrms-btn hrms-btn--glass hrms-btn--lg" data-demo-open>Book demo</button>
+      </div>
+    </div>
+  </div>
+</section>

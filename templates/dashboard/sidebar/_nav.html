@@ -1,0 +1,5 @@
+<nav class="hrms-sidebar-nav flex-1 overflow-y-auto overflow-x-hidden px-3 pb-2" aria-label="Main navigation">
+  {% for group in sidebar.groups %}
+    {% include "dashboard/sidebar/_group.html" with group=group %}
+  {% endfor %}
+</nav>

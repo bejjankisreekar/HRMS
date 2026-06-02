@@ -1,0 +1,307 @@
+{% load static %}
+<section id="storage-analytics" class="sto-section space-y-6 mt-8">
+  <div class="sto-section-head">
+    <div>
+      <h2 class="sto-section-title">Storage Analytics & Resource Usage</h2>
+      <p class="sto-section-desc">Enterprise-grade monitoring — usage, quotas, health, and file operations for this organization.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button type="button" class="sto-btn sto-btn--primary sto-btn--sm" data-sto-sync>
+        <i data-lucide="refresh-cw"></i> Sync index
+      </button>
+      <a href="{% url 'dashboard:storage:hub' %}" class="sto-btn sto-btn--ghost sto-btn--sm text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+        Platform hub →
+      </a>
+    </div>
+  </div>
+
+  {# 1. Storage Overview KPIs #}
+  <div class="sto-kpi-grid">
+    <article class="sto-kpi sto-kpi--accent">
+      <p class="sto-kpi__label">Total storage used</p>
+      <p class="sto-kpi__value">{{ storage.total_label }}</p>
+    </article>
+    <article class="sto-kpi">
+      <p class="sto-kpi__label">Storage remaining</p>
+      <p class="sto-kpi__value">{{ storage.remaining_label }}</p>
+    </article>
+    <article class="sto-kpi">
+      <p class="sto-kpi__label">Storage limit</p>
+      <p class="sto-kpi__value">{{ storage.limit_label }}</p>
+    </article>
+    <article class="sto-kpi">
+      <p class="sto-kpi__label">Total uploaded files</p>
+      <p class="sto-kpi__value">{{ storage.file_count }}</p>
+    </article>
+    <article class="sto-kpi{% if storage.upload_growth_percent > 40 %} sto-kpi--warn{% endif %}">
+      <p class="sto-kpi__label">Monthly upload growth</p>
+      <p class="sto-kpi__value">{% if storage.upload_growth_percent > 0 %}+{% endif %}{{ storage.upload_growth_percent }}%</p>
+    </article>
+    <article class="sto-kpi">
+      <p class="sto-kpi__label">Largest file consumer</p>
+      <p class="sto-kpi__value text-base">{{ storage.largest_consumer|truncatechars:28 }}</p>
+    </article>
+    <article class="sto-kpi">
+      <p class="sto-kpi__label">Active file usage</p>
+      <p class="sto-kpi__value">{{ storage.active_files }}</p>
+    </article>
+    <article class="sto-kpi{% if storage.threshold == 'critical' %} sto-kpi--critical{% elif storage.threshold == 'warning' %} sto-kpi--warn{% endif %}">
+      <p class="sto-kpi__label">Cloud usage</p>
+      <p class="sto-kpi__value">{{ storage.cloud_usage_percent }}%</p>
+    </article>
+  </div>
+
+  <div class="sto-panel">
+    <div class="sto-gauge-wrap">
+      <div class="sto-gauge">
+        <canvas id="sto-gauge-usage"></canvas>
+        <div class="sto-gauge__center">{{ storage.usage_percent }}%</div>
+      </div>
+      <div class="flex-1 min-w-[12rem]">
+        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ storage.total_label }} used / {{ storage.limit_label }}</p>
+        <div class="sto-progress mt-2">
+          <div class="sto-progress__bar sto-progress__bar--{{ storage.threshold }}" style="width:{{ storage.usage_percent }}%"></div>
+        </div>
+        <p class="sto-muted mt-2">{{ storage.uploads_this_month }} uploads this month · {{ duplicate_groups }} duplicate group(s)</p>
+        {% if storage.threshold == 'critical' %}
+        <span class="sto-badge sto-badge--critical mt-2">Storage almost full — upgrade recommended</span>
+        {% elif storage.threshold == 'warning' %}
+        <span class="sto-badge sto-badge--warning mt-2">Approaching limit</span>
+        {% else %}
+        <span class="sto-badge sto-badge--ok mt-2">Within limits</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# 8. Organization Health #}
+  <div class="sto-grid-2">
+    <section class="sto-panel">
+      <h3 class="sto-panel__title">Organization resource health</h3>
+      <div class="sto-health">
+        <div class="sto-health-score{% if health.score < 60 %} sto-health-score--critical{% elif health.score < 80 %} sto-health-score--warn{% endif %}">
+          {{ health.score }}
+          <span>Score</span>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-slate-900 dark:text-white">Resource efficiency</p>
+          <ul class="mt-2 space-y-1 text-sm">
+            {% for risk in health.risks %}
+            <li class="flex items-center gap-2"><span class="sto-badge sto-badge--warning">{{ risk }}</span></li>
+            {% empty %}
+            <li class="sto-muted">No risk indicators — storage profile is healthy.</li>
+            {% endfor %}
+          </ul>
+          <p class="sto-muted mt-3">Active users (7d): {{ plan_limits.active_sessions }} · Feature usage tracked via file index.</p>
+        </div>
+      </div>
+    </section>
+
+    {# 7. Storage Health Insights #}
+    <section class="sto-panel">
+      <h3 class="sto-panel__title">Storage health insights</h3>
+      <ul class="sto-insights">
+        {% for item in insights %}
+        <li class="sto-insight sto-insight--{{ item.tone }}">
+          <i data-lucide="{{ item.icon }}"></i>
+          <div><strong>{{ item.title }}</strong><p>{{ item.body }}</p></div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  {# 5. Plan Limit Monitoring #}
+  <section class="sto-panel">
+    <h3 class="sto-panel__title">Plan limit monitoring</h3>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div><p class="sto-kpi__label">Current plan</p><p class="font-semibold mt-1">{{ plan_limits.plan_name }}</p></div>
+      <div><p class="sto-kpi__label">Storage</p><p class="font-semibold mt-1">{{ plan_limits.storage_used_label }} / {{ plan_limits.storage_limit_label }}</p></div>
+      <div><p class="sto-kpi__label">Employees</p><p class="font-semibold mt-1">{{ plan_limits.employees }} / {{ plan_limits.employee_limit }}</p></div>
+      <div><p class="sto-kpi__label">API usage</p><p class="font-semibold mt-1">{{ plan_limits.api_usage }}</p></div>
+      <div><p class="sto-kpi__label">Active sessions</p><p class="font-semibold mt-1">{{ plan_limits.active_sessions }}</p></div>
+    </div>
+    {% if plan_limits.usage_percent >= 85 %}
+    <div class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 text-sm">
+      <strong>Upgrade prompt:</strong> This organization is at {{ plan_limits.usage_percent }}% storage capacity.
+      <a href="{% url 'dashboard:financials:subscriptions' %}" class="sto-action-link ml-1">Manage subscription →</a>
+    </div>
+    {% endif %}
+  </section>
+
+  {# 4. Storage Visualization #}
+  <div class="sto-grid-2">
+    <section class="sto-panel">
+      <h3 class="sto-panel__title">Storage by role</h3>
+      <canvas id="sto-chart-role" height="180"></canvas>
+    </section>
+    <section class="sto-panel">
+      <h3 class="sto-panel__title">File type distribution</h3>
+      <canvas id="sto-chart-category" height="180"></canvas>
+    </section>
+    <section class="sto-panel">
+      <h3 class="sto-panel__title">Upload trend (6 months)</h3>
+      <canvas id="sto-chart-trend" height="160"></canvas>
+    </section>
+    <section class="sto-panel">
+      <h3 class="sto-panel__title">Department-wise storage</h3>
+      {% if dept_breakdown %}
+      <canvas id="sto-chart-dept" height="160"></canvas>
+      {% else %}
+      <p class="sto-muted">No department-tagged files indexed yet.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  {# 2. Role-Based Storage Analytics #}
+  <section class="sto-panel">
+    <h3 class="sto-panel__title">Role-based storage analytics</h3>
+    <div class="sto-table-wrap">
+      <table class="sto-table">
+        <thead>
+          <tr><th>Role</th><th>Storage used</th><th>%</th><th>Files</th><th>Last upload</th></tr>
+        </thead>
+        <tbody>
+          {% for row in role_breakdown %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td><strong>{{ row.size_label }}</strong></td>
+            <td>{{ row.percent }}%</td>
+            <td>{{ row.file_count }}</td>
+            <td>{% if row.last_upload %}{{ row.last_upload|date:"M j, Y H:i" }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# 3. User-Level Storage Analytics #}
+  <section class="sto-panel">
+    <h3 class="sto-panel__title">User-level storage analytics</h3>
+    <div class="sto-filters">
+      <select id="sto-filter-role" aria-label="Filter by role">
+        <option value="">All roles</option>
+        <option value="ADMIN">Organization Admin</option>
+        <option value="HR">HR</option>
+        <option value="EMPLOYEE">Employee</option>
+      </select>
+      <select id="sto-filter-dept" aria-label="Filter by department">
+        <option value="">All departments</option>
+        {% for d in dept_breakdown %}
+        <option value="{{ d.name }}">{{ d.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="search" id="sto-filter-search" placeholder="Search users…" aria-label="Search users">
+    </div>
+    <div class="sto-table-wrap">
+      <table class="sto-table">
+        <thead>
+          <tr>
+            <th>User</th><th>Role</th><th>Department</th><th>Storage</th><th>Files</th><th>Last upload</th><th>Largest file</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in user_storage_rows %}
+          <tr data-sto-user-row data-role="{{ row.user.role }}" data-dept="{{ row.department }}">
+            <td>{{ row.user.display_name }}</td>
+            <td>{{ row.user.get_role_display }}</td>
+            <td>{{ row.department }}</td>
+            <td><strong>{{ row.size_label }}</strong></td>
+            <td>{{ row.file_count }}</td>
+            <td>{% if row.last_upload %}{{ row.last_upload|date:"M j, Y" }}{% else %}—{% endif %}</td>
+            <td title="{{ row.largest_file }}">{{ row.largest_file|truncatechars:24 }} ({{ row.largest_size }})</td>
+            <td class="whitespace-nowrap">
+              <button type="button" class="sto-action-link" onclick="document.getElementById('file-explorer').scrollIntoView({behavior:'smooth'})">View files</button>
+              ·
+              <button type="button" class="sto-action-link" data-sto-restrict data-user-id="{{ row.user.pk }}" data-restricted="{{ row.uploads_restricted|yesno:'true,false' }}">
+                {% if row.uploads_restricted %}Allow{% else %}Restrict{% endif %}
+              </button>
+              ·
+              <button type="button" class="sto-action-link" data-sto-quota data-user-id="{{ row.user.pk }}">Quota</button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="sto-muted">No user storage data.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# 6. File Management Center #}
+  <section id="file-explorer" class="sto-panel">
+    <h3 class="sto-panel__title">File management center</h3>
+    <p class="sto-muted mb-3">Indexed files across leave attachments, documents, payroll receipts, profiles, and org assets.</p>
+    <div class="sto-table-wrap">
+      <table class="sto-table">
+        <thead>
+          <tr><th>File</th><th>Category</th><th>Size</th><th>Uploaded by</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for f in org_files %}
+          <tr>
+            <td title="{{ f.file_name }}">{{ f.file_name|truncatechars:36 }}</td>
+            <td>{{ f.get_category_display }}</td>
+            <td>{{ f.file_size_bytes|filesizeformat }}</td>
+            <td>{% if f.uploaded_by %}{{ f.uploaded_by.display_name }}{% else %}—{% endif %}</td>
+            <td>{{ f.uploaded_at|date:"M j, Y" }}</td>
+            <td>
+              <button type="button" class="sto-action-link sto-action-link--danger" data-sto-deactivate data-file-id="{{ f.pk }}">Remove index</button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="sto-muted">No files indexed. Click “Sync index” to scan uploads.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if large_files %}
+    <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-6 mb-2">Largest files</h4>
+    <div class="sto-table-wrap">
+      <table class="sto-table">
+        <thead><tr><th>File</th><th>Size</th><th>Source</th></tr></thead>
+        <tbody>
+          {% for f in large_files %}
+          <tr>
+            <td>{{ f.file_name|truncatechars:40 }}</td>
+            <td>{{ f.file_size_bytes|filesizeformat }}</td>
+            <td class="sto-muted">{{ f.source_model }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  {# 9. Audit & Security Logs #}
+  <section class="sto-panel">
+    <h3 class="sto-panel__title">Audit & security logs</h3>
+    <ul class="sto-timeline">
+      {% for log in audit_logs %}
+      <li>
+        <time>{{ log.created_at|date:"M d H:i" }}</time>
+        <div>
+          <strong>{{ log.get_action_display }}</strong> — {{ log.summary }}
+          {% if log.actor %}<span class="sto-muted"> · {{ log.actor.display_name }}</span>{% endif %}
+          {% if log.target_user %}<span class="sto-muted"> → {{ log.target_user.display_name }}</span>{% endif %}
+        </div>
+      </li>
+      {% empty %}
+      <li class="sto-muted">No storage audit events yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {# 13. Future-ready placeholders #}
+  <section class="sto-panel">
+    <h3 class="sto-panel__title">Future-ready capabilities</h3>
+    <div class="sto-future-grid">
+      <div class="sto-future-card"><strong>AI storage optimization</strong><br>Automated cleanup recommendations based on access patterns.</div>
+      <div class="sto-future-card"><strong>Smart archival</strong><br>Move stale files to cold storage tiers.</div>
+      <div class="sto-future-card"><strong>Cost optimization</strong><br>Per-GB cost analytics and chargeback reporting.</div>
+      <div class="sto-future-card"><strong>Predictive forecasting</strong><br>ML-based storage growth projections.</div>
+    </div>
+  </section>
+</section>

@@ -1,0 +1,17 @@
+<section class="hrms-section hrms-price-trust" aria-labelledby="trust-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Trust & security</span>
+      <h2 id="trust-heading" class="hrms-section__title">Your data and payments are protected</h2>
+    </div>
+    <div class="hrms-price-trust__grid">
+      {% for title, desc, icon in trust_items %}
+      <article class="hrms-price-trust-card hrms-reveal">
+        <i data-lucide="{{ icon }}" class="h-7 w-7 text-violet-400"></i>
+        <h3>{{ title }}</h3>
+        <p>{{ desc }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

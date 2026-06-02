@@ -1,0 +1,148 @@
+{% load static %}
+<section class="org-fc-matrix" id="org-feature-matrix" aria-labelledby="org-fc-matrix-title">
+  <div class="org-fc-matrix__head">
+    <div>
+      <h2 class="org-fc-matrix__title" id="org-fc-matrix-title">Feature comparison</h2>
+      <p class="org-fc-matrix__sub">
+        Compare <strong>{{ org_plan.name|default:"No plan" }}</strong> defaults with this organization.
+        Grant complementary features or overrides beyond the plan.
+      </p>
+    </div>
+    <div class="org-fc-matrix__actions">
+      <a href="{% url 'dashboard:super_organization_features' organization.pk %}" class="org-fc-matrix__link">
+        Full feature control
+        <i data-lucide="arrow-up-right"></i>
+      </a>
+      <button type="button" class="org-fc-matrix__btn" data-bulk="reset_plan">Reset to plan</button>
+      <button type="button" class="org-fc-matrix__btn org-fc-matrix__btn--ghost" data-bulk="enable_all">Enable all</button>
+      <button type="button" class="org-fc-matrix__btn org-fc-matrix__btn--ghost" data-bulk="disable_all">Disable all</button>
+    </div>
+  </div>
+
+  {% if org_feature_summary %}
+  <div class="org-fc-matrix__kpis">
+    <div class="org-fc-matrix__kpi">
+      <span class="org-fc-matrix__kpi-val">{{ org_feature_summary.enabled_count|default:0 }}</span>
+      <span class="org-fc-matrix__kpi-lbl">Enabled</span>
+    </div>
+    <div class="org-fc-matrix__kpi">
+      <span class="org-fc-matrix__kpi-val">{{ org_feature_summary.override_count|default:0 }}</span>
+      <span class="org-fc-matrix__kpi-lbl">Overrides</span>
+    </div>
+    <div class="org-fc-matrix__kpi">
+      <span class="org-fc-matrix__kpi-val">{{ org_feature_summary.complementary_count|default:0 }}</span>
+      <span class="org-fc-matrix__kpi-lbl">Complimentary</span>
+    </div>
+    <div class="org-fc-matrix__kpi">
+      <span class="org-fc-matrix__kpi-val">{{ org_feature_summary.plan_count|default:0 }}</span>
+      <span class="org-fc-matrix__kpi-lbl">From plan</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="org-fc-matrix__legend">
+    <span><i class="org-fc-matrix__dot org-fc-matrix__dot--plan"></i> Included in plan</span>
+    <span><i class="org-fc-matrix__dot org-fc-matrix__dot--org"></i> Organization access</span>
+    <span><span class="org-fc-matrix__badge org-fc-matrix__badge--compl">Complimentary</span> Extra feature beyond plan</span>
+    <span><span class="org-fc-matrix__badge org-fc-matrix__badge--override">Override</span> Custom setting</span>
+  </div>
+
+  <div class="org-fc-matrix__toolbar">
+    <label class="org-fc-matrix__search">
+      <i data-lucide="search"></i>
+      <input type="search" id="org-fc-search" placeholder="Search features…" autocomplete="off">
+    </label>
+    <nav class="org-fc-matrix__nav" aria-label="Feature categories">
+      {% for group in org_feature_groups %}
+      <a href="#org-fc-cat-{{ group.category_id }}" class="org-fc-matrix__nav-link">{{ group.category_name }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+
+  <div class="org-fc-matrix__table-wrap">
+    <table class="org-fc-matrix__table">
+      <thead>
+        <tr>
+          <th scope="col" class="org-fc-matrix__col-feature">Feature</th>
+          <th scope="col" class="org-fc-matrix__col-plan">Plan</th>
+          <th scope="col" class="org-fc-matrix__col-org">Organization</th>
+          <th scope="col" class="org-fc-matrix__col-status">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in org_feature_groups %}
+        <tr class="org-fc-matrix__cat-row" id="org-fc-cat-{{ group.category_id }}">
+          <td colspan="4">
+            <button type="button" class="org-fc-matrix__cat-toggle" data-cat-toggle="{{ group.category_id }}" aria-expanded="true">
+              <i data-lucide="{{ group.category_icon }}"></i>
+              {{ group.category_name }}
+              <span class="org-fc-matrix__cat-count">{{ group.rows|length }}</span>
+              <i data-lucide="chevron-down" class="org-fc-matrix__cat-chevron"></i>
+            </button>
+            <span class="org-fc-matrix__cat-actions">
+              {% if group.category %}
+              <button type="button" class="org-fc-matrix__cat-btn" data-category-enable="{{ group.category.pk }}">Enable group</button>
+              <button type="button" class="org-fc-matrix__cat-btn" data-category-disable="{{ group.category.pk }}">Disable group</button>
+              {% endif %}
+            </span>
+          </td>
+        </tr>
+        {% for row in group.rows %}
+        <tr class="org-fc-matrix__row{% if row.is_child %} is-child{% endif %}{% if row.parent_disabled %} is-disabled-parent{% endif %}"
+            data-feature-id="{{ row.feature_id }}"
+            data-feature-key="{{ row.feature_key }}"
+            data-parent-key="{{ row.parent_key|default:'' }}"
+            data-cat="{{ group.category_id }}"
+            data-search="{{ row.name|lower }} {{ row.feature_key|lower }}">
+          <td class="org-fc-matrix__col-feature">
+            <span class="org-fc-matrix__fname">{{ row.name }}</span>
+            <code class="org-fc-matrix__fkey">{{ row.feature_key }}</code>
+          </td>
+          <td class="org-fc-matrix__col-plan">
+            <span class="org-fc-matrix__plan-cell{% if row.in_plan %} is-included{% else %} is-excluded{% endif %}" title="{% if row.in_plan %}Included in {{ org_plan.name }}{% else %}Not in {{ org_plan.name|default:'plan' }}{% endif %}">
+              {% if row.in_plan %}
+              <i data-lucide="check"></i>
+              {% else %}
+              <i data-lucide="minus"></i>
+              {% endif %}
+            </span>
+          </td>
+          <td class="org-fc-matrix__col-org">
+            <label class="org-fc-toggle" title="Toggle organization access">
+              <input type="checkbox"
+                     class="ofc-feature-toggle org-fc-matrix-toggle"
+                     data-feature-id="{{ row.feature_id }}"
+                     {% if row.effective %}checked{% endif %}
+                     {% if row.parent_disabled %}disabled{% endif %}>
+              <span class="org-fc-toggle__track">
+                <span class="org-fc-toggle__knob"></span>
+              </span>
+            </label>
+          </td>
+          <td class="org-fc-matrix__col-status">
+            <span class="org-fc-matrix__status-badges">
+              {% if row.is_complementary %}
+              <span class="org-fc-matrix__badge org-fc-matrix__badge--compl">Complimentary</span>
+              {% endif %}
+              {% if row.override != None %}
+              <span class="org-fc-matrix__badge org-fc-matrix__badge--override">Override</span>
+              {% elif row.in_plan and row.effective %}
+              <span class="org-fc-matrix__badge org-fc-matrix__badge--plan">Plan</span>
+              {% elif not row.effective %}
+              <span class="org-fc-matrix__badge org-fc-matrix__badge--off">Off</span>
+              {% endif %}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+        {% empty %}
+        <tr>
+          <td colspan="4" class="org-fc-matrix__empty">
+            Run <code>python manage.py seed_org_features</code> to populate the feature catalog.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -1,0 +1,84 @@
+<section class="hrms-hero" aria-labelledby="hero-heading">
+  <div class="hrms-hero__bg" aria-hidden="true">
+    <div class="hrms-hero__orb hrms-hero__orb--1"></div>
+    <div class="hrms-hero__orb hrms-hero__orb--2"></div>
+    <div class="hrms-hero__orb hrms-hero__orb--3"></div>
+    <div class="hrms-hero__grid"></div>
+  </div>
+
+  <div class="hrms-container hrms-hero__layout">
+    <div class="hrms-hero__content hrms-reveal">
+      <div class="hrms-pill">
+        <span class="hrms-pill__dot"></span>
+        Trusted by 500+ growing companies
+      </div>
+      <h1 id="hero-heading" class="hrms-hero__title">
+        The modern HR platform built for
+        <span class="hrms-gradient-text">scale & simplicity</span>
+      </h1>
+      <p class="hrms-hero__subtitle">
+        Run attendance, payroll, leave, and analytics from one secure cloud workspace — designed for HR teams that move fast.
+      </p>
+      <div class="hrms-hero__actions">
+        <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--primary hrms-btn--lg">
+          Start free trial
+          <i data-lucide="arrow-right" class="h-4 w-4"></i>
+        </a>
+        <button type="button" class="hrms-btn hrms-btn--glass hrms-btn--lg" data-demo-open>
+          <i data-lucide="calendar" class="h-4 w-4"></i>
+          Book demo
+        </button>
+      </div>
+      <div class="hrms-hero__checks">
+        <span><i data-lucide="check-circle" class="h-4 w-4"></i> 14-day free trial</span>
+        <span><i data-lucide="check-circle" class="h-4 w-4"></i> No credit card</span>
+        <span><i data-lucide="check-circle" class="h-4 w-4"></i> Setup in minutes</span>
+      </div>
+    </div>
+
+    <div class="hrms-hero__preview hrms-reveal hrms-reveal--delay" aria-hidden="true">
+      <div class="hrms-mockup hrms-float">
+        <div class="hrms-mockup__chrome">
+          <span></span><span></span><span></span>
+          <div class="hrms-mockup__url">app.hrmssuite.com/dashboard</div>
+        </div>
+        <div class="hrms-mockup__body">
+          <div class="hrms-mockup__sidebar">
+            <div class="hrms-mockup__logo"></div>
+            <div class="hrms-mockup__nav-item hrms-mockup__nav-item--active"></div>
+            <div class="hrms-mockup__nav-item"></div>
+            <div class="hrms-mockup__nav-item"></div>
+            <div class="hrms-mockup__nav-item"></div>
+          </div>
+          <div class="hrms-mockup__main">
+            <div class="hrms-mockup__kpis">
+              <div class="hrms-mockup__kpi"><span>Employees</span><strong>1,284</strong></div>
+              <div class="hrms-mockup__kpi"><span>Present</span><strong>96%</strong></div>
+              <div class="hrms-mockup__kpi"><span>Payroll</span><strong>₹42L</strong></div>
+            </div>
+            <div class="hrms-mockup__chart">
+              <div class="hrms-mockup__bar" style="--h: 45%"></div>
+              <div class="hrms-mockup__bar" style="--h: 72%"></div>
+              <div class="hrms-mockup__bar" style="--h: 58%"></div>
+              <div class="hrms-mockup__bar" style="--h: 85%"></div>
+              <div class="hrms-mockup__bar" style="--h: 65%"></div>
+              <div class="hrms-mockup__bar" style="--h: 90%"></div>
+            </div>
+            <div class="hrms-mockup__rows">
+              <div class="hrms-mockup__row"></div>
+              <div class="hrms-mockup__row"></div>
+              <div class="hrms-mockup__row"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hrms-mockup-card hrms-float hrms-float--delay">
+        <i data-lucide="trending-up" class="h-5 w-5 text-emerald-400"></i>
+        <div>
+          <p class="text-xs text-slate-400">Attendance rate</p>
+          <p class="text-lg font-bold text-white">+12.4%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,123 @@
+{% extends "dashboard/_shell.html" %}
+{% block title %}Platform Console · HRMS{% endblock %}
+{% block content %}
+<div class="space-y-8">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Platform console</h1>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Manage all organizations, plans, and billing settings.</p>
+    </div>
+    <a href="{% url 'dashboard:super_organization_create' %}"
+       class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-violet-500">
+      <i data-lucide="plus" class="h-4 w-4"></i> New organization
+    </a>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <div class="text-xs font-semibold text-slate-500">Organizations</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{{ stats.organizations_total }}</div>
+    </div>
+    <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <div class="text-xs font-semibold text-slate-500">Active orgs</div>
+      <div class="mt-2 text-2xl font-semibold text-emerald-600">{{ stats.organizations_active }}</div>
+    </div>
+    <a href="{% url 'dashboard:super_users' %}" class="rounded-2xl bg-white p-5 ring-1 ring-slate-200 transition hover:ring-violet-300 dark:bg-slate-900 dark:ring-white/10 dark:hover:ring-violet-500/40">
+      <div class="text-xs font-semibold text-slate-500">Total users</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{{ stats.users_total }}</div>
+      <div class="mt-1 text-xs text-violet-600 dark:text-violet-400">Manage all →</div>
+    </a>
+    <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <div class="text-xs font-semibold text-slate-500">Active subs</div>
+      <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{{ stats.subscriptions_active }}</div>
+    </div>
+    <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <div class="text-xs font-semibold text-slate-500">On trial</div>
+      <div class="mt-2 text-2xl font-semibold text-amber-600">{{ stats.trials }}</div>
+    </div>
+    <div class="rounded-2xl bg-white p-5 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <div class="text-xs font-semibold text-slate-500">Growth plan</div>
+      <div class="mt-2 text-2xl font-semibold text-violet-600">{{ stats.growth }}</div>
+    </div>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Plans breakdown</h2>
+      <ul class="mt-4 space-y-2">
+        {% for row in plan_breakdown %}
+        <li class="flex items-center justify-between text-sm">
+          <span class="text-slate-600 dark:text-slate-400">{{ row.subscription_plan }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white">{{ row.count }}</span>
+        </li>
+        {% empty %}
+        <li class="text-sm text-slate-500">No organizations yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Recent organizations</h2>
+        <a href="{% url 'dashboard:super_organizations' %}" class="text-xs font-semibold text-violet-600 hover:text-violet-500">View all</a>
+      </div>
+      <ul class="mt-4 divide-y divide-slate-100 dark:divide-white/10">
+        {% for org in recent_organizations %}
+        <li class="flex items-center justify-between py-3 text-sm">
+          <div>
+            <a href="{% url 'dashboard:super_organization_detail' org.pk %}" class="font-medium text-slate-900 hover:text-violet-600 dark:text-white">{{ org.name }}</a>
+            <div class="text-xs text-slate-500">{{ org.organization_code }} · {{ org.get_subscription_plan_display }}</div>
+          </div>
+          <span class="rounded-full px-2 py-0.5 text-xs {% if org.is_active %}bg-emerald-500/10 text-emerald-600{% else %}bg-rose-500/10 text-rose-600{% endif %}">
+            {% if org.is_active %}Active{% else %}Inactive{% endif %}
+          </span>
+        </li>
+        {% empty %}
+        <li class="py-4 text-sm text-slate-500">No organizations registered.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="rounded-2xl bg-white ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-4 dark:border-white/10">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">All platform users</h2>
+        <p class="text-xs text-slate-500">Usernames, edit, and delete accounts</p>
+      </div>
+      <a href="{% url 'dashboard:super_users' %}" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">Open user manager</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500 dark:bg-white/5">
+          <tr>
+            <th class="px-6 py-3">Username</th>
+            <th class="px-6 py-3">Email</th>
+            <th class="px-6 py-3">Organization</th>
+            <th class="px-6 py-3">Role</th>
+            <th class="px-6 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+          {% for u in recent_users %}
+          <tr class="hover:bg-slate-50 dark:hover:bg-white/5">
+            <td class="px-6 py-3 font-mono text-sm font-medium text-violet-700 dark:text-violet-300">{{ u.username|default:"—" }}</td>
+            <td class="px-6 py-3 text-slate-600 dark:text-slate-300">{{ u.email }}</td>
+            <td class="px-6 py-3">{% if u.organization %}{{ u.organization.name }}{% else %}—{% endif %}</td>
+            <td class="px-6 py-3">{{ u.get_role_display }}</td>
+            <td class="px-6 py-3 text-right">
+              <a href="{% url 'dashboard:super_user_edit' u.pk %}" class="mr-2 font-semibold text-violet-600 hover:text-violet-500">Edit</a>
+              {% if u.pk != request.user.pk %}
+              <a href="{% url 'dashboard:super_user_delete' u.pk %}" class="font-semibold text-rose-600 hover:text-rose-500">Delete</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">No users yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

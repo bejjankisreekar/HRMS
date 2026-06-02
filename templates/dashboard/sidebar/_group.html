@@ -1,0 +1,7 @@
+<div class="hrms-nav-group" data-nav-group="{{ group.id }}">
+  <div class="hrms-nav-group__items">
+    {% for item in group.items %}
+      {% include "dashboard/sidebar/_item.html" with item=item %}
+    {% endfor %}
+  </div>
+</div>

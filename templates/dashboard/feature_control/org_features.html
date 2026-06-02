@@ -1,0 +1,60 @@
+{% extends "dashboard/feature_control/_base.html" %}
+
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head">
+    <div>
+      <h2 class="fin-panel__title">{{ organization.name }}</h2>
+      <p class="fin-muted">Organization feature overrides · Plan: {{ plan.name|default:"—" }}</p>
+    </div>
+    <a href="{% url 'dashboard:super_organization_detail' organization.pk %}" class="fin-btn fin-btn--ghost fin-btn--sm">← Organization</a>
+  </div>
+
+  <form method="post" action="{% url 'dashboard:feature_control:org_limits' organization.pk %}" class="fcc-limits-form">
+    {% csrf_token %}
+    <h3 class="fcc-group__title">Resource limits</h3>
+    <div class="fcc-form-grid">
+      <label>Employee limit<input type="number" name="employee_limit" value="{{ limits.employee_limit|default:'' }}" placeholder="Plan default" class="fcc-input"></label>
+      <label>Storage (MB)<input type="number" name="storage_limit_mb" value="{{ limits.storage_limit_mb|default:'' }}" class="fcc-input"></label>
+      <label>Branch limit<input type="number" name="branch_limit" value="{{ limits.branch_limit|default:'' }}" class="fcc-input"></label>
+      <label>Admin limit<input type="number" name="admin_limit" value="{{ limits.admin_limit|default:'' }}" class="fcc-input"></label>
+      <label>HR limit<input type="number" name="hr_limit" value="{{ limits.hr_limit|default:'' }}" class="fcc-input"></label>
+      <label>API limit / day<input type="number" name="api_limit_daily" value="{{ limits.api_limit_daily|default:'' }}" class="fcc-input"></label>
+    </div>
+    <button type="submit" class="fin-btn fin-btn--primary fin-btn--sm">Save limits</button>
+  </form>
+
+  <div class="fcc-legend">
+    <span><span class="fcc-dot fcc-dot--on"></span> Effective ON</span>
+    <span><span class="fcc-dot fcc-dot--off"></span> Effective OFF</span>
+    <span><span class="fcc-dot fcc-dot--override"></span> Override set</span>
+  </div>
+
+  {% regroup feature_rows by feature.category as groups %}
+  {% for group in groups %}
+  <div class="fcc-group">
+    <h3 class="fcc-group__title">{{ group.grouper|default:"General"|title }}</h3>
+    <div class="fcc-org-grid">
+      {% for row in group.list %}
+      <div class="fcc-org-row" data-org-id="{{ organization.pk }}" data-feature-id="{{ row.feature.pk }}">
+        <div class="fcc-org-row__info">
+          <strong>{{ row.feature.name }}</strong>
+          <code>{{ row.feature.key }}</code>
+          <span class="fcc-status{% if row.effective %} is-on{% else %} is-off{% endif %}">{% if row.effective %}ON{% else %}OFF{% endif %}</span>
+        </div>
+        <div class="fcc-org-row__actions">
+          <button type="button" class="fin-btn fin-btn--sm fin-btn--primary fcc-org-toggle" data-mode="enable">Enable</button>
+          <button type="button" class="fin-btn fin-btn--sm fin-btn--ghost fcc-org-toggle" data-mode="disable">Disable</button>
+          <button type="button" class="fin-btn fin-btn--sm fcc-org-toggle" data-mode="inherit">Inherit</button>
+        </div>
+        <div class="fcc-org-row__meta fin-muted">
+          Global: {% if row.global %}on{% else %}off{% endif %} · Plan: {% if row.in_plan %}included{% else %}not included{% endif %}
+          {% if row.override != None %} · Override: {% if row.override %}enabled{% else %}disabled{% endif %}{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

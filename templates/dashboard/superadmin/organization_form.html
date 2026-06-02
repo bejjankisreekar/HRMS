@@ -1,0 +1,67 @@
+{% extends "dashboard/_shell.html" %}
+{% block title %}{{ form_title }} · Platform{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:super_organizations' as orgs_url %}
+  {% include "dashboard/_back_button.html" with back_url=orgs_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900 dark:text-white">{{ form_title }}</h1>
+    <p class="text-sm text-slate-600 dark:text-slate-400">{{ form_subtitle }}</p>
+  </div>
+
+  <form method="post" class="space-y-5 rounded-2xl bg-white p-6 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <fieldset class="space-y-4">
+      <legend class="text-sm font-semibold text-slate-900 dark:text-white">Organization</legend>
+      {% for field in form %}
+        {% if field.name in "name,official_email,official_phone,subscription_plan,subscription_status,max_users_allowed,storage_limit_mb" %}
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<p class="mt-1 text-xs text-rose-600">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </fieldset>
+
+    <fieldset class="space-y-4 border-t border-slate-100 pt-5 dark:border-white/10">
+      <legend class="text-sm font-semibold text-slate-900 dark:text-white">Admin account</legend>
+      {% for field in form %}
+        {% if field.name in "admin_username,admin_email,admin_password,admin_first_name,admin_last_name" %}
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<p class="mt-1 text-xs text-rose-600">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </fieldset>
+
+    <button type="submit" class="w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white hover:bg-violet-500">{{ submit_label }}</button>
+  </form>
+</div>
+<style>
+  form input, form select {
+    margin-top: 0.25rem;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(226 232 240);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+  }
+  .dark form input, .dark form select {
+    border-color: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: white;
+  }
+</style>
+{% endblock %}

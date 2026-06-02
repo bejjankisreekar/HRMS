@@ -1,0 +1,305 @@
+/* Shift & Scheduling — HRMS enterprise theme */
+
+.shifts-page {
+  width: 100%;
+  max-width: none;
+}
+
+.shifts-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, rgb(76 29 149) 0%, rgb(109 40 217) 45%, rgb(79 70 229) 100%);
+  color: #fff;
+  box-shadow: 0 20px 40px -12px rgba(109, 40, 217, 0.45);
+}
+
+.shifts-hero::before {
+  content: "";
+  position: absolute;
+  right: -2rem;
+  top: -3rem;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shifts-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.sh-stat {
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px solid rgb(226 232 240);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.sh-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(109, 40, 217, 0.18);
+}
+
+.dark .sh-stat {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.sh-stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-glass {
+  border-radius: 1.25rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.dark .sh-glass {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+}
+
+.sh-input {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+  color: rgb(15 23 42);
+}
+
+.sh-input:focus {
+  outline: none;
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.dark .sh-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+.sh-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgb(109 40 217), rgb(79 70 229));
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.35);
+}
+
+.sh-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(109 40 217);
+}
+
+.dark .sh-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(196 181 253);
+}
+
+.sh-filter-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.sh-filter-item {
+  flex: 0 0 auto;
+  min-width: 6.5rem;
+}
+
+.sh-filter-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(100 116 139);
+}
+
+.sh-insight {
+  border-radius: 0.875rem;
+  border: 1px solid rgb(233 213 255);
+  background: rgb(245 243 255);
+  padding: 0.75rem 0.9rem;
+}
+
+.dark .sh-insight {
+  border-color: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+/* Dark scheduler canvas */
+.sh-scheduler {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  background: #070b1a;
+  overflow: auto;
+  min-height: 16rem;
+}
+
+.sh-week-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.6875rem;
+}
+
+.sh-week-grid th,
+.sh-week-grid td {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.sh-week-grid th {
+  background: rgba(15, 23, 42, 0.9);
+  color: #c4b5fd;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.sh-week-grid td:first-child {
+  text-align: left;
+  color: #e2e8f0;
+  font-weight: 600;
+  min-width: 8rem;
+  position: sticky;
+  left: 0;
+  background: rgba(7, 11, 26, 0.95);
+  z-index: 1;
+}
+
+.sh-shift-cell {
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.35rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: grab;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.sh-shift-cell:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.sh-table-wrap {
+  overflow: auto;
+  max-height: 28rem;
+}
+
+.sh-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.sh-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgb(248 250 252);
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
+.dark .sh-table thead th {
+  background: rgb(30 41 59);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sh-table tbody td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  color: rgb(51 65 85);
+  white-space: nowrap;
+}
+
+.dark .sh-table tbody td {
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.sh-shift-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.sh-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.sh-modal[hidden] {
+  display: none;
+}
+
+.sh-modal-panel {
+  width: 100%;
+  max-width: 36rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: #0f172a;
+  padding: 1.25rem;
+  color: #e2e8f0;
+}
+
+.sh-counter {
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  .sh-no-print { display: none !important; }
+}

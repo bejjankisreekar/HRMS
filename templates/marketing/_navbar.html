@@ -1,0 +1,33 @@
+{% with current=request.resolver_match.view_name %}
+<header class="hrms-nav" id="site-nav" role="banner">
+  <div class="hrms-nav__inner">
+    <a href="{% url 'landing' %}#top" class="hrms-nav__brand" aria-label="HRMS Suite home">
+      <span class="hrms-nav__logo">H</span>
+      <span class="hrms-nav__name">HRMS Suite</span>
+    </a>
+
+    <nav class="hrms-nav__links hidden lg:flex" aria-label="Primary">
+      <a href="{% url 'accounts:features' %}" class="hrms-nav__link">Features</a>
+      <a href="{% url 'accounts:pricing' %}" class="hrms-nav__link">Pricing</a>
+      <a href="{% url 'accounts:contact' %}" class="hrms-nav__link">Contact</a>
+      <a href="{% url 'accounts:login' %}" class="hrms-nav__link">Login</a>
+      <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--primary hrms-btn--sm">Register</a>
+    </nav>
+
+    <div class="flex items-center gap-2 lg:hidden">
+      <a href="{% url 'accounts:login' %}" class="hrms-btn hrms-btn--ghost hrms-btn--sm">Login</a>
+      <button type="button" class="hrms-nav__toggle" data-mobile-menu-toggle aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+        <i data-lucide="menu" class="h-5 w-5"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="hrms-nav__mobile hidden" hidden>
+    <a href="{% url 'accounts:features' %}" class="hrms-nav__mobile-link" data-mobile-menu-close>Features</a>
+    <a href="{% url 'accounts:pricing' %}" class="hrms-nav__mobile-link" data-mobile-menu-close>Pricing</a>
+    <a href="{% url 'accounts:contact' %}" class="hrms-nav__mobile-link" data-mobile-menu-close>Contact</a>
+    <a href="{% url 'accounts:login' %}" class="hrms-nav__mobile-link">Login</a>
+    <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--primary w-full mt-2">Register</a>
+  </div>
+</header>
+{% endwith %}

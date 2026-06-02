@@ -1,0 +1,24 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Feature control audit log</h2></div>
+  <table class="fcc-table">
+    <thead><tr><th>Date</th><th>Action</th><th>Feature</th><th>Organization</th><th>Summary</th><th>Actor</th><th>Reason</th></tr></thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.created_at|date:"M j, Y H:i" }}</td>
+        <td><code>{{ log.get_action_display }}</code></td>
+        <td>{% if log.feature_key %}<code>{{ log.feature_key }}</code>{% else %}—{% endif %}</td>
+        <td>{{ log.organization.name|default:"—" }}</td>
+        <td>{{ log.summary }}</td>
+        <td>{{ log.actor.email|default:"System" }}</td>
+        <td>{{ log.reason|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="fin-muted">No audit entries.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

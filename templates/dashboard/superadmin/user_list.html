@@ -1,0 +1,132 @@
+{% extends "dashboard/_shell.html" %}
+{% block title %}All users · Platform{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">All users</h1>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+        Every account on the platform — usernames, emails, roles. Edit or delete from here.
+      </p>
+    </div>
+    <div class="rounded-xl bg-violet-500/10 px-4 py-2 text-center ring-1 ring-violet-500/20">
+      <div class="text-2xl font-bold text-violet-700 dark:text-violet-300">{{ total_all_users }}</div>
+      <div class="text-xs font-medium text-violet-600/80 dark:text-violet-400/80">total accounts</div>
+    </div>
+  </div>
+
+  {% if request.GET %}
+  <p class="text-sm text-slate-600 dark:text-slate-400">
+    Showing <strong>{{ results_count }}</strong> of {{ total_all_users }} users.
+    <a href="{% url 'dashboard:super_users' %}" class="ml-2 font-semibold text-violet-600 hover:text-violet-500">Clear filters</a>
+  </p>
+  {% endif %}
+
+  <form method="get" class="flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+    <div class="min-w-[12rem] flex-1">
+      <label class="text-xs font-medium text-slate-500">Search username, email, or name</label>
+      {{ filter_form.q }}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Role</label>
+      {{ filter_form.role }}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Organization</label>
+      {{ filter_form.organization }}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Status</label>
+      {{ filter_form.active }}
+    </div>
+    <button type="submit" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">Apply</button>
+    <a href="{% url 'dashboard:super_users' %}" class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 dark:text-slate-300 dark:ring-white/10">Reset</a>
+  </form>
+
+  <div class="overflow-x-auto rounded-2xl bg-white ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-white/5">
+        <tr>
+          <th class="px-4 py-3">Username</th>
+          <th class="px-4 py-3">Display name</th>
+          <th class="px-4 py-3">Email</th>
+          <th class="px-4 py-3">Organization</th>
+          <th class="px-4 py-3">Role</th>
+          <th class="px-4 py-3">Joined</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+        {% for u in user_list %}
+        <tr class="hover:bg-slate-50 dark:hover:bg-white/5">
+          <td class="px-4 py-3">
+            {% if u.username %}
+            <span class="font-mono text-sm font-semibold text-violet-700 dark:text-violet-300">{{ u.username }}</span>
+            {% else %}
+            <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">No username</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ u.display_name }}</td>
+          <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ u.email }}</td>
+          <td class="px-4 py-3">
+            {% if u.organization %}
+            <a href="{% url 'dashboard:super_organization_detail' u.organization.pk %}" class="font-medium text-violet-600 hover:underline dark:text-violet-400">{{ u.organization.name }}</a>
+            {% else %}
+            <span class="text-slate-400">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium
+              {% if u.role == 'SUPER_ADMIN' %}bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300
+              {% elif u.role == 'ADMIN' %}bg-violet-500/15 text-violet-700 dark:text-violet-300
+              {% else %}bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300{% endif %}">
+              {{ u.get_role_display }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-slate-500">{{ u.date_joined|date:"M j, Y" }}</td>
+          <td class="px-4 py-3">
+            {% if u.is_active %}
+            <span class="font-medium text-emerald-600 dark:text-emerald-400">Active</span>
+            {% else %}
+            <span class="font-medium text-rose-600 dark:text-rose-400">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex justify-end gap-2">
+              <a href="{% url 'dashboard:super_user_edit' u.pk %}"
+                 class="inline-flex items-center rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500">Edit</a>
+              {% if u.pk != request.user.pk %}
+              <a href="{% url 'dashboard:super_user_delete' u.pk %}"
+                 class="inline-flex items-center rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-400 dark:hover:bg-rose-500/10">Delete</a>
+              {% else %}
+              <span class="px-2 py-1.5 text-xs text-slate-400">You</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="px-4 py-12 text-center">
+            <p class="text-slate-500">No users match your filters.</p>
+            <a href="{% url 'dashboard:super_users' %}" class="mt-2 inline-block text-sm font-semibold text-violet-600">Show all users</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="flex justify-center gap-2 text-sm">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="rounded-lg px-3 py-1.5 ring-1 ring-slate-200 dark:ring-white/10">Previous</a>
+    {% endif %}
+    <span class="px-3 py-1.5 text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="rounded-lg px-3 py-1.5 ring-1 ring-slate-200 dark:ring-white/10">Next</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

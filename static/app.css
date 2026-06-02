@@ -1,0 +1,7 @@
+/* Keep minimal; Tailwind is loaded via CDN for phase-1. */
+html { scroll-behavior: smooth; }
+
+/* Mobile sidebar — desktop collapse handled in sidebar.css */
+body.mobile-sidebar-open [data-mobile-overlay] { display: block; }
+body.mobile-sidebar-open [data-sidebar-mobile] { transform: translateX(0); }
+

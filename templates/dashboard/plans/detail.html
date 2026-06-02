@@ -1,0 +1,132 @@
+{% extends "dashboard/plans/_base.html" %}
+{% load static %}
+
+{% block dashboard_extra_head %}
+{{ block.super }}
+<script src="{% static 'plan-management.js' %}" defer></script>
+{% endblock %}
+
+{% block plans_content %}
+<div class="pm-detail-grid">
+  <section class="fin-panel pm-detail-main">
+    <div class="fin-panel__head">
+      <div>
+        <h2 class="fin-panel__title">{{ plan.name }}</h2>
+        <p class="fin-muted">Slug: <code>{{ plan.slug }}</code> · {{ sub_count }} subscriber(s)</p>
+      </div>
+        <a href="{% url 'dashboard:super_plan_features' plan.pk %}" class="fin-btn fin-btn--ghost fin-btn--sm"><i data-lucide="sliders-horizontal"></i> Feature control</a>
+        <form method="post" action="{% url 'dashboard:plans:clone' plan.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="fin-btn fin-btn--ghost fin-btn--sm"><i data-lucide="copy"></i> Clone plan</button>
+      </form>
+    </div>
+
+    <form method="post" action="{% url 'dashboard:plans:update' plan.pk %}" class="pm-form-grid">
+      {% csrf_token %}
+      <label>Plan name<input type="text" name="name" value="{{ plan.name }}" class="pm-input"></label>
+      <label>Monthly price (₹)<input type="number" step="0.01" name="monthly_price_inr" value="{{ plan.monthly_price_inr }}" class="pm-input"></label>
+      <label>Yearly price (₹)<input type="number" step="0.01" name="yearly_price_inr" value="{{ plan.yearly_price_inr }}" class="pm-input"></label>
+      <label>Setup fee (₹)<input type="number" step="0.01" name="setup_fee_inr" value="{{ plan.setup_fee_inr }}" class="pm-input"></label>
+      <label>Employee limit<input type="number" name="employee_limit" value="{{ plan.employee_limit|default:'' }}" placeholder="Unlimited" class="pm-input"></label>
+      <label>Storage limit (MB)<input type="number" name="storage_limit_mb" value="{{ plan.storage_limit_mb|default:'' }}" placeholder="Unlimited" class="pm-input"></label>
+      <label>Trial days<input type="number" name="trial_days" value="{{ plan.trial_days }}" class="pm-input"></label>
+      <label class="pm-checkbox"><input type="checkbox" name="is_active"{% if plan.is_active %} checked{% endif %}> Active</label>
+      <label class="pm-full">Description<textarea name="description" rows="2" class="pm-input">{{ plan.description }}</textarea></label>
+      <div class="pm-full"><button type="submit" class="fin-btn fin-btn--primary">Save plan settings</button></div>
+    </form>
+  </section>
+
+  <section class="fin-panel" id="features">
+    <div class="fin-panel__head">
+      <h2 class="fin-panel__title">Features</h2>
+      <p class="fin-muted">Toggle modules included in this plan.</p>
+    </div>
+    <div class="pm-feature-grid" data-plan-id="{{ plan.pk }}">
+      {% regroup plan_features by category as feature_groups %}
+      {% for group in feature_groups %}
+      <div class="pm-feature-group">
+        <h3 class="pm-feature-group__title">{{ group.grouper|default:"General"|title }}</h3>
+        {% for feat in group.list %}
+        <label class="pm-feature-toggle">
+          <input type="checkbox"
+                 data-feature-id="{{ feat.pk }}"
+                 data-feature-key="{{ feat.key }}"
+                 {% if feat.pk in enabled_feature_ids %}checked{% endif %}>
+          <span>{{ feat.name }}</span>
+          <code class="pm-feature-key">{{ feat.key }}</code>
+        </label>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="fin-panel pm-full-width" id="navigation">
+    <div class="fin-panel__head">
+      <h2 class="fin-panel__title">Navigation order</h2>
+      <p class="fin-muted">Sidebar items rendered dynamically for subscribers on this plan. Drag to reorder.</p>
+    </div>
+
+    {% for aud_value, aud_label in audiences %}
+    <div class="pm-menu-section">
+      <h3 class="pm-menu-section__title">{{ aud_label }} navigation</h3>
+      <ul class="pm-menu-list" data-audience="{{ aud_value }}" data-plan-id="{{ plan.pk }}">
+        {% for item in menu_items %}
+        {% if item.audience == aud_value %}
+        <li class="pm-menu-item" data-item-id="{{ item.pk }}" draggable="true">
+          <span class="pm-menu-item__handle"><i data-lucide="grip-vertical"></i></span>
+          <span class="pm-menu-item__icon"><i data-lucide="{{ item.icon }}"></i></span>
+          <span class="pm-menu-item__label">{{ item.label }}</span>
+          <code class="pm-menu-item__url">{{ item.url_name }}</code>
+          {% if item.feature_key %}<span class="pm-badge">{{ item.feature_key }}</span>{% endif %}
+          {% if not item.is_enabled %}<span class="pm-badge is-disabled">Disabled</span>{% endif %}
+        </li>
+        {% endif %}
+        {% empty %}
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+
+    <details class="pm-add-menu">
+      <summary>Add menu item</summary>
+      <form method="post" action="{% url 'dashboard:plans:menu_add' plan.pk %}" class="pm-form-grid pm-form-grid--compact">
+        {% csrf_token %}
+        <label>Label<input type="text" name="label" required class="pm-input"></label>
+        <label>Icon<input type="text" name="icon" value="circle" class="pm-input"></label>
+        <label>URL name<input type="text" name="url_name" value="dashboard:home" class="pm-input"></label>
+        <label>Feature key<input type="text" name="feature_key" class="pm-input"></label>
+        <label>Audience
+          <select name="audience" class="pm-input">
+            {% for val, label in audiences %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="fin-btn fin-btn--primary fin-btn--sm">Add item</button>
+      </form>
+    </details>
+  </section>
+
+  <section class="fin-panel pm-full-width">
+    <div class="fin-panel__head">
+      <h2 class="fin-panel__title">Available add-ons</h2>
+      <p class="fin-muted">Any plan can purchase these modules — feature keys unlock routes and sidebar items.</p>
+    </div>
+    <div class="pm-addon-grid">
+      {% for addon in addons %}
+      <div class="pm-addon-card">
+        <div class="pm-addon-card__head">
+          <i data-lucide="{{ addon.icon|default:'puzzle' }}"></i>
+          <strong>{{ addon.name }}</strong>
+        </div>
+        <p class="fin-muted">₹{{ addon.monthly_price_inr|floatformat:0 }}/mo</p>
+        {% if addon.feature_keys %}
+        <div class="pm-addon-keys">
+          {% for key in addon.feature_keys %}<code>{{ key }}</code>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% if record %}
+  {% if record.status == "PRESENT" %}
+  <span class="attendance-badge attendance-badge--present"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>{{ record.get_status_display }}</span>
+  {% elif record.status == "ABSENT" %}
+  <span class="attendance-badge attendance-badge--absent"><span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>{{ record.get_status_display }}</span>
+  {% elif record.status == "HALF_DAY" %}
+  <span class="attendance-badge attendance-badge--half"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>{{ record.get_status_display }}</span>
+  {% elif record.status == "LEAVE" %}
+  <span class="attendance-badge attendance-badge--leave"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>{{ record.get_status_display }}</span>
+  {% elif record.status == "WFH" %}
+  <span class="attendance-badge attendance-badge--wfh"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>{{ record.get_status_display }}</span>
+  {% else %}
+  <span class="attendance-badge attendance-badge--none">{{ record.get_status_display }}</span>
+  {% endif %}
+{% else %}
+  <span class="attendance-badge attendance-badge--none">Not marked</span>
+{% endif %}

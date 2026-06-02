@@ -1,0 +1,6 @@
+<div class="{% if full_width %}sm:col-span-2{% endif %}">
+  <label class="platform-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<p class="platform-hint">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="platform-error">{{ field.errors.0 }}</p>{% endif %}
+</div>

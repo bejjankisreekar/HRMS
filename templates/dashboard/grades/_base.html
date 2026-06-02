@@ -1,0 +1,41 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Grades & Hierarchy · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'grades-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'platform-forms.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+<script>
+window.GRADES_CONFIG = { csrf: "{{ csrf_token }}", apiAction: "{{ grades_api }}" };
+</script>
+<script src="{% static 'grades-dashboard.js' %}" defer></script>
+{% block grades_extra_head %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="grd-page">
+  <header class="grd-hero">
+    <div class="grd-hero__inner">
+      <div>
+        <p class="grd-eyebrow">Organization Admin · Structure</p>
+        <h1 class="grd-title">Grades & Hierarchy</h1>
+        <p class="grd-subtitle">Dynamic job grades, designations, reporting levels, and career paths — separate from login roles (Admin / HR / Employee).</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="{% url 'dashboard:grades:list' %}" class="grd-btn grd-btn--primary"><i data-lucide="plus"></i> Manage grades</a>
+        <a href="{% url 'dashboard:orgchart:tree' %}" class="grd-btn grd-btn--ghost"><i data-lucide="git-branch"></i> People org chart</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="grd-subnav" aria-label="Grade sections">
+    {% for item in grades_nav %}
+    <a href="{{ item.url }}" class="grd-subnav__item{% if item.active %} is-active{% endif %}">
+      <i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% block grades_content %}{% endblock %}
+</div>
+{% endblock %}

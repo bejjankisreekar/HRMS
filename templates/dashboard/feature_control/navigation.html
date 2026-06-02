@@ -1,0 +1,35 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head fcc-toolbar">
+    <div><h2 class="fin-panel__title">Navigation control</h2><p class="fin-muted">Drag to reorder. Toggle visibility per menu item.</p></div>
+    <form method="get" class="fcc-search">
+      <select name="plan" class="fcc-input" onchange="this.form.submit()">
+        <option value="">Global navigation</option>
+        {% for p in plans %}
+        <option value="{{ p.pk }}"{% if selected_plan == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  {% for aud_value, aud_label in audiences %}
+  <div class="fcc-group">
+    <h3 class="fcc-group__title">{{ aud_label }}</h3>
+    <ul class="fcc-nav-list" data-audience="{{ aud_value }}">
+      {% for item in nav_items %}
+      {% if item.audience == aud_value %}
+      <li class="fcc-nav-item" data-item-id="{{ item.pk }}" draggable="true">
+        <span class="fcc-nav-item__handle"><i data-lucide="grip-vertical"></i></span>
+        <i data-lucide="{{ item.icon }}"></i>
+        <span class="fcc-nav-item__label">{{ item.label }}</span>
+        <code>{{ item.url_name }}</code>
+        {% if item.feature_key %}<span class="fcc-tag">{{ item.feature_key }}</span>{% endif %}
+        <input type="checkbox" class="fcc-switch fcc-nav-toggle" data-item-id="{{ item.pk }}"{% if item.is_visible %} checked{% endif %}>
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

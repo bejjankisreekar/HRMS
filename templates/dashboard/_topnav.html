@@ -1,0 +1,137 @@
+{% load static %}
+<header class="hrms-topnav" data-topnav>
+  <div class="hrms-topnav__inner">
+    <button type="button" class="hrms-topnav__menu-btn lg:hidden" data-mobile-sidebar-open aria-label="Open menu">
+      <i data-lucide="menu"></i>
+    </button>
+
+    <div class="hrms-topnav__brand">
+      <p class="hrms-topnav__platform">{{ topnav.platform_title }}</p>
+      <p class="hrms-topnav__workspace">{{ topnav.workspace_subtitle }}</p>
+    </div>
+
+    <div class="hrms-topnav__actions">
+      <button type="button" class="hrms-topnav__icon-btn" data-theme-toggle aria-label="Toggle theme">
+        <i data-lucide="sun" class="hrms-topnav__theme-light hidden dark:inline"></i>
+        <i data-lucide="moon" class="hrms-topnav__theme-dark dark:hidden"></i>
+      </button>
+
+      <div class="hrms-topnav__dropdown" data-topnav-dropdown="notifications"
+           data-notifications-api="{{ topnav.notifications_api_url }}"
+           data-notifications-read-all="{{ topnav.notifications_read_all_url }}">
+        <button type="button"
+                class="hrms-topnav__icon-btn hrms-topnav__notif-btn"
+                data-topnav-dropdown-toggle
+                aria-label="Notifications"
+                aria-expanded="false">
+          <i data-lucide="bell"></i>
+          <span class="hrms-topnav__badge{% if not topnav.unread_count %} hidden{% endif %}" data-notif-badge>{{ topnav.unread_count }}</span>
+        </button>
+        <div class="hrms-topnav__panel hrms-topnav__panel--notif hidden" data-topnav-dropdown-menu>
+          <div class="hrms-topnav__panel-head hrms-topnav__panel-head--notif">
+            <div>
+              <h3>Notifications</h3>
+              <span class="hrms-topnav__panel-meta" data-notif-meta>{% if topnav.unread_count %}{{ topnav.unread_count }} unread{% else %}All caught up{% endif %}</span>
+            </div>
+            {% if topnav.unread_count %}
+            <button type="button" class="hrms-topnav__mark-all" data-notif-mark-all>Mark all as read</button>
+            {% else %}
+            <button type="button" class="hrms-topnav__mark-all hidden" data-notif-mark-all>Mark all as read</button>
+            {% endif %}
+          </div>
+          <ul class="hrms-topnav__notif-list" data-notif-list>
+            {% for item in topnav.notifications %}
+            <li>
+              <a href="{{ item.url }}"
+                 class="hrms-topnav__notif-item{% if not item.is_read %} is-unread{% endif %}"
+                 data-notification-id="{{ item.id }}"
+                 data-notif-read="{{ item.is_read|yesno:'true,false' }}">
+                <span class="hrms-topnav__notif-unread-dot" aria-hidden="true"></span>
+                <span class="hrms-topnav__notif-icon"><i data-lucide="{{ item.icon }}"></i></span>
+                <span class="hrms-topnav__notif-body">
+                  <span class="hrms-topnav__notif-title">{{ item.title }}</span>
+                  <span class="hrms-topnav__notif-message">{{ item.message }}</span>
+                  <span class="hrms-topnav__notif-meta">{{ item.meta }}</span>
+                </span>
+              </a>
+            </li>
+            {% empty %}
+            <li class="hrms-topnav__notif-empty">No recent activity</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      {% if topnav.quick_create %}
+      <div class="hrms-topnav__dropdown" data-topnav-dropdown="create">
+        <button type="button"
+                class="hrms-topnav__create-btn"
+                data-topnav-dropdown-toggle
+                aria-expanded="false">
+          <i data-lucide="plus"></i>
+          <span class="hidden sm:inline">Create</span>
+          <i data-lucide="chevron-down" class="hrms-topnav__create-chev"></i>
+        </button>
+        <div class="hrms-topnav__panel hrms-topnav__panel--create hidden" data-topnav-dropdown-menu>
+          <div class="hrms-topnav__panel-head">
+            <h3>Quick create</h3>
+          </div>
+          <ul class="hrms-topnav__create-list">
+            {% for item in topnav.quick_create %}
+            <li>
+              <a href="{{ item.url }}" class="hrms-topnav__create-item">
+                <i data-lucide="{{ item.icon }}"></i>
+                <span>{{ item.label }}</span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="hrms-topnav__dropdown" data-topnav-dropdown="profile">
+        <button type="button"
+                class="hrms-topnav__profile-btn"
+                data-topnav-dropdown-toggle
+                aria-expanded="false">
+          <span class="hrms-topnav__avatar">{{ topnav.user_initials }}</span>
+          <span class="hrms-topnav__profile-text hidden md:block">
+            <span class="hrms-topnav__profile-name">{{ topnav.role_label }}</span>
+            <span class="hrms-topnav__profile-sub">{{ topnav.profile_subtitle }}</span>
+          </span>
+          <i data-lucide="chevron-down" class="hrms-topnav__profile-chev"></i>
+        </button>
+        <div class="hrms-topnav__panel hrms-topnav__panel--profile hidden" data-topnav-dropdown-menu>
+          <div class="hrms-topnav__profile-head">
+            <span class="hrms-topnav__avatar hrms-topnav__avatar--lg">{{ topnav.user_initials }}</span>
+            <div>
+              <p class="hrms-topnav__profile-head-name">{{ topnav.display_name }}</p>
+              <p class="hrms-topnav__profile-head-role">{{ topnav.role_label }}</p>
+              <p class="hrms-topnav__profile-head-sub">{{ topnav.profile_subtitle }}</p>
+            </div>
+          </div>
+          <ul class="hrms-topnav__profile-list">
+            {% for item in topnav.profile_menu %}
+            <li>
+              {% if item.is_logout %}
+              <form method="post" action="{{ item.url }}">{% csrf_token %}
+                <button type="submit" class="hrms-topnav__profile-item hrms-topnav__profile-item--danger">
+                  <i data-lucide="{{ item.icon }}"></i>
+                  <span>{{ item.label }}</span>
+                </button>
+              </form>
+              {% else %}
+              <a href="{{ item.url }}" class="hrms-topnav__profile-item">
+                <i data-lucide="{{ item.icon }}"></i>
+                <span>{{ item.label }}</span>
+              </a>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

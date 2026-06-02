@@ -1,0 +1,40 @@
+<div class="hrms-sidebar-footer shrink-0 p-3">
+  <div class="hrms-sidebar-profile rounded-2xl p-2 backdrop-blur-md">
+    <div class="flex items-center gap-2.5">
+      <span class="relative shrink-0">
+        <span class="hrms-sidebar-profile__avatar flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white">
+          {{ request.user.display_name|slice:":1"|upper }}
+        </span>
+        <span class="hrms-sidebar-profile__status absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 bg-emerald-400" title="Online"></span>
+      </span>
+      <div class="min-w-0 flex-1" data-sidebar-label>
+        <p class="hrms-sidebar-profile__name truncate text-xs font-semibold">{{ request.user.display_name }}</p>
+        <p class="hrms-sidebar-profile__role truncate text-[10px] font-semibold">{{ sidebar.role_label }}</p>
+      </div>
+      <button type="button"
+              data-sidebar-profile-toggle
+              class="hrms-sidebar-profile__menu-btn shrink-0 rounded-lg p-1.5"
+              aria-label="Profile menu"
+              data-sidebar-label>
+        <i data-lucide="more-vertical" class="h-4 w-4"></i>
+      </button>
+    </div>
+    <div data-sidebar-profile-menu class="hrms-sidebar-profile__dropdown mt-2 hidden space-y-0.5 pt-2" data-sidebar-label>
+      <a href="{% url 'accounts:profile' %}" class="hrms-sidebar-profile__action">
+        <i data-lucide="user" class="h-4 w-4"></i> View profile
+      </a>
+      <a href="{% url 'dashboard:settings' %}" class="hrms-sidebar-profile__action">
+        <i data-lucide="settings" class="h-4 w-4"></i> Settings
+      </a>
+      <button type="button" data-theme-toggle class="hrms-sidebar-profile__action w-full text-left">
+        <i data-lucide="moon" class="h-4 w-4"></i> Theme
+      </button>
+      <form method="post" action="{% url 'accounts:logout' %}" class="pt-0.5">
+        {% csrf_token %}
+        <button type="submit" class="hrms-sidebar-profile__action w-full text-left text-rose-300 hover:text-rose-200">
+          <i data-lucide="log-out" class="h-4 w-4"></i> Logout
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

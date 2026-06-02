@@ -1,0 +1,76 @@
+<section class="pro-panel pro-employees" aria-label="Employee management">
+  <div class="pro-panel__head">
+    <h2><i data-lucide="users"></i> Employee overview</h2>
+    <span class="pro-tag">{{ employee_total }} total</span>
+  </div>
+
+  <div class="pro-table-toolbar">
+    <div class="pro-search">
+      <i data-lucide="search"></i>
+      <input type="search" id="pro-employee-search" placeholder="Search employees…" aria-label="Search employees">
+    </div>
+    <select id="pro-employee-dept" class="pro-select" aria-label="Filter by department">
+      <option value="">All departments</option>
+      {% for row in employee_rows %}
+      {% if row.department != "—" %}<option value="{{ row.department }}">{{ row.department }}</option>{% endif %}
+      {% endfor %}
+    </select>
+    <div class="pro-table-actions">
+      <button type="button" class="pro-btn pro-btn--ghost pro-btn--sm" id="pro-export-csv">
+        <i data-lucide="download"></i> Export CSV
+      </button>
+      <a href="{% url 'dashboard:staff_create' %}" class="pro-btn pro-btn--primary pro-btn--sm">
+        <i data-lucide="user-plus"></i> Add
+      </a>
+    </div>
+  </div>
+
+  {% if has_employees %}
+  <div class="pro-table-wrap">
+    <table class="pro-table" id="pro-employee-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="pro-select-all" aria-label="Select all"></th>
+          <th data-sort="name">Employee</th>
+          <th data-sort="department">Department</th>
+          <th data-sort="designation">Designation</th>
+          <th>Status</th>
+          <th>Attendance</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in employee_rows %}
+        <tr data-name="{{ row.name|lower }}" data-dept="{{ row.department }}">
+          <td><input type="checkbox" class="pro-row-check" value="{{ row.id }}"></td>
+          <td>
+            <div class="pro-table-user">
+              <span class="pro-avatar">{{ row.name|slice:":1"|upper }}</span>
+              <div>
+                <strong>{{ row.name }}</strong>
+                <span class="pro-table-email">{{ row.email }}</span>
+              </div>
+            </div>
+          </td>
+          <td>{{ row.department }}</td>
+          <td>{{ row.designation }}</td>
+          <td><span class="pro-pill pro-pill--active">{{ row.status }}</span></td>
+          <td><span class="pro-pill pro-pill--{{ row.attendance_class|lower }}">{{ row.attendance }}</span></td>
+          <td class="pro-table__actions">
+            <a href="{% url 'dashboard:attendance' %}" title="Attendance"><i data-lucide="calendar"></i></a>
+            <a href="{% url 'dashboard:staff_list' %}" title="Profile"><i data-lucide="external-link"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="pro-empty">
+    <i data-lucide="users"></i>
+    <h3>No employees yet</h3>
+    <p>Add your team to unlock workforce analytics and insights.</p>
+    <a href="{% url 'dashboard:staff_create' %}" class="pro-btn pro-btn--primary pro-btn--sm">Add employee</a>
+  </div>
+  {% endif %}
+</section>

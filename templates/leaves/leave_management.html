@@ -1,0 +1,483 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Leave Management · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'attendance.css' %}">
+<link rel="stylesheet" href="{% static 'attendance-analytics.css' %}">
+<link rel="stylesheet" href="{% static 'leave-management.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script>window.LEAVE_CHARTS = {{ charts_json|safe }}; window.LEAVE_CALENDAR = {{ calendar_events|safe }};</script>
+<script src="{% static 'leave-management.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="attendance-page w-full space-y-6">
+  <div class="attendance-hero ar-no-print">
+    <div class="attendance-hero-inner flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="palmtree" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">HRMS · Leave</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Leave Management</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">
+            {% if is_admin %}Approve team leave, set policies, and publish the organization holiday calendar.{% elif can_apply_leave %}Apply leave and track your balances.{% endif %}
+          </p>
+          <p class="mt-2 text-xs text-violet-200/80">{{ today|date:"l F Y" }} · {{ organization.name }}</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2 ar-no-print">
+        {% if can_apply_leave %}
+        <a href="{% url 'leaves:apply' %}" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 no-underline">
+          <i data-lucide="plus" class="inline h-3.5 w-3.5"></i> Apply leave
+        </a>
+        {% endif %}
+        {% if is_approver %}
+        <a href="?status=PENDING" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Pending</a>
+        {% endif %}
+        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary cards (top) -->
+  <section class="mb-6 grid gap-3 grid-cols-2 sm:grid-cols-4 xl:grid-cols-8">
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Total requests</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.total_requests }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Pending</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-amber-400" data-counter="{{ summary.pending }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Approved</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-emerald-400" data-counter="{{ summary.approved }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Rejected</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-rose-400" data-counter="{{ summary.rejected }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">On leave today</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-sky-400" data-counter="{{ summary.on_leave_today }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Sick (month)</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-rose-300" data-counter="{{ summary.sick_month }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Casual (month)</p>
+      <p class="ar-counter mt-1 text-xl font-bold text-cyan-400" data-counter="{{ summary.casual_month }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card py-3">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Avg usage</p>
+      <p class="mt-1 text-lg font-bold text-teal-400">{{ summary.avg_usage }}</p>
+    </div>
+  </section>
+
+  {% if is_admin %}
+  <div class="mb-6">
+    <!-- Leave policy (admin only) -->
+    <section class="ar-glass p-5 max-w-3xl">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Organization leave policy</h2>
+          <p class="text-xs text-slate-500">Add types and set annual days. Default quota is none until you set it.</p>
+        </div>
+        {% if not show_add_leave_type %}
+        <a href="?add_type=1" class="ar-btn-primary text-xs py-2">+ Add leave type</a>
+        {% endif %}
+      </div>
+
+      {% if show_add_leave_type %}
+      <form method="post" class="mt-4 space-y-3 rounded-xl border border-violet-200 bg-violet-50/80 p-4 dark:border-white/10 dark:bg-white/5">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_leave_type">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="lm-filter-label">Name</label>
+            {{ leave_type_form.name }}
+          </div>
+          <div>
+            <label class="lm-filter-label">Days / year (optional)</label>
+            {{ leave_type_form.annual_quota }}
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <label class="flex items-center gap-2 text-xs text-slate-300">
+            {{ leave_type_form.is_paid }} Paid leave
+          </label>
+          <div class="w-28">
+            <label class="lm-filter-label">Color</label>
+            {{ leave_type_form.color }}
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="ar-btn-primary text-sm">Save</button>
+          <a href="{% url 'leaves:management' %}" class="ar-btn-ghost text-sm">Cancel</a>
+        </div>
+      </form>
+      {% endif %}
+
+      <div class="ar-policy-grid mt-4">
+        {% for lt in org_leave_types %}
+        <div class="ar-policy-card {% if not lt.is_paid %}ar-policy-card--lop{% endif %}"
+             style="--policy-accent: {{ lt.color }}">
+          <div class="flex items-start justify-between gap-1 pl-1">
+            <p class="ar-policy-card-name">{{ lt.name }}</p>
+            <form method="post" class="shrink-0" onsubmit="return confirm('Remove {{ lt.name }}?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_leave_type">
+              <input type="hidden" name="leave_type_id" value="{{ lt.pk }}">
+              <button type="submit" class="ar-policy-card-remove">Remove</button>
+            </form>
+          </div>
+          <p class="ar-policy-card-quota" style="color: {{ lt.color }}">
+            {% if lt.annual_quota is not None %}{{ lt.annual_quota }}{% else %}—{% endif %}
+            <span>days/yr</span>
+          </p>
+          <p class="ar-policy-card-meta">
+            {% if lt.is_paid %}Paid leave{% else %}Unpaid · LOP{% endif %}
+          </p>
+        </div>
+        {% empty %}
+        <p class="col-span-full rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-500 dark:border-white/15">
+          No leave types yet. Click <strong>Add leave type</strong> to create Sick, Casual, LOP, etc.
+        </p>
+        {% endfor %}
+      </div>
+
+      <div class="mt-6 border-t border-slate-200 pt-5 dark:border-white/10">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Approval workflow</h3>
+        <p class="mt-1 text-xs text-slate-500">
+          Choose who must approve leave. Steps run in order: manager → HR → admin. Uncheck roles your company does not need.
+        </p>
+        <form method="post" class="mt-4 space-y-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_approval_workflow">
+          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+            <input type="checkbox" name="leave_approval_require_manager" class="mt-0.5 h-4 w-4 accent-violet-600"
+                   {% if organization.leave_approval_require_manager %}checked{% endif %}>
+            <span>
+              <span class="block text-sm font-semibold text-slate-900 dark:text-white">Reporting manager</span>
+              <span class="mt-0.5 block text-xs text-slate-500">Employee’s manager approves first.</span>
+            </span>
+          </label>
+          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+            <input type="checkbox" name="leave_approval_require_hr" class="mt-0.5 h-4 w-4 accent-violet-600"
+                   {% if organization.leave_approval_require_hr %}checked{% endif %}>
+            <span>
+              <span class="block text-sm font-semibold text-slate-900 dark:text-white">HR</span>
+              <span class="mt-0.5 block text-xs text-slate-500">Assigned HR (or any HR if none assigned).</span>
+            </span>
+          </label>
+          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+            <input type="checkbox" name="leave_approval_require_admin" class="mt-0.5 h-4 w-4 accent-violet-600"
+                   {% if organization.leave_approval_require_admin %}checked{% endif %}>
+            <span>
+              <span class="block text-sm font-semibold text-slate-900 dark:text-white">Organization admin</span>
+              <span class="mt-0.5 block text-xs text-slate-500">Final sign-off by org admin.</span>
+            </span>
+          </label>
+          <p class="text-xs text-slate-400">If none are selected, leave requests are auto-approved.</p>
+          <button type="submit" class="ar-btn-primary text-sm">Save approval workflow</button>
+        </form>
+      </div>
+    </section>
+  </div>
+  {% endif %}
+
+  {% if can_manage_calendar %}
+  <div class="mb-6">
+    <section class="ar-glass p-5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Holiday calendar</h2>
+          <p class="mt-1 text-xs text-slate-500">Publish holidays and configure weekends in Work calendar.</p>
+        </div>
+        <a href="{% url 'dashboard:work_calendar' %}" class="ar-btn-primary text-xs py-2">Open Work calendar →</a>
+      </div>
+      <form method="post" class="mt-4 flex flex-wrap items-end gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_holiday">
+        <div class="lm-filter-item flex-1 min-w-[8rem]">
+          <label class="lm-filter-label">Holiday name</label>
+          {{ holiday_form.name }}
+        </div>
+        <div class="lm-filter-item lm-filter-item--date">
+          <label class="lm-filter-label">Date</label>
+          {{ holiday_form.date }}
+        </div>
+        <div class="lm-filter-item min-w-[7rem]">
+          <label class="lm-filter-label">Type</label>
+          {{ holiday_form.holiday_type }}
+        </div>
+        <button type="submit" class="ar-btn-primary shrink-0 text-sm">Publish holiday</button>
+      </form>
+      <div class="mt-4 max-h-40 overflow-y-auto rounded-xl border border-slate-200 dark:border-white/10">
+        <table class="ar-table text-xs">
+          <thead>
+            <tr><th>Date</th><th>Name</th><th>Type</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for h in org_holidays|slice:":8" %}
+            <tr>
+              <td>{{ h.date|date:"d M Y" }}</td>
+              <td class="font-medium text-slate-900 dark:text-white">{{ h.name }}</td>
+              <td>{{ h.get_holiday_type_display }}</td>
+              <td>
+                <form method="post" class="inline" onsubmit="return confirm('Remove this holiday?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_holiday">
+                  <input type="hidden" name="holiday_id" value="{{ h.pk }}">
+                  <button type="submit" class="text-rose-400 hover:underline">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="py-6 text-center text-slate-500">No holidays published yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  {% endif %}
+
+  <!-- Filters: single row -->
+  <form method="get" class="ar-glass ar-no-print mb-6 px-4 py-3">
+    <div class="lm-filter-bar">
+      <div class="lm-filter-item">
+        <label class="lm-filter-label">Department</label>
+        <select name="department" class="ar-input py-2 text-xs">
+          <option value="">All</option>
+          {% for d in filter_options.departments %}
+          <option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lm-filter-item">
+        <label class="lm-filter-label">Branch</label>
+        <select name="branch" class="ar-input py-2 text-xs">
+          <option value="">All</option>
+          {% for b in filter_options.branches %}
+          <option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lm-filter-item">
+        <label class="lm-filter-label">Employee</label>
+        <select name="employee" class="ar-input py-2 text-xs">
+          <option value="">All</option>
+          {% for e in filter_options.employees %}
+          <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lm-filter-item">
+        <label class="lm-filter-label">Leave type</label>
+        <select name="leave_type" class="ar-input py-2 text-xs">
+          <option value="">All</option>
+          {% for lt in filter_options.leave_types %}
+          <option value="{{ lt.pk }}" {% if filters_get.leave_type == lt.pk|stringformat:"s" %}selected{% endif %}>{{ lt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lm-filter-item">
+        <label class="lm-filter-label">Status</label>
+        <select name="status" class="ar-input py-2 text-xs">
+          <option value="">All</option>
+          {% for val, label in filter_options.status_choices %}
+          <option value="{{ val }}" {% if filters_get.status == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lm-filter-item lm-filter-item--date">
+        <label class="lm-filter-label">From</label>
+        <input type="date" name="from" value="{{ filters.date_from|date:'Y-m-d' }}" class="ar-input py-2 text-xs">
+      </div>
+      <div class="lm-filter-item lm-filter-item--date">
+        <label class="lm-filter-label">To</label>
+        <input type="date" name="to" value="{{ filters.date_to|date:'Y-m-d' }}" class="ar-input py-2 text-xs">
+      </div>
+      <div class="lm-filter-item lm-filter-item--search">
+        <label class="lm-filter-label">Search</label>
+        <input type="search" name="q" value="{{ filters.search }}" placeholder="Name, ID…" class="ar-input py-2 text-xs">
+      </div>
+      <div class="lm-filter-actions">
+        <button type="submit" class="ar-btn-primary py-2 text-xs whitespace-nowrap">Apply</button>
+        <a href="{% url 'leaves:management' %}" class="ar-btn-ghost py-2 text-xs whitespace-nowrap">Reset</a>
+      </div>
+    </div>
+  </form>
+
+  {% if is_approver and pending_approvals %}
+  <section class="ar-glass mb-6 p-5">
+    <h2 class="text-sm font-semibold text-slate-900 dark:text-white">{% if is_admin %}Pending approvals{% else %}Awaiting your approval{% endif %}</h2>
+    <ul class="mt-4 space-y-3">
+      {% for req in pending_approvals %}
+      <li class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/20 dark:bg-violet-500/5">
+        <div>
+          <p class="font-medium text-slate-900 dark:text-white">{{ req.user.choice_label }} · {{ req.leave_type.name }}</p>
+          <p class="text-xs text-slate-400">{{ req.start_date|date:"d M" }} – {{ req.end_date|date:"d M Y" }} · {{ req.total_days }} day(s)</p>
+        </div>
+        <div class="flex gap-2">
+          <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="approve"><input type="hidden" name="request_id" value="{{ req.pk }}">
+            <button class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">Approve</button></form>
+          <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="reject"><input type="hidden" name="request_id" value="{{ req.pk }}">
+            <button class="rounded-lg bg-rose-600/80 px-3 py-1.5 text-xs font-semibold text-white">Reject</button></form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <div class="mb-6 grid gap-6 lg:grid-cols-3">
+    {% if can_apply_leave %}
+    <section class="ar-glass p-5 lg:col-span-1">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">My leave balance</h2>
+      <p class="text-xs text-slate-500">{{ today.year }}</p>
+      <div class="mt-4 max-h-80 space-y-4 overflow-y-auto">
+        {% for bal in balances %}
+        <div>
+          <div class="flex justify-between text-xs">
+            <span class="text-slate-300">{{ bal.leave_type.name }}{% if not bal.leave_type.is_paid %} <span class="text-rose-400">(LOP)</span>{% endif %}</span>
+            <span class="font-semibold text-sky-400">{{ bal.remaining }} / {% if bal.leave_type.annual_quota is not None %}{{ bal.allocated }}{% else %}—{% endif %}</span>
+          </div>
+          {% if bal.leave_type.annual_quota is not None and bal.allocated > 0 %}
+          <div class="ar-progress mt-1">
+            {% widthratio bal.used bal.allocated 100 as pct %}
+            <div class="ar-progress-bar" data-balance-bar="{{ pct }}" style="width:0"></div>
+          </div>
+          {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-500">No leave types configured by admin yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="ar-glass p-5 {% if can_apply_leave %}lg:col-span-2{% else %}lg:col-span-3{% endif %}">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Leave analytics</h2>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div class="h-44"><canvas id="chartLeaveMonthly"></canvas></div>
+        <div class="h-44"><canvas id="chartLeaveTypes"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="mb-6 grid gap-6 lg:grid-cols-2">
+    <section class="ar-glass p-5">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Smart insights</h2>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        {% for item in insights %}
+        <div class="ar-insight-card text-xs">
+          <p class="font-semibold text-slate-900 dark:text-white">{{ item.title }}</p>
+          <p class="mt-1 text-slate-400">{{ item.body }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="ar-glass p-5" id="leaveCalGrid">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Team calendar · {{ month_name }} {{ cal_year }}</h2>
+      <div class="mt-2 flex gap-2 text-[10px]">
+        <span class="lm-cal-approved rounded px-2 py-0.5">Approved</span>
+        <span class="lm-cal-pending rounded px-2 py-0.5">Pending</span>
+        <span class="lm-cal-holiday rounded px-2 py-0.5">Holiday</span>
+      </div>
+      <div class="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] text-slate-500">
+        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+      </div>
+      <div class="grid grid-cols-7 gap-1">
+        {% for week in calendar_weeks %}
+          {% for day in week %}
+            {% if day %}
+            <div data-cal-day="{{ cal_year }}-{% if cal_month < 10 %}0{% endif %}{{ cal_month }}-{% if day < 10 %}0{% endif %}{{ day }}"
+                 class="ar-cal-day ar-cal-none text-[10px]">{{ day }}</div>
+            {% else %}
+            <div class="ar-cal-day opacity-0"></div>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+      </div>
+      {% if not is_admin and org_holidays %}
+      <ul class="mt-3 max-h-24 overflow-y-auto space-y-1 text-[10px] text-slate-400">
+        {% for h in org_holidays %}
+        <li>{{ h.date|date:"d M" }} — {{ h.name }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="ar-glass overflow-hidden">
+    <div class="ar-panel-head">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Leave reports</h2>
+      <p class="text-xs text-slate-500">{{ page_obj.paginator.count }} records</p>
+    </div>
+    <div class="ar-table-wrap">
+      <table class="ar-table">
+        <thead>
+          <tr>
+            <th>Emp. ID</th><th>Name</th><th>Dept</th><th>Type</th>
+            <th>Start</th><th>End</th><th>Days</th><th>Status</th>
+            <th>Applied</th><th>By</th><th>Reason</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table_rows %}
+          <tr>
+            <td>{{ row.employee_id }}</td>
+            <td class="font-medium text-slate-900 dark:text-white">{{ row.employee_name }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.leave_type }}</td>
+            <td>{{ row.start_date|date:"d M Y" }}</td>
+            <td>{{ row.end_date|date:"d M Y" }}</td>
+            <td>{{ row.days }}</td>
+            <td>
+              {% if row.status == "PENDING" %}<span class="lm-badge lm-badge--pending">Pending</span>
+              {% elif row.status == "APPROVED" %}<span class="lm-badge lm-badge--approved">Approved</span>
+              {% elif row.status == "REJECTED" %}<span class="lm-badge lm-badge--rejected">Rejected</span>
+              {% else %}<span class="lm-badge lm-badge--cancelled">{{ row.status_display }}</span>{% endif %}
+            </td>
+            <td>{{ row.applied_at|date:"d M Y" }}</td>
+            <td>{{ row.approved_by }}</td>
+            <td class="max-w-[8rem] truncate">{{ row.reason }}</td>
+            <td class="whitespace-nowrap">
+              {% if is_approver and row.status == "PENDING" %}
+              <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="approve"><input type="hidden" name="request_id" value="{{ row.id }}">
+                <button class="text-xs text-emerald-400">Approve</button></form>
+              {% endif %}
+              {% if row.status == "PENDING" and row.user_id == request.user.pk %}
+              <form method="post" class="inline ml-1">{% csrf_token %}<input type="hidden" name="action" value="cancel"><input type="hidden" name="request_id" value="{{ row.id }}">
+                <button class="text-xs text-slate-400">Cancel</button></form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="12" class="py-12 text-center text-slate-500">No records for this filter.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-between border-t border-slate-200 px-5 py-3 dark:border-white/10">
+      <span class="text-xs text-slate-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a href="?{{ filter_query }}&page={{ page_obj.previous_page_number }}" class="ar-btn-ghost text-xs">Prev</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?{{ filter_query }}&page={{ page_obj.next_page_number }}" class="ar-btn-ghost text-xs">Next</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% if can_apply_leave %}
+<a href="{% url 'leaves:apply' %}" class="lm-fab ar-no-print no-underline"><i data-lucide="plus" class="h-5 w-5"></i> Apply</a>
+{% endif %}
+{% endblock %}

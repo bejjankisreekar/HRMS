@@ -1,0 +1,288 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{{ staff_member.display_name }} · Staff{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:staff_list' as staff_list_url %}
+  {% include "dashboard/_back_button.html" with back_url=staff_list_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="hrms-page-fluid w-full space-y-5 pb-6 lg:space-y-6">
+
+  {# ── Header ── #}
+  <header class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-900 via-violet-700 to-violet-800 p-6 text-white shadow-xl shadow-violet-900/30 sm:p-8">
+    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,rgba(255,255,255,0.14),transparent_50%)]"></div>
+
+    <div class="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+      <div class="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start">
+        {# Avatar #}
+        <div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/30 bg-white/20 text-2xl font-extrabold">
+          {% if staff_member.profile_picture %}
+          <img src="{{ staff_member.profile_picture.url }}" alt="" class="h-full w-full object-cover">
+          {% else %}
+          {{ staff_member.display_name|slice:":1"|upper }}
+          {% endif %}
+        </div>
+
+        {# Name & meta #}
+        <div class="min-w-0 flex-1">
+          <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{{ staff_member.display_name }}</h1>
+          <p class="mt-1 text-sm text-white/80">{{ staff_member.email }} · @{{ staff_member.username }}</p>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            {% if staff_member.role == "HR" %}
+            <span class="inline-flex rounded-full bg-sky-400/20 px-2.5 py-0.5 text-xs font-semibold text-sky-100">HR Staff</span>
+            {% else %}
+            <span class="inline-flex rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-100">Employee</span>
+            {% endif %}
+            {% if staff_member.employment_status == "ACTIVE" or staff_member.employment_status == "PROBATION" %}
+            <span class="inline-flex rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-100">{{ staff_member.get_employment_status_display }}</span>
+            {% elif staff_member.employment_status == "SUSPENDED" or staff_member.employment_status == "TERMINATED" %}
+            <span class="inline-flex rounded-full bg-rose-400/20 px-2.5 py-0.5 text-xs font-semibold text-rose-100">{{ staff_member.get_employment_status_display }}</span>
+            {% else %}
+            <span class="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white/70">{{ staff_member.get_employment_status_display }}</span>
+            {% endif %}
+            {% if staff_member.employee_id %}
+            <span class="font-mono text-xs font-semibold text-white/60">#{{ staff_member.employee_id }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# Actions #}
+      {% if can_edit %}
+      <div class="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-end lg:flex-row">
+        <a href="{% url 'dashboard:staff_edit' staff_member.pk %}"
+           class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-violet-800 shadow-md transition hover:bg-violet-50">
+          <i data-lucide="pencil" class="h-4 w-4"></i> Edit profile
+        </a>
+        <a href="{% url 'dashboard:staff_delete' staff_member.pk %}"
+           class="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/20">
+          <i data-lucide="user-x" class="h-4 w-4"></i> Remove
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+
+  {# ── Metrics row ── #}
+  <section class="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+    <article class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+        <i data-lucide="calendar-check" class="h-5 w-5"></i>
+      </span>
+      <div class="min-w-0">
+        <p class="text-2xl font-extrabold leading-none text-slate-900 dark:text-white">{{ attendance_month.present }}</p>
+        <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Present this month</p>
+      </div>
+    </article>
+    <article class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300">
+        <i data-lucide="users" class="h-5 w-5"></i>
+      </span>
+      <div class="min-w-0">
+        <p class="text-2xl font-extrabold leading-none text-slate-900 dark:text-white">{{ direct_reports_count }}</p>
+        <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Direct reports</p>
+      </div>
+    </article>
+    <article class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
+        <i data-lucide="palmtree" class="h-5 w-5"></i>
+      </span>
+      <div class="min-w-0">
+        <p class="text-2xl font-extrabold leading-none text-slate-900 dark:text-white">{{ recent_leaves|length }}</p>
+        <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Leave requests</p>
+      </div>
+    </article>
+    <article class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300">
+        <i data-lucide="activity" class="h-5 w-5"></i>
+      </span>
+      <div class="min-w-0">
+        <p class="text-2xl font-extrabold leading-none text-slate-900 dark:text-white">{{ audit_logs|length }}</p>
+        <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Activity logs</p>
+      </div>
+    </article>
+  </section>
+
+  {# ── Main body: 2-column on desktop ── #}
+  <div class="grid gap-5 xl:grid-cols-12 xl:gap-6">
+
+    {# Left column #}
+    <div class="space-y-5 xl:col-span-8 xl:space-y-6">
+
+      {# Job & employment #}
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
+        <div class="mb-5 flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+            <i data-lucide="briefcase" class="h-4 w-4"></i>
+          </span>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Job & employment</h2>
+        </div>
+        <dl class="divide-y divide-slate-100 dark:divide-white/10">
+          <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Department</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.department_name|default:"—" }}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Grade</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.grade_name|default:"—" }}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Designation</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.designation_label|default:"—" }}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Reporting manager</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{% if staff_member.reporting_manager %}{{ staff_member.reporting_manager.display_name }}{% else %}—{% endif %}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Employment type</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.get_employment_type_display|default:"—" }}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Date of joining</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{% if staff_member.date_of_joining %}{{ staff_member.date_of_joining|date:"F j, Y" }}{% else %}—{% endif %}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Work location</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.work_location|default:"—" }}</dd>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3">
+            <dt class="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400">Work mode</dt>
+            <dd class="text-right text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.get_work_mode_display|default:"—" }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {# Activity timeline #}
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
+        <div class="mb-5 flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+            <i data-lucide="history" class="h-4 w-4"></i>
+          </span>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Activity timeline</h2>
+        </div>
+        {% if audit_logs %}
+        <ul class="space-y-3">
+          {% for log in audit_logs %}
+          <li class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+              <i data-lucide="circle-dot" class="h-3.5 w-3.5"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ log.summary }}</p>
+              <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ log.created_at|date:"M j, Y · g:i A" }}{% if log.actor %} · {{ log.actor.display_name }}{% endif %}</p>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-10 text-center dark:border-white/10">
+          <i data-lucide="inbox" class="h-6 w-6 text-slate-400"></i>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No activity recorded yet.</p>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+
+    {# Right sidebar #}
+    <aside class="space-y-5 xl:col-span-4 xl:space-y-6">
+
+      {# Contact #}
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
+        <div class="mb-5 flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+            <i data-lucide="phone" class="h-4 w-4"></i>
+          </span>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Contact</h2>
+        </div>
+        <dl class="space-y-3">
+          <div class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+            <i data-lucide="smartphone" class="mt-0.5 h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400"></i>
+            <div class="min-w-0 flex-1">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Phone</dt>
+              <dd class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.phone|default:"—" }}</dd>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+            <i data-lucide="mail" class="mt-0.5 h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400"></i>
+            <div class="min-w-0 flex-1">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Personal email</dt>
+              <dd class="mt-0.5 break-all text-sm font-semibold text-slate-900 dark:text-white">{{ staff_member.personal_email|default:"—" }}</dd>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+            <i data-lucide="heart-pulse" class="mt-0.5 h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400"></i>
+            <div class="min-w-0 flex-1">
+              <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Emergency</dt>
+              <dd class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white">
+                {% if staff_member.emergency_contact_name %}
+                {{ staff_member.emergency_contact_name }}{% if staff_member.emergency_contact_phone %} · {{ staff_member.emergency_contact_phone }}{% endif %}
+                {% else %}—{% endif %}
+              </dd>
+            </div>
+          </div>
+        </dl>
+      </section>
+
+      {# Quick actions #}
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
+        <div class="mb-4 flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+            <i data-lucide="zap" class="h-4 w-4"></i>
+          </span>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Quick actions</h2>
+        </div>
+        <nav class="flex flex-col gap-2">
+          <a href="{% url 'dashboard:attendance' %}"
+             class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/5 dark:bg-white/5 dark:text-slate-200 dark:hover:border-violet-500/40 dark:hover:bg-violet-500/10 dark:hover:text-violet-300">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300"><i data-lucide="calendar-check" class="h-3.5 w-3.5"></i></span>
+            View attendance
+            <i data-lucide="chevron-right" class="ml-auto h-4 w-4 text-slate-400"></i>
+          </a>
+          <a href="{% url 'payroll:management' %}"
+             class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/5 dark:bg-white/5 dark:text-slate-200 dark:hover:border-violet-500/40 dark:hover:bg-violet-500/10 dark:hover:text-violet-300">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300"><i data-lucide="wallet" class="h-3.5 w-3.5"></i></span>
+            View payroll
+            <i data-lucide="chevron-right" class="ml-auto h-4 w-4 text-slate-400"></i>
+          </a>
+          <a href="{% url 'dashboard:orgchart:tree' %}"
+             class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/5 dark:bg-white/5 dark:text-slate-200 dark:hover:border-violet-500/40 dark:hover:bg-violet-500/10 dark:hover:text-violet-300">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300"><i data-lucide="git-branch" class="h-3.5 w-3.5"></i></span>
+            Org tree
+            <i data-lucide="chevron-right" class="ml-auto h-4 w-4 text-slate-400"></i>
+          </a>
+        </nav>
+      </section>
+
+      {# Recent leave #}
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
+        <div class="mb-4 flex items-center gap-2.5">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+            <i data-lucide="palmtree" class="h-4 w-4"></i>
+          </span>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Recent leave</h2>
+        </div>
+        {% if recent_leaves %}
+        <ul class="space-y-2">
+          {% for lv in recent_leaves %}
+          <li class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 dark:border-white/5 dark:bg-white/5">
+            <span class="text-sm font-semibold text-slate-900 dark:text-white">{{ lv.start_date|date:"M j" }} – {{ lv.end_date|date:"M j, Y" }}</span>
+            <span class="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">{{ lv.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-8 text-center dark:border-white/10">
+          <i data-lucide="calendar-off" class="h-5 w-5 text-slate-400"></i>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No leave records.</p>
+        </div>
+        {% endif %}
+      </section>
+
+    </aside>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sign in · HRMS Suite{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'login.css' %}">
+<meta name="description" content="Sign in to HRMS Suite — secure portals for Organization Admins, HR staff, and employees.">
+<meta name="robots" content="noindex, nofollow">
+<script>document.documentElement.classList.add("hrms-login-active");</script>
+<style>[x-cloak]{display:none!important}</style>
+{% endblock %}
+
+{% block body %}
+<div class="login-shell">
+  <div class="login-page hrms-auth-page"
+       x-data="loginPortalApp()"
+       x-init="init()"
+       data-initial-portal="{{ selected_portal.id }}">
+
+    {% include "accounts/_login_navbar.html" %}
+
+    <div class="login-bg" aria-hidden="true">
+      <div class="login-bg__mesh"></div>
+      <div class="hrms-auth-orb-violet login-bg__orb login-bg__orb--violet"></div>
+      <div class="hrms-auth-orb-indigo login-bg__orb login-bg__orb--indigo"></div>
+      <div class="login-bg__orb login-bg__orb--fuchsia"></div>
+    </div>
+
+    <main class="login-main">
+      {% include "accounts/login/_hero_panel.html" %}
+
+      <section class="login-auth" aria-label="Sign in">
+        <div class="login-auth__mobile-head">
+          <h1>Sign in to HRMS Suite</h1>
+          <p>Choose your portal and access your workspace securely.</p>
+        </div>
+
+        <div class="login-auth__card login-auth__card--{{ selected_portal.accent }}"
+             :class="'login-auth__card--' + activePortal.accent">
+          <div class="login-auth__glow" :class="'login-auth__glow--' + activePortal.accent"></div>
+
+          <div class="login-auth__inner">
+            {% include "accounts/login/_portal_tabs.html" %}
+
+            <div class="login-auth__header">
+              <div class="login-auth__portal-icon login-auth__portal-icon--{{ selected_portal.accent }}"
+                   :class="'login-auth__portal-icon--' + activePortal.accent">
+                <i data-lucide="{{ selected_portal.icon }}" :data-lucide="activePortal.icon"></i>
+              </div>
+              <div class="login-auth__header-text">
+                <h2 class="login-auth__title" x-text="activePortal.title">{{ selected_portal.title }}</h2>
+                <p class="login-auth__subtitle" x-text="activePortal.subtitle">{{ selected_portal.subtitle }}</p>
+              </div>
+            </div>
+
+            {% if form.non_field_errors or form.errors %}
+            <div class="login-alert" role="alert">
+              {% if form.non_field_errors %}
+                {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+              {% else %}
+                <p>Please check your credentials and try again.</p>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            {% include "accounts/login/_login_form.html" %}
+            {% include "accounts/login/_sso_placeholder.html" %}
+
+            <div class="login-auth__footer">
+              <p>New organization? <a href="{% url 'accounts:register' %}" class="login-link">Create organization</a></p>
+              <p><a href="{% url 'accounts:contact' %}" class="login-link login-link--muted">Need help?</a></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-auth__security-row">
+          {% for icon, label in security_badges %}
+          <span class="login-security-badge">
+            <i data-lucide="{{ icon }}"></i>
+            {{ label }}
+          </span>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+
+    <footer class="login-footer">
+      <p>© {% now "Y" %} HRMS Suite · Enterprise HR platform</p>
+      <p class="login-footer__links">
+        <a href="#">Privacy Policy</a>
+        <span aria-hidden="true">·</span>
+        <a href="#">Terms</a>
+        <span aria-hidden="true">·</span>
+        <a href="{% url 'accounts:contact' %}">Support</a>
+      </p>
+    </footer>
+  </div>
+  {{ login_portals_json|json_script:"login-portals-data" }}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'login.js' %}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endblock %}

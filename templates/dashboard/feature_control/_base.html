@@ -1,0 +1,43 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Feature Control Center · Platform{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'financials-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'feature-control.css' %}">
+<script>
+window.FCC_CONFIG = {
+  csrf: "{{ csrf_token }}",
+  apiUrl: "{% url 'dashboard:feature_control:api' %}"
+};
+</script>
+<script src="{% static 'feature-control.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="fin-page fcc-page">
+  <header class="fin-hero ot-no-print">
+    <div class="fin-hero__inner">
+      <div class="fin-hero__text">
+        <p class="fin-eyebrow">Super Admin · Master Control</p>
+        <h1 class="fin-title">Feature Control Center</h1>
+        <p class="fin-subtitle">Control features, modules, pages, navigation, permissions, limits, and add-ons across the entire platform.</p>
+      </div>
+      <div class="fin-hero__actions">
+        <a href="{% url 'dashboard:feature_control:hub' %}" class="fin-btn fin-btn--ghost"><i data-lucide="layout-dashboard"></i> Overview</a>
+        <a href="{% url 'dashboard:plans:list' %}" class="fin-btn fin-btn--ghost"><i data-lucide="layers"></i> Plans</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="fin-subnav ot-no-print" aria-label="Feature control sections">
+    {% for item in control_nav %}
+    <a href="{{ item.url }}" class="fin-subnav__item{% if item.active %} is-active{% endif %}">
+      <i data-lucide="{{ item.icon }}"></i>
+      <span>{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% block fcc_content %}{% endblock %}
+</div>
+{% endblock %}

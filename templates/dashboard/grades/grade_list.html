@@ -1,0 +1,120 @@
+{% extends "dashboard/grades/_base.html" %}
+
+{% block grades_content %}
+<div class="grd-filter-row">
+  <a href="{% url 'dashboard:grades:list' %}" class="{% if not filter_category %}is-active{% endif %}">All</a>
+  {% for val, label in grade_category_choices %}
+  <a href="?category={{ val }}" class="{% if filter_category == val %}is-active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="grid gap-6 lg:grid-cols-5">
+  <div class="lg:col-span-2">
+    <section class="grd-panel">
+      <h2 class="grd-panel__title">Create grade</h2>
+      <form method="post" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        {% for field in form %}
+        <div>
+          <label class="platform-label">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<p class="text-xs text-rose-600 mt-1">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Create grade</button>
+      </form>
+    </section>
+
+    {% if edit_grade %}
+    <section class="grd-panel mt-6 ring-2 ring-teal-500/30">
+      <h2 class="grd-panel__title">Edit {{ edit_grade.name }}</h2>
+      <form method="post" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="grade_id" value="{{ edit_grade.pk }}">
+        {% for field in edit_form %}
+        <div>
+          <label class="platform-label">{{ field.label }}</label>
+          {{ field }}
+        </div>
+        {% endfor %}
+        <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Save changes</button>
+      </form>
+
+      <h3 class="text-xs font-semibold uppercase mt-6 mb-2 text-slate-500">Permissions</h3>
+      <ul class="space-y-1 text-sm mb-3">
+        {% for p in grade_permissions %}
+        <li class="flex justify-between items-center">
+          <span>{{ p.get_permission_key_display }}</span>
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="remove_permission">
+            <input type="hidden" name="permission_id" value="{{ p.pk }}">
+            <input type="hidden" name="grade_id" value="{{ edit_grade.pk }}">
+            <button type="submit" class="text-xs text-rose-600">Remove</button>
+          </form>
+        </li>
+        {% empty %}
+        <li class="grd-muted">No permissions mapped.</li>
+        {% endfor %}
+      </ul>
+      <form method="post" class="flex gap-2">{% csrf_token %}
+        <input type="hidden" name="action" value="add_permission">
+        <input type="hidden" name="grade_id" value="{{ edit_grade.pk }}">
+        {{ permission_form.permission_key }}
+        <button type="submit" class="grd-btn grd-btn--primary text-xs">Add</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+
+  <section class="grd-panel lg:col-span-3">
+    <h2 class="grd-panel__title">Grades ({{ grades|length }})</h2>
+    <div class="overflow-x-auto">
+      <table class="grd-table">
+        <thead>
+          <tr>
+            <th>Grade</th><th>Code</th><th>Category</th><th>Level</th><th>Staff</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in grades %}
+          <tr>
+            <td><strong>{{ g.name }}</strong></td>
+            <td>{{ g.code|default:"—" }}</td>
+            <td><span class="grd-badge grd-badge--cat">{{ g.get_category_display }}</span></td>
+            <td>{{ g.level_number }}</td>
+            <td>{{ g.member_count }}</td>
+            <td>
+              {% if g.status == "ACTIVE" %}
+              <span class="grd-badge">Active</span>
+              {% else %}
+              <span class="grd-badge grd-badge--archived">Archived</span>
+              {% endif %}
+            </td>
+            <td class="whitespace-nowrap">
+              <a href="?edit={{ g.pk }}" class="text-xs font-semibold text-teal-600">Edit</a>
+              {% if g.status == "ACTIVE" %}
+              <form method="post" class="inline">{% csrf_token %}
+                <input type="hidden" name="action" value="archive">
+                <input type="hidden" name="grade_id" value="{{ g.pk }}">
+                <button type="submit" class="text-xs text-amber-600 ml-2">Archive</button>
+              </form>
+              {% else %}
+              <form method="post" class="inline">{% csrf_token %}
+                <input type="hidden" name="action" value="restore">
+                <input type="hidden" name="grade_id" value="{{ g.pk }}">
+                <button type="submit" class="text-xs text-teal-600 ml-2">Restore</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="grd-muted">No grades yet. Create one or seed defaults from Overview.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

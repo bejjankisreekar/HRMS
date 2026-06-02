@@ -1,0 +1,23 @@
+<section class="starter-actions" aria-label="Quick actions">
+  <h2 class="starter-section__title">Quick actions</h2>
+  <div class="starter-actions__grid">
+    <a href="{% url 'dashboard:staff_create' %}" class="starter-action starter-action--violet">
+      <i data-lucide="user-plus"></i>
+      <span>Add employee</span>
+    </a>
+    <a href="{% if features.leave_enabled %}{% url 'leaves:management' %}?status=PENDING{% else %}#{% endif %}"
+       class="starter-action starter-action--amber {% if not features.leave_enabled %}starter-action--disabled{% endif %}">
+      <i data-lucide="check-circle"></i>
+      <span>Approve leave</span>
+    </a>
+    <a href="{% if features.payroll_enabled %}{% url 'payroll:management' %}{% else %}#{% endif %}"
+       class="starter-action starter-action--cyan {% if not features.payroll_enabled %}starter-action--disabled{% endif %}">
+      <i data-lucide="play-circle"></i>
+      <span>Run payroll</span>
+    </a>
+    <a href="{% url 'attendance:reports' %}" class="starter-action starter-action--slate">
+      <i data-lucide="download"></i>
+      <span>Export reports</span>
+    </a>
+  </div>
+</section>

@@ -1,0 +1,31 @@
+{% extends "dashboard/feature_control/_base.html" %}
+
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head">
+    <div>
+      <h2 class="fin-panel__title">{{ plan.name }} plan features</h2>
+      <p class="fin-muted">Features included in this subscription plan.</p>
+    </div>
+    <a href="{% url 'dashboard:plans:detail' plan.pk %}" class="fin-btn fin-btn--ghost fin-btn--sm">Plan settings</a>
+  </div>
+
+  {% regroup features by category as groups %}
+  {% for group in groups %}
+  <div class="fcc-group">
+    <h3 class="fcc-group__title">{{ group.grouper|default:"General"|title }}</h3>
+    <div class="fcc-toggle-grid">
+      {% for feat in group.list %}
+      <label class="fcc-toggle-row">
+        <span class="fcc-toggle-row__info">
+          <strong>{{ feat.name }}</strong>
+          <code>{{ feat.key }}</code>
+        </span>
+        <input type="checkbox" class="fcc-switch fcc-plan-toggle" data-plan-id="{{ plan.pk }}" data-feature-id="{{ feat.pk }}"{% if feat.pk in enabled_ids %} checked{% endif %}>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

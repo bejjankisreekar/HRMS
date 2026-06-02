@@ -1,0 +1,22 @@
+<section class="hrms-feat-categories">
+  {% for category in feature_categories %}
+  <section id="{{ category.id }}" class="hrms-feat-category hrms-section hrms-feat-category--{{ category.accent }} hrms-reveal" aria-labelledby="cat-{{ category.id }}">
+    <div class="hrms-container">
+      <div class="hrms-feat-category__head">
+        <div class="hrms-feat-category__badge">
+          <i data-lucide="{{ category.icon }}" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <h2 id="cat-{{ category.id }}" class="hrms-feat-category__title">{{ category.title }}</h2>
+          <p class="hrms-feat-category__subtitle">{{ category.subtitle }}</p>
+        </div>
+      </div>
+      <div class="hrms-feat-category__grid">
+        {% for item in category.items %}
+          {% include "marketing/features/_feature_card.html" with item=item %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endfor %}
+</section>

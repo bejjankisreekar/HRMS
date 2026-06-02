@@ -1,0 +1,52 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Edit {{ platform_user.display_name }} · Platform{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'platform-forms.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:super_users' as super_users_url %}
+  {% include "dashboard/_back_button.html" with back_url=super_users_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="platform-form mx-auto max-w-3xl space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900 dark:text-white">Edit user</h1>
+    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">{{ platform_user.email }}</p>
+  </div>
+
+  <form method="post" class="platform-section">
+    <div class="platform-section-header">
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600">
+        <i data-lucide="user-cog" class="h-5 w-5"></i>
+      </span>
+      <div>
+        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Account details</h2>
+        <p class="text-xs text-slate-500">Update profile, role, and access</p>
+      </div>
+    </div>
+    <div class="platform-section-body">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="grid gap-5 sm:grid-cols-2">
+        {% for field in form %}
+        <div class="{% if field.name == 'new_password' or field.name == 'email' %}sm:col-span-2{% endif %}">
+          <label class="platform-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<p class="platform-error">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button type="submit" class="rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">Save changes</button>
+        <a href="{% url 'dashboard:super_users' %}" class="rounded-xl px-6 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 dark:text-slate-300 dark:ring-white/10">Cancel</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

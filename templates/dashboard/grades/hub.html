@@ -1,0 +1,48 @@
+{% extends "dashboard/grades/_base.html" %}
+
+{% block grades_content %}
+<section class="grd-kpi-grid">
+  <article class="grd-kpi"><p class="grd-kpi__label">Total grades</p><p class="grd-kpi__value">{{ total_grades }}</p></article>
+  <article class="grd-kpi"><p class="grd-kpi__label">Active</p><p class="grd-kpi__value">{{ active_grades }}</p></article>
+  <article class="grd-kpi"><p class="grd-kpi__label">Designations</p><p class="grd-kpi__value">{{ designations }}</p></article>
+  <article class="grd-kpi"><p class="grd-kpi__label">Staff mapped</p><p class="grd-kpi__value">{{ mapped_staff }}</p></article>
+  <article class="grd-kpi"><p class="grd-kpi__label">Unmapped</p><p class="grd-kpi__value">{{ unmapped_staff }}</p></article>
+</section>
+
+<div class="grd-grid-2">
+  <section class="grd-panel">
+    <h2 class="grd-panel__title">HR grade structure</h2>
+    {% include "dashboard/grades/_tree.html" with nodes=hr_tree %}
+  </section>
+  <section class="grd-panel">
+    <h2 class="grd-panel__title">Employee grade structure</h2>
+    {% include "dashboard/grades/_tree.html" with nodes=emp_tree %}
+  </section>
+</div>
+
+<section class="grd-panel">
+  <h2 class="grd-panel__title">Grade categories</h2>
+  <div class="flex flex-wrap gap-2">
+    {% for c in categories %}
+    <span class="grd-badge grd-badge--cat">{{ c.category }} · {{ c.count }}</span>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="grd-panel">
+  <h2 class="grd-panel__title">Future-ready capabilities</h2>
+  <div class="grd-future-grid">
+    <div class="grd-future-card"><strong>AI promotion recommendations</strong><br>Suggest eligible promotions based on tenure and performance.</div>
+    <div class="grd-future-card"><strong>Succession planning</strong><br>Identify successors for critical grades and roles.</div>
+    <div class="grd-future-card"><strong>Org restructuring</strong><br>Simulate hierarchy changes before applying.</div>
+    <div class="grd-future-card"><strong>Skill-based hierarchy</strong><br>Map competencies to grade requirements.</div>
+  </div>
+</section>
+
+{% if total_grades == 0 %}
+<section class="grd-panel">
+  <p class="grd-muted mb-3">No grades configured yet. Seed the default Workday-style structure or create grades manually.</p>
+  <button type="button" class="grd-btn grd-btn--primary" data-grd-seed>Seed default grades</button>
+</section>
+{% endif %}
+{% endblock %}

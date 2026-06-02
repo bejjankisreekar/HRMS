@@ -1,0 +1,132 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Feature Control · {{ organization.name }}{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'org-feature-control.css' %}">
+<script>
+window.ORG_FC = {
+  csrf: "{{ csrf_token }}",
+  orgId: "{{ organization.pk }}",
+  apiUrl: "{% url 'dashboard:super_organization_features_api' organization.pk %}",
+  redirectOnReset: true
+};
+</script>
+<script src="{% static 'org-feature-control.js' %}" defer></script>
+{% endblock %}
+
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:super_organization_detail' organization.pk as org_url %}
+  {% include "dashboard/_back_button.html" with back_url=org_url back_label="Back to organization" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="ofc-page">
+  <header class="ofc-hero">
+    <div class="ofc-hero__text">
+      <p class="ofc-eyebrow">Super Admin · Organization Features</p>
+      <h1 class="ofc-title">{{ organization.name }}</h1>
+      <p class="ofc-subtitle">
+        Current plan: <strong>{{ plan.name|default:"—" }}</strong>
+        · Toggle features to show/hide navigation, pages, and APIs instantly.
+      </p>
+    </div>
+    <div class="ofc-hero__actions">
+      <button type="button" class="ofc-btn ofc-btn--ghost" data-bulk="reset_plan">Reset to plan defaults</button>
+      <button type="button" class="ofc-btn ofc-btn--ghost" data-bulk="disable_all">Disable all</button>
+      <button type="button" class="ofc-btn ofc-btn--primary" data-bulk="enable_all">Enable all</button>
+    </div>
+  </header>
+
+  <div class="ofc-stats">
+    <div class="ofc-stat"><span>Enabled</span><strong>{{ summary.enabled_count }}</strong></div>
+    <div class="ofc-stat"><span>Disabled</span><strong>{{ summary.disabled_count }}</strong></div>
+    <div class="ofc-stat"><span>Overrides</span><strong>{{ summary.override_count }}</strong></div>
+    <div class="ofc-stat"><span>Add-ons</span><strong>{{ summary.addon_count }}</strong></div>
+    <div class="ofc-stat"><span>Last modified</span><strong>{% if summary.last_modified %}{{ summary.last_modified|date:"M j, Y H:i" }}{% else %}—{% endif %}</strong></div>
+  </div>
+
+  <section class="ofc-panel ofc-panel--limits">
+    <div class="ofc-panel__head">
+      <h2 class="ofc-panel__title">Resource limits</h2>
+      <button type="button" class="ofc-btn ofc-btn--xs" data-limits-reset>Reset to plan defaults</button>
+    </div>
+    <p class="ofc-limits-hint">Override plan limits for this organization. Leave blank to use the plan default.</p>
+    <div class="ofc-limits-grid">
+      {% for row in limits.rows %}
+      <div class="ofc-limit-row">
+        <label class="ofc-limit-row__label">{{ row.label }}</label>
+        <div class="ofc-limit-row__fields">
+          <input type="number" min="0" class="ofc-limit-input" data-limit-field="{{ row.field }}"
+                 value="{{ row.override|default:'' }}" placeholder="Plan: {% if row.plan %}{{ row.plan }}{% else %}Unlimited{% endif %}">
+          <span class="ofc-limit-effective" data-effective-for="{{ row.field }}">
+            Active: {% if row.effective %}{{ row.effective }}{% else %}Unlimited{% endif %}
+          </span>
+        </div>
+        <span class="ofc-limit-plan">Plan default: {% if row.plan %}{{ row.plan }}{% else %}Unlimited{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if addons %}
+  <section class="ofc-panel ofc-panel--compact">
+    <h2 class="ofc-panel__title">Active add-ons</h2>
+    <div class="ofc-addon-chips">
+      {% for row in addons %}
+      <span class="ofc-chip"><i data-lucide="{{ row.addon.icon|default:'puzzle' }}"></i> {{ row.addon.name }}</span>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% for group in feature_categories %}
+  <section class="ofc-panel" data-category-id="{{ group.category.pk|default:'' }}">
+    <div class="ofc-panel__head">
+      <div class="ofc-panel__title-row">
+        {% if group.category %}<i data-lucide="{{ group.category.icon }}"></i>{% endif %}
+        <h2 class="ofc-panel__title">{{ group.category.name|default:"Other" }}</h2>
+      </div>
+      {% if group.category %}
+      <div class="ofc-panel__actions">
+        <button type="button" class="ofc-btn ofc-btn--xs ofc-btn--ghost" data-category-enable="{{ group.category.pk }}">Enable group</button>
+        <button type="button" class="ofc-btn ofc-btn--xs" data-category-disable="{{ group.category.pk }}">Disable group</button>
+      </div>
+      {% endif %}
+    </div>
+    <div class="ofc-feature-list">
+      {% for row in group.items %}
+      <label class="ofc-feature-row{% if row.parent_key %} is-child{% endif %}{% if row.parent_disabled %} is-disabled-parent{% endif %}"
+             data-feature-id="{{ row.feature.pk }}"
+             data-parent-key="{{ row.parent_key }}">
+        <input type="checkbox"
+               class="ofc-switch ofc-feature-toggle"
+               data-feature-id="{{ row.feature.pk }}"
+               {% if row.effective %}checked{% endif %}
+               {% if row.parent_disabled %}disabled{% endif %}>
+        <span class="ofc-feature-row__body">
+          <span class="ofc-feature-row__name">
+            {% if row.feature.icon %}<i data-lucide="{{ row.feature.icon }}"></i>{% endif %}
+            {{ row.feature.name }}
+            {% if row.is_parent %}<span class="ofc-tag">Module</span>{% endif %}
+          </span>
+          <span class="ofc-feature-row__meta">
+            <code>{{ row.feature.key }}</code>
+            {% if row.override != None %}<span class="ofc-tag ofc-tag--override">Override</span>{% endif %}
+            {% if row.in_plan %}<span class="ofc-tag ofc-tag--plan">In plan</span>{% else %}<span class="ofc-tag ofc-tag--addon">Not in plan</span>{% endif %}
+            {% if not row.global_on %}<span class="ofc-tag ofc-tag--off">Global off</span>{% endif %}
+          </span>
+        </span>
+        <span class="ofc-feature-row__status{% if row.effective %} is-on{% else %} is-off{% endif %}">
+          {% if row.effective %}Enabled{% else %}Disabled{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+  </section>
+  {% empty %}
+  <p class="ofc-empty">Run <code>python manage.py seed_org_features</code> to populate the feature catalog.</p>
+  {% endfor %}
+</div>
+{% endblock %}

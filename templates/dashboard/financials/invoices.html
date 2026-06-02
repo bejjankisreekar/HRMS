@@ -1,0 +1,50 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-panel">
+  <form method="get" class="fin-filters">
+    <select name="status" class="fin-input">
+      <option value="">All</option>
+      {% for val, label in invoices.model.Status.choices %}
+      <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="fin-btn fin-btn--primary">Filter</button>
+  </form>
+
+  <div class="fin-table-wrap">
+    <table class="fin-table">
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Organization</th>
+          <th>Amount</th>
+          <th>Tax (GST)</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Period</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td><strong>{{ inv.invoice_number }}</strong></td>
+          <td>{{ inv.organization.name }}</td>
+          <td>₹{{ inv.amount_inr|floatformat:2 }}</td>
+          <td>₹{{ inv.tax_inr|floatformat:2 }}</td>
+          <td>₹{{ inv.total_inr|floatformat:2 }}</td>
+          <td><span class="fin-badge">{{ inv.get_status_display }}</span></td>
+          <td>{{ inv.period_start|date:"M d" }} – {{ inv.period_end|date:"M d, Y" }}</td>
+          <td>
+            <a href="{% url 'dashboard:financials:invoice_pdf' inv.pk %}" target="_blank" class="fin-btn fin-btn--ghost fin-btn--xs">PDF</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="fin-center fin-muted">No invoices yet. Generate from Subscriptions.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

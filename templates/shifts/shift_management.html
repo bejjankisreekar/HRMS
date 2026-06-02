@@ -1,0 +1,270 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Shift & Scheduling · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'shifts.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script>window.SHIFT_CHARTS = {{ charts_json|safe }}; window.SHIFT_WEEKLY_GRID = {{ weekly_grid_json|safe }};</script>
+<script src="{% static 'shifts.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="shifts-page w-full space-y-6">
+  <div class="shifts-hero sh-no-print">
+    <div class="shifts-hero-inner flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="calendar-clock" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Workforce · Scheduling</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Shift & Scheduling Management</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">
+            Manage employee shifts, rotational schedules, night shifts, attendance mapping, and workforce scheduling.
+          </p>
+          <p class="mt-2 text-xs text-violet-200/80">{{ filters.date_from }} → {{ filters.date_to }} · {{ organization.name }}</p>
+        </div>
+      </div>
+      {% if can_manage %}
+      <div class="flex flex-wrap gap-2">
+        <button type="button" data-open-modal="create-shift" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+          <i data-lucide="plus" class="inline h-3.5 w-3.5"></i> Create shift
+        </button>
+        <button type="button" data-open-modal="assign-shift" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Assign shift</button>
+        <a href="#weekly-scheduler" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Weekly scheduler</a>
+        {% if can_manage %}
+        <form method="post" class="inline">{% csrf_token %}
+          <input type="hidden" name="action" value="auto_schedule">
+          <button type="submit" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Auto schedule</button>
+        </form>
+        {% endif %}
+        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="grid gap-3 grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 sh-no-print">
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Active shifts</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.active_shifts }}">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Scheduled today</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-violet-600 dark:text-violet-300" data-counter="{{ summary.scheduled_today }}">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Night shift</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-indigo-500 dark:text-indigo-300" data-counter="{{ summary.night_shift_employees }}">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Rotational</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-cyan-600 dark:text-cyan-400" data-counter="{{ summary.rotational_shifts }}">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Pending swaps</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-amber-600 dark:text-amber-400" data-counter="{{ summary.pending_swaps }}">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Overtime (hrs)</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-rose-500 dark:text-rose-400" data-counter="{{ summary.overtime_hours }}" data-suffix="h">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Compliance</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400" data-counter="{{ summary.compliance_rate }}" data-suffix="%">0</p></div>
+    <div class="sh-stat"><p class="text-[10px] uppercase text-slate-500">Coverage</p><p class="sh-counter sh-stat-value mt-1 text-xl font-bold text-teal-600 dark:text-teal-400" data-counter="{{ summary.coverage_rate }}" data-suffix="%">0</p></div>
+  </section>
+
+  <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sh-no-print">
+    {% for item in insights %}
+    <div class="sh-insight flex gap-3">
+      <i data-lucide="{{ item.icon }}" class="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0"></i>
+      <div>
+        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ item.title }}</p>
+        <p class="text-xs text-slate-500 mt-0.5">{{ item.body }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <form method="get" class="sh-glass sh-no-print px-4 py-3">
+    <div class="sh-filter-bar">
+      <div class="sh-filter-item"><label class="sh-filter-label">Branch</label>
+        <select name="branch" class="sh-input"><option value="">All</option>{% for b in filter_options.branches %}<option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select></div>
+      <div class="sh-filter-item"><label class="sh-filter-label">Department</label>
+        <select name="department" class="sh-input"><option value="">All</option>{% for d in filter_options.departments %}<option value="{{ d.pk }}" {% if filters.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
+      <div class="sh-filter-item"><label class="sh-filter-label">Team</label>
+        <select name="team" class="sh-input"><option value="">All</option>{% for t in filter_options.teams %}<option value="{{ t.pk }}" {% if filters.team == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+      <div class="sh-filter-item"><label class="sh-filter-label">Employee</label>
+        <select name="employee" class="sh-input"><option value="">All</option>{% for e in filter_options.employees %}<option value="{{ e.pk }}" {% if filters.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>{% endfor %}</select></div>
+      <div class="sh-filter-item"><label class="sh-filter-label">Shift type</label>
+        <select name="shift_type" class="sh-input"><option value="">All</option>{% for val, label in filter_options.shift_types %}<option value="{{ val }}" {% if filters.shift_type == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="sh-filter-item"><label class="sh-filter-label">From</label>
+        <input type="date" name="from" value="{{ filters.date_from|date:'Y-m-d' }}" class="sh-input"></div>
+      <div class="sh-filter-item"><label class="sh-filter-label">To</label>
+        <input type="date" name="to" value="{{ filters.date_to|date:'Y-m-d' }}" class="sh-input"></div>
+      <div class="flex items-end gap-2 pb-0.5"><button type="submit" class="sh-btn-primary">Apply</button>
+        <a href="{% url 'shifts:management' %}" class="sh-btn-ghost">Reset</a></div>
+    </div>
+  </form>
+
+  <div class="grid gap-4 lg:grid-cols-2 sh-no-print">
+    <section class="sh-glass p-4">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Shift templates</h2>
+      <ul class="mt-3 space-y-2 max-h-52 overflow-y-auto text-xs">
+        {% for s in shifts %}
+        <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2 dark:border-white/10">
+          <span class="sh-shift-chip" style="background:{{ s.color }}">{{ s.name }}</span>
+          <span class="text-slate-500">{{ s.time_range_display }} · {{ s.get_shift_type_display }}</span>
+          {% if can_manage %}
+          <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="clone_shift"><input type="hidden" name="shift_id" value="{{ s.pk }}"><button class="text-violet-600 font-semibold">Clone</button></form>
+          {% endif %}
+        </li>
+        {% empty %}<li class="text-slate-500">No shifts yet.</li>{% endfor %}
+      </ul>
+    </section>
+    <section class="sh-glass p-4">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Pending swap requests</h2>
+      <ul class="mt-3 space-y-2 text-xs max-h-52 overflow-y-auto">
+        {% for swap in pending_swaps %}
+        <li class="rounded-lg border border-slate-200 p-2 dark:border-white/10">
+          <p class="font-medium text-slate-900 dark:text-white">{{ swap.requester.display_name }} · {{ swap.date|date:"d M Y" }}</p>
+          <p class="text-slate-500">{{ swap.current_shift.name }} → {{ swap.requested_shift.name }}</p>
+          {% if can_manage %}
+          <div class="mt-2 flex gap-2">
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="approve_swap"><input type="hidden" name="swap_id" value="{{ swap.pk }}"><button class="text-emerald-600 font-semibold">Approve</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reject_swap"><input type="hidden" name="swap_id" value="{{ swap.pk }}"><button class="text-rose-500 font-semibold">Reject</button></form>
+          </div>
+          {% endif %}
+        </li>
+        {% empty %}<li class="text-slate-500">No pending swaps.</li>{% endfor %}
+      </ul>
+      {% if not can_manage %}
+      <button type="button" data-open-modal="request-swap" class="sh-btn-primary mt-3 text-xs">Request swap</button>
+      {% endif %}
+    </section>
+  </div>
+
+  <section id="weekly-scheduler" class="sh-glass p-4 sh-no-print">
+    <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Weekly scheduler</h2>
+    <p class="text-xs text-slate-500 mt-0.5">Color-coded shifts · drag cells to reorganize (assign via form)</p>
+    <div class="sh-scheduler mt-3">
+      <table class="sh-week-grid">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th colspan="7">Week</th>
+          </tr>
+        </thead>
+        <tbody id="sh-week-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid gap-4 lg:grid-cols-2 sh-no-print">
+    <div class="sh-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Department distribution</h3><div class="mt-2 h-40"><canvas id="chartShiftDept"></canvas></div></div>
+    <div class="sh-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Shift types</h3><div class="mt-2 h-40"><canvas id="chartShiftTypes"></canvas></div></div>
+    <div class="sh-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Overtime trend</h3><div class="mt-2 h-40"><canvas id="chartOvertime"></canvas></div></div>
+    <div class="sh-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Attendance compliance</h3><div class="mt-2 h-40"><canvas id="chartCompliance"></canvas></div></div>
+  </section>
+
+  <section class="sh-glass overflow-hidden">
+    <div class="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Shift reports</h2>
+      <p class="text-xs text-slate-500">{{ report_page.paginator.count }} rows</p>
+    </div>
+    <div class="sh-table-wrap">
+      <table class="sh-table">
+        <thead><tr>
+          <th>Date</th><th>ID</th><th>Name</th><th>Dept</th><th>Shift</th><th>Type</th><th>Timing</th><th>Hours</th><th>Attendance</th><th>Late</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          {% for row in report_page %}
+          <tr>
+            <td>{{ row.date }}</td>
+            <td>{{ row.employee_id }}</td>
+            <td class="font-medium text-slate-900 dark:text-white">{{ row.employee_name }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.shift_name }}</td>
+            <td>{{ row.shift_type }}</td>
+            <td>{{ row.shift_timing }}</td>
+            <td>{{ row.working_hours }}</td>
+            <td>{{ row.attendance_status }}</td>
+            <td>{{ row.late_by }}</td>
+            <td>{{ row.schedule_status }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="11" class="py-12 text-center text-slate-500">No schedule data for filters.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if report_page.has_other_pages %}
+    <div class="flex justify-between border-t border-slate-200 px-5 py-3 text-xs sh-no-print dark:border-white/10">
+      <span class="text-slate-500">Page {{ report_page.number }} / {{ report_page.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if report_page.has_previous %}<a href="?{{ filter_query }}&page={{ report_page.previous_page_number }}" class="sh-btn-ghost py-1">Prev</a>{% endif %}
+        {% if report_page.has_next %}<a href="?{{ filter_query }}&page={{ report_page.next_page_number }}" class="sh-btn-ghost py-1">Next</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% if can_manage %}
+<div id="modal-create-shift" class="sh-modal" hidden>
+  <div class="sh-modal-panel">
+    <h3 class="text-lg font-semibold text-white">Create shift</h3>
+    <form method="post" class="mt-4 grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      <input type="hidden" name="action" value="create_shift">
+      {% for field in shift_form %}
+      <div class="{% if field.name == 'description' or field.name == 'weekly_off_list' %}sm:col-span-2{% endif %}">
+        <label class="sh-filter-label text-slate-400">{{ field.label }}</label>
+        {{ field }}
+      </div>
+      {% endfor %}
+      <div class="sm:col-span-2 flex gap-2"><button type="submit" class="sh-btn-primary">Save</button><button type="button" class="sh-btn-ghost" data-close-modal>Cancel</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-assign-shift" class="sh-modal" hidden>
+  <div class="sh-modal-panel">
+    <h3 class="text-lg font-semibold text-white">Assign shift</h3>
+    <form method="post" class="mt-4 space-y-3">{% csrf_token %}
+      <input type="hidden" name="action" value="assign_shift">
+      {% for field in assign_form %}
+      <div><label class="sh-filter-label text-slate-400">{{ field.label }}</label>{{ field }}</div>
+      {% endfor %}
+      <button type="submit" class="sh-btn-primary">Assign</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div id="modal-request-swap" class="sh-modal" hidden>
+  <div class="sh-modal-panel">
+    <h3 class="text-lg font-semibold text-white">Request shift swap</h3>
+    <form method="post" class="mt-4 space-y-3">{% csrf_token %}
+      <input type="hidden" name="action" value="request_swap">
+      {% for field in swap_form %}
+      <div><label class="sh-filter-label text-slate-400">{{ field.label }}</label>{{ field }}</div>
+      {% endfor %}
+      <button type="submit" class="sh-btn-primary">Submit request</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const grid = window.SHIFT_WEEKLY_GRID;
+  const tbody = document.getElementById("sh-week-body");
+  if (grid && tbody && grid.rows) {
+    const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const header = tbody.closest("table").querySelector("thead tr");
+    if (header && grid.days) {
+      header.innerHTML = "<th>Employee</th>" + grid.days.map((d, i) => {
+        const dt = new Date(d);
+        return `<th>${dayLabels[i] || ""}<br><span style="font-weight:400;opacity:.7">${dt.getDate()}</span></th>`;
+      }).join("");
+    }
+    tbody.innerHTML = grid.rows.map((row) => {
+      const cells = row.cells.map((c) =>
+        `<td><div class="sh-shift-cell" draggable="true" data-user-id="${row.user_id}" data-date="${c.date}" data-shift-id="${c.shift_id || ""}" style="background:${c.color}">${c.shift_name}</div></td>`
+      ).join("");
+      return `<tr><td>${row.name}<br><span style="font-weight:400;opacity:.6;font-size:10px">${row.employee_id}</span></td>${cells}</tr>`;
+    }).join("");
+  }
+  document.querySelectorAll("[data-open-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = "modal-" + btn.getAttribute("data-open-modal");
+      const el = document.getElementById(id);
+      if (el) el.hidden = false;
+    });
+  });
+  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => btn.closest(".sh-modal").hidden = true);
+  });
+})();
+</script>
+{% endblock %}

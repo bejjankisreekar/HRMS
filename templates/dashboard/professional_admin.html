@@ -1,0 +1,36 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{{ organization.name }} · Professional Dashboard{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'professional-dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+<script src="{% static 'professional-dashboard.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="pro-dash" id="pro-dashboard">
+
+  {% if empty_org %}
+  <div class="pro-empty pro-empty--page">
+    <i data-lucide="building-2"></i>
+    <h2>No organization linked</h2>
+    <p>Connect your account to an organization workspace.</p>
+  </div>
+  {% else %}
+
+  {% include "dashboard/professional/_header.html" %}
+  {% include "dashboard/professional/_kpis.html" %}
+
+  <div class="pro-dash__main-grid">
+    {% include "dashboard/professional/_insights.html" %}
+    {% include "dashboard/professional/_ai_panel.html" %}
+  </div>
+
+  {% include "dashboard/professional/_analytics.html" %}
+  {% include "dashboard/professional/_productivity.html" %}
+  {% include "dashboard/professional/_employee_table.html" %}
+
+  {{ charts|json_script:"pro-charts-data" }}
+  {% endif %}
+</div>
+{% endblock %}

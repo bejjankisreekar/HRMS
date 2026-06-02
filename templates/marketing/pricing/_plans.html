@@ -1,0 +1,40 @@
+<section class="hrms-section hrms-price-plans" id="plans" aria-labelledby="plans-heading">
+  <div class="hrms-container">
+    <h2 id="plans-heading" class="sr-only">Pricing plans</h2>
+    <div class="hrms-price-plans__grid">
+      {% for plan in pricing_plans %}
+      <article class="hrms-price-card hrms-reveal {% if plan.popular %}hrms-price-card--popular{% endif %}"
+               data-plan="{{ plan.id }}">
+        {% if plan.popular %}
+        <span class="hrms-price-card__badge">Most popular</span>
+        {% endif %}
+        <div class="hrms-price-card__head">
+          <p class="hrms-price-card__tagline">{{ plan.tagline }}</p>
+          <h3 class="hrms-price-card__name">{{ plan.name }}</h3>
+          <p class="hrms-price-card__desc">{{ plan.description }}</p>
+        </div>
+        <div class="hrms-price-card__price">
+          <span class="hrms-price-card__currency">₹</span>
+          <span class="hrms-price-card__amount"
+                data-price-monthly="{{ plan.monthly_price }}"
+                data-price-yearly="{{ plan.yearly_price }}">{{ plan.monthly_price|floatformat:0 }}</span>
+          <span class="hrms-price-card__period" data-period-label>/month</span>
+        </div>
+        <p class="hrms-price-card__limit">{{ plan.employee_limit }}</p>
+        <p class="hrms-price-card__savings" data-savings hidden>
+          Save ₹<span data-savings-amount></span>/year vs monthly
+        </p>
+        <ul class="hrms-price-card__features">
+          {% for feature in plan.features %}
+          <li><i data-lucide="check" class="h-4 w-4"></i> {{ feature }}</li>
+          {% endfor %}
+        </ul>
+        <a href="{% url 'accounts:register' %}?plan={{ plan.id }}"
+           class="hrms-btn w-full {% if plan.cta_style == 'primary' %}hrms-btn--primary{% else %}hrms-btn--outline{% endif %}">
+          {{ plan.cta_label }}
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

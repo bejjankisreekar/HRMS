@@ -1,0 +1,165 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Attendance report · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'attendance.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:attendance' as attendance_url %}
+  {% include "dashboard/_back_button.html" with back_url=attendance_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="attendance-page w-full space-y-6">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Attendance report</h1>
+      <p class="mt-1 text-sm text-slate-600">All check-in/out details, hours, shifts, and late status.</p>
+    </div>
+    {% if is_admin %}
+    <a href="{% url 'dashboard:attendance_shifts' %}"
+       class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">
+      <i data-lucide="clock" class="h-4 w-4"></i> Manage shifts
+    </a>
+    {% endif %}
+  </div>
+
+  <form method="get" class="attendance-panel p-4">
+    <div class="flex flex-wrap items-end gap-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-500">From</label>
+        <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}"
+               class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-900">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500">To</label>
+        <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}"
+               class="mt-1 rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-900">
+      </div>
+      <div class="min-w-[12rem] flex-1">
+        <label class="block text-xs font-medium text-slate-500">Employee</label>
+        <select name="member" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-900">
+          <option value="">All team members</option>
+          {% for m in team_members %}
+          <option value="{{ m.pk }}" {% if selected_member == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">Filter</button>
+    </div>
+    <p class="mt-3 text-xs text-slate-500">
+      {{ date_from|date:"d M Y" }} – {{ date_to|date:"d M Y" }}
+      {% if selected_member_label %} · {{ selected_member_label }}{% else %} · All team members{% endif %}
+    </p>
+  </form>
+
+  <!-- Summary -->
+  <div class="space-y-4">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Summary for selected period</h2>
+    <div class="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Total records</p>
+        <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ report_summary.total_records }}</p>
+      </div>
+      <div class="attendance-stat border-violet-200 dark:border-violet-500/30">
+        <p class="text-xs font-medium text-slate-500">Total hours worked</p>
+        <p class="mt-1 text-2xl font-bold text-violet-600">{{ report_summary.total_hours_display }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Present</p>
+        <p class="mt-1 text-2xl font-bold text-emerald-600">{{ report_summary.present }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Absent</p>
+        <p class="mt-1 text-2xl font-bold text-rose-600">{{ report_summary.absent }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">On leave</p>
+        <p class="mt-1 text-2xl font-bold text-sky-600">{{ report_summary.leave }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Half day</p>
+        <p class="mt-1 text-2xl font-bold text-amber-600">{{ report_summary.half_day }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">WFH</p>
+        <p class="mt-1 text-2xl font-bold text-indigo-600">{{ report_summary.wfh }}</p>
+      </div>
+      {% if report_summary.other %}
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Other status</p>
+        <p class="mt-1 text-2xl font-bold text-slate-600">{{ report_summary.other }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Punctuality</h2>
+    <div class="grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-5">
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">On time</p>
+        <p class="mt-1 text-2xl font-bold text-emerald-600">{{ report_summary.on_time }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Grace period</p>
+        <p class="mt-1 text-2xl font-bold text-amber-600">{{ report_summary.grace }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">Late</p>
+        <p class="mt-1 text-2xl font-bold text-rose-600">{{ report_summary.late }}</p>
+      </div>
+      <div class="attendance-stat">
+        <p class="text-xs font-medium text-slate-500">N/A (no punch / shift)</p>
+        <p class="mt-1 text-2xl font-bold text-slate-500">{{ report_summary.punctuality_na }}</p>
+      </div>
+      <div class="attendance-stat bg-slate-50 dark:bg-white/5">
+        <p class="text-xs font-medium text-slate-500">With check-in tracked</p>
+        <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ report_summary.punctuality_total }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="attendance-panel attendance-table-wrap">
+    <div class="attendance-panel-head">
+      <h2 class="text-sm font-semibold">Detail · {{ report_rows|length }} row{{ report_rows|length|pluralize }}</h2>
+    </div>
+    <table class="attendance-table attendance-table--nowrap min-w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-semibold uppercase text-slate-500 dark:border-white/10 dark:bg-white/[0.03]">
+          <th class="px-4 py-3">Date</th>
+          <th class="px-4 py-3">Employee</th>
+          <th class="px-4 py-3">Shift</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">In</th>
+          <th class="px-4 py-3">Out</th>
+          <th class="px-4 py-3">Hours</th>
+          <th class="px-4 py-3">Punctuality</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+        {% for row in report_rows %}
+        {% with record=row.record member=row.member lateness=row.lateness %}
+        <tr>
+          <td class="px-4 py-3 whitespace-nowrap font-medium">{{ record.date|date:"d M Y" }}</td>
+          <td class="px-4 py-3 whitespace-nowrap">{{ member.choice_label }}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-xs">
+            {% if row.shift %}{{ row.shift.name }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">{% include "dashboard/_attendance_status_badge.html" with record=record %}</td>
+          <td class="px-4 py-3 whitespace-nowrap">{% if record.check_in %}{{ record.check_in|time:"g:i A" }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-3 whitespace-nowrap">{% if record.check_out %}{{ record.check_out|time:"g:i A" }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-3 whitespace-nowrap font-semibold text-violet-600">{{ row.working_hours }}</td>
+          <td class="px-4 py-3 whitespace-nowrap">{% include "dashboard/_attendance_late_badge.html" with record=record lateness=lateness %}</td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="8" class="px-4 py-14 text-center text-slate-500">No records for this period.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

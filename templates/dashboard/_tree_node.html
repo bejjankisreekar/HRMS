@@ -1,0 +1,29 @@
+{% for node in nodes %}
+<li class="org-tree-item">
+  <div class="org-tree-card {% if node.user.pk == viewer.pk %}ring-2 ring-violet-500{% endif %}">
+    <div class="flex items-start gap-3">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-sm font-bold text-violet-600 dark:text-violet-400">
+        {{ node.user.display_name|slice:":1"|upper }}
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="truncate font-semibold text-slate-900 dark:text-white">{{ node.user.display_name }}</p>
+        <p class="truncate text-xs text-slate-500">{{ node.user.get_role_display }}{% if node.user.designation %} · {{ node.user.designation }}{% endif %}</p>
+        {% if node.user.employee_id %}
+        <p class="mt-0.5 font-mono text-[10px] text-violet-600 dark:text-violet-400">{{ node.user.employee_id }}</p>
+        {% endif %}
+        {% if node.user.reporting_manager %}
+        <p class="mt-1 text-[10px] text-slate-400">Reports to: {{ node.user.reporting_manager.display_name }}</p>
+        {% endif %}
+        {% if node.user.assigned_hr and node.user.role == "EMPLOYEE" %}
+        <p class="text-[10px] text-slate-400">HR: {{ node.user.assigned_hr.display_name }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% if node.children %}
+  <ul class="org-tree-children">
+    {% include "dashboard/_tree_node.html" with nodes=node.children viewer=viewer %}
+  </ul>
+  {% endif %}
+</li>
+{% endfor %}

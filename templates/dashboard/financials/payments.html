@@ -1,0 +1,43 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-kpi-grid fin-kpi-grid--sm">
+  <article class="fin-kpi"><p class="fin-kpi__label">Pending</p><p class="fin-kpi__value">{{ pending_count }}</p></article>
+  <article class="fin-kpi fin-kpi--warn"><p class="fin-kpi__label">Failed</p><p class="fin-kpi__value">{{ failed_count }}</p></article>
+</section>
+
+<section class="fin-panel">
+  <h2 class="fin-panel__title">Payment collection center</h2>
+  <p class="fin-muted mb-4">Integrations ready: Razorpay · Stripe · PayPal · UPI · Bank transfer</p>
+  <div class="fin-table-wrap">
+    <table class="fin-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Organization</th>
+          <th>Amount</th>
+          <th>Method</th>
+          <th>Status</th>
+          <th>Reference</th>
+          <th>Invoice</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td>{{ p.created_at|date:"M d, Y H:i" }}</td>
+          <td>{{ p.organization.name }}</td>
+          <td>₹{{ p.amount_inr|floatformat:2 }}</td>
+          <td>{{ p.get_method_display }}</td>
+          <td><span class="fin-badge fin-badge--{{ p.status|lower }}">{{ p.get_status_display }}</span></td>
+          <td>{{ p.reference_id|default:"—" }}</td>
+          <td>{% if p.invoice %}{{ p.invoice.invoice_number }}{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="fin-center fin-muted">No payments recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

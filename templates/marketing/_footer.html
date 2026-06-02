@@ -1,0 +1,58 @@
+<footer class="hrms-footer" id="contact" role="contentinfo">
+  <div class="hrms-container hrms-footer__grid">
+    <div class="hrms-footer__brand">
+      <a href="{% url 'landing' %}#top" class="hrms-nav__brand">
+        <span class="hrms-nav__logo">H</span>
+        <span class="hrms-nav__name">HRMS Suite</span>
+      </a>
+      <p class="mt-4 max-w-xs text-sm text-slate-400">
+        Enterprise HR platform for growing teams. Attendance, payroll, leave — unified in one cloud workspace.
+      </p>
+      <div class="mt-5 flex gap-3">
+        <a href="#" class="hrms-footer__social" aria-label="LinkedIn"><i data-lucide="linkedin" class="h-4 w-4"></i></a>
+        <a href="#" class="hrms-footer__social" aria-label="Twitter"><i data-lucide="twitter" class="h-4 w-4"></i></a>
+        <a href="#" class="hrms-footer__social" aria-label="YouTube"><i data-lucide="youtube" class="h-4 w-4"></i></a>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="hrms-footer__heading">Product</h3>
+      <ul class="hrms-footer__list">
+        <li><a href="{% url 'accounts:features' %}">Features</a></li>
+        <li><a href="{% url 'accounts:pricing' %}">Pricing</a></li>
+        <li><a href="{% url 'accounts:features' %}">Modules</a></li>
+        <li><a href="#" data-demo-open>Book demo</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h3 class="hrms-footer__heading">Company</h3>
+      <ul class="hrms-footer__list">
+        <li><a href="{% url 'accounts:contact' %}">Contact</a></li>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Careers</a></li>
+        <li><a href="#">Blog</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h3 class="hrms-footer__heading">Contact</h3>
+      <ul class="hrms-footer__list hrms-footer__contact">
+        <li><i data-lucide="mail" class="h-4 w-4"></i> support@hrmssuite.com</li>
+        <li><i data-lucide="phone" class="h-4 w-4"></i> +91 1800-000-0000</li>
+        <li><i data-lucide="map-pin" class="h-4 w-4"></i> Bengaluru, India</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hrms-footer__bottom">
+    <div class="hrms-container flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-xs text-slate-500">© {% now "Y" %} HRMS Suite. All rights reserved.</p>
+      <div class="flex gap-4 text-xs text-slate-500">
+        <a href="#" class="hover:text-white">Terms of Service</a>
+        <a href="#" class="hover:text-white">Privacy Policy</a>
+        <a href="#" class="hover:text-white">Security</a>
+      </div>
+    </div>
+  </div>
+</footer>

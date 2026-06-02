@@ -1,0 +1,66 @@
+<section class="hrms-feat-hero" aria-labelledby="feat-hero-heading">
+  <div class="hrms-feat-hero__bg" aria-hidden="true">
+    <div class="hrms-hero__orb hrms-hero__orb--1"></div>
+    <div class="hrms-hero__orb hrms-hero__orb--2"></div>
+    <div class="hrms-feat-hero__grid"></div>
+  </div>
+  <div class="hrms-container hrms-feat-hero__layout">
+    <div class="hrms-feat-hero__content hrms-reveal">
+      <div class="hrms-pill">
+        <span class="hrms-pill__dot"></span>
+        Full HRMS ecosystem
+      </div>
+      <h1 id="feat-hero-heading" class="hrms-feat-hero__title">
+        Every HR module your team needs —
+        <span class="hrms-gradient-text">one unified platform</span>
+      </h1>
+      <p class="hrms-feat-hero__subtitle">
+        From core HR and attendance to payroll and analytics — explore how HRMS Suite powers modern workforce operations at enterprise scale.
+      </p>
+      <div class="hrms-hero__actions">
+        <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--primary hrms-btn--lg">
+          Start free trial
+          <i data-lucide="arrow-right" class="h-4 w-4"></i>
+        </a>
+        <button type="button" class="hrms-btn hrms-btn--glass hrms-btn--lg" data-demo-open>
+          <i data-lucide="play-circle" class="h-4 w-4"></i>
+          Request demo
+        </button>
+      </div>
+    </div>
+    <div class="hrms-feat-hero__visual hrms-reveal hrms-reveal--delay" aria-hidden="true">
+      <div class="hrms-feat-mock hrms-float">
+        <div class="hrms-feat-mock__tabs">
+          <span class="is-active">Overview</span>
+          <span>Attendance</span>
+          <span>Payroll</span>
+        </div>
+        <div class="hrms-feat-mock__body">
+          <div class="hrms-feat-mock__sidebar">
+            <div class="hrms-feat-mock__nav is-active"></div>
+            <div class="hrms-feat-mock__nav"></div>
+            <div class="hrms-feat-mock__nav"></div>
+            <div class="hrms-feat-mock__nav"></div>
+          </div>
+          <div class="hrms-feat-mock__main">
+            <div class="hrms-feat-mock__kpis">
+              <div><small>Active</small><strong>248</strong></div>
+              <div><small>Present</small><strong>96%</strong></div>
+              <div><small>Payroll</small><strong>₹18L</strong></div>
+            </div>
+            <div class="hrms-feat-mock__chart">
+              <svg viewBox="0 0 240 80" class="w-full"><defs><linearGradient id="featGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#6366f1" stop-opacity="0.1"/></linearGradient></defs><path fill="url(#featGrad)" d="M0,80 L0,55 L40,48 L80,62 L120,35 L160,42 L200,22 L240,30 L240,80 Z"/><polyline fill="none" stroke="#a78bfa" stroke-width="2.5" points="0,55 40,48 80,62 120,35 160,42 200,22 240,30"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hrms-feat-float-card hrms-float hrms-float--delay">
+        <i data-lucide="zap" class="h-5 w-5 text-amber-400"></i>
+        <div>
+          <p class="text-[10px] text-slate-400">Modules active</p>
+          <p class="text-sm font-bold text-white">8 / 8</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Invoice {{ invoice.invoice_number }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; color: #0f172a; }
+    h1 { font-size: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
+    th, td { border-bottom: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; }
+    .total { font-weight: 700; font-size: 1.1rem; }
+    @media print { button { display: none; } }
+  </style>
+</head>
+<body>
+  <button onclick="window.print()">Print / Save PDF</button>
+  <h1>Tax Invoice</h1>
+  <p><strong>{{ invoice.invoice_number }}</strong><br>
+  Date: {{ invoice.created_at|date:"d M Y" }}<br>
+  Due: {% if invoice.due_date %}{{ invoice.due_date|date:"d M Y" }}{% else %}—{% endif %}</p>
+
+  <h2>Bill to</h2>
+  <p>{{ organization.name }}<br>
+  {% if organization.gst_number %}GSTIN: {{ organization.gst_number }}<br>{% endif %}
+  {{ organization.official_email }}</p>
+
+  <table>
+    <thead><tr><th>Description</th><th>Amount (INR)</th></tr></thead>
+    <tbody>
+      <tr><td>{{ invoice.subscription.plan.name }} subscription</td><td>₹{{ invoice.amount_inr }}</td></tr>
+      <tr><td>GST @ {{ invoice.gst_rate }}%</td><td>₹{{ invoice.tax_inr }}</td></tr>
+      {% if invoice.discount_inr %}<tr><td>Discount</td><td>-₹{{ invoice.discount_inr }}</td></tr>{% endif %}
+      <tr class="total"><td>Total</td><td>₹{{ invoice.total_inr }}</td></tr>
+    </tbody>
+  </table>
+  <p>Status: {{ invoice.get_status_display }}</p>
+</body>
+</html>

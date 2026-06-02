@@ -1,0 +1,408 @@
+/* Reports & leave — same look as /dashboard/attendance/ (violet hero, white panels) */
+
+.attendance-page {
+  width: 100%;
+  max-width: none;
+}
+
+.attendance-page .ar-glass {
+  border-radius: 1.25rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.dark .attendance-page .ar-glass {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+}
+
+.attendance-page .ar-stat-card {
+  border-radius: 1rem;
+  padding: 1rem 1.15rem;
+  background: #fff;
+  border: 1px solid rgb(226 232 240);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.attendance-page .ar-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(109, 40, 217, 0.15);
+}
+
+.dark .attendance-page .ar-stat-card {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.attendance-page .ar-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(109 40 217);
+}
+
+.dark .attendance-page .ar-stat-icon {
+  color: rgb(196 181 253);
+}
+
+.attendance-page .ar-counter {
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-page .ar-input {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: rgb(15 23 42);
+  outline: none;
+}
+
+.attendance-page .ar-input:focus {
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.dark .attendance-page .ar-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  color-scheme: dark;
+}
+
+.attendance-page .ar-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgb(109 40 217), rgb(79 70 229));
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.attendance-page .ar-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(109, 40, 217, 0.4);
+}
+
+.attendance-page .ar-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(109 40 217);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.attendance-page .ar-btn-ghost:hover {
+  background: rgb(245 243 255);
+  border-color: rgb(196 181 253);
+}
+
+.dark .attendance-page .ar-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(196 181 253);
+}
+
+.dark .attendance-page .ar-btn-ghost:hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.attendance-page .ar-table-wrap {
+  overflow: auto;
+  max-height: 36rem;
+  width: 100%;
+}
+
+.attendance-page .ar-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.attendance-page .ar-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(248 250 252);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(100 116 139);
+  border-bottom: 1px solid rgb(226 232 240);
+  white-space: nowrap;
+}
+
+.dark .attendance-page .ar-table thead th {
+  background: rgb(30 41 59);
+  color: rgb(148 163 184);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.attendance-page .ar-table tbody tr {
+  transition: background 0.12s;
+}
+
+.attendance-page .ar-table tbody tr:hover {
+  background: rgb(248 250 252);
+}
+
+.dark .attendance-page .ar-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.attendance-page .ar-table tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  color: rgb(51 65 85);
+  white-space: nowrap;
+}
+
+.dark .attendance-page .ar-table tbody td {
+  color: rgb(226 232 240);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.attendance-page .ar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.attendance-page .ar-badge--present { background: rgb(209 250 229); color: rgb(4 120 87); }
+.attendance-page .ar-badge--absent { background: rgb(255 228 230); color: rgb(190 18 60); }
+.attendance-page .ar-badge--leave { background: rgb(224 242 254); color: rgb(3 105 161); }
+.attendance-page .ar-badge--late { background: rgb(254 243 199); color: rgb(180 83 9); }
+.attendance-page .ar-badge--half { background: rgb(254 243 199); color: rgb(180 83 9); }
+.attendance-page .ar-badge--wfh { background: rgb(237 233 254); color: rgb(109 40 217); }
+
+.dark .attendance-page .ar-badge--present { background: rgba(16, 185, 129, 0.2); color: rgb(110 231 183); }
+.dark .attendance-page .ar-badge--absent { background: rgba(244, 63, 94, 0.2); color: rgb(253 164 175); }
+.dark .attendance-page .ar-badge--leave { background: rgba(14, 165, 233, 0.2); color: rgb(125 211 252); }
+.dark .attendance-page .ar-badge--late { background: rgba(245, 158, 11, 0.2); color: rgb(252 211 77); }
+.dark .attendance-page .ar-badge--half { background: rgba(245, 158, 11, 0.2); color: rgb(252 211 77); }
+.dark .attendance-page .ar-badge--wfh { background: rgba(139, 92, 246, 0.25); color: rgb(196 181 253); }
+
+.attendance-page .ar-progress {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgb(241 245 249);
+  overflow: hidden;
+}
+
+.attendance-page .ar-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(109 40 217), rgb(79 70 229));
+  transition: width 0.8s ease;
+}
+
+/* Leave policy — compact cards grid */
+.attendance-page .ar-policy-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+}
+
+.attendance-page .ar-policy-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.75rem 0.875rem;
+  min-height: 6.5rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
+}
+
+.attendance-page .ar-policy-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--policy-accent, rgb(109 40 217));
+}
+
+.attendance-page .ar-policy-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(109, 40, 217, 0.2);
+  border-color: rgb(196 181 253);
+}
+
+.attendance-page .ar-policy-card--lop {
+  border-color: rgb(254 202 202);
+  background: rgb(255 251 251);
+}
+
+.attendance-page .ar-policy-card--lop::before {
+  background: rgb(244 63 94);
+}
+
+.attendance-page .ar-policy-card-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: rgb(15 23 42);
+  padding-right: 0.25rem;
+}
+
+.attendance-page .ar-policy-card-quota {
+  margin-top: 0.35rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-page .ar-policy-card-quota span {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+}
+
+.attendance-page .ar-policy-card-meta {
+  margin-top: 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(100 116 139);
+}
+
+.attendance-page .ar-policy-card-remove {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: rgb(244 63 94);
+}
+
+.attendance-page .ar-policy-card-remove:hover {
+  text-decoration: underline;
+}
+
+.dark .attendance-page .ar-policy-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  box-shadow: none;
+}
+
+.dark .attendance-page .ar-policy-card-name {
+  color: #f1f5f9;
+}
+
+.dark .attendance-page .ar-policy-card--lop {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(127, 29, 29, 0.15);
+}
+
+.attendance-page .ar-insight-card {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(233 213 255);
+  background: rgb(245 243 255);
+  padding: 1rem;
+}
+
+.dark .attendance-page .ar-insight-card {
+  border-color: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.attendance-page .ar-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.attendance-page .ar-cal-present { background: rgb(209 250 229); color: rgb(4 120 87); }
+.attendance-page .ar-cal-absent { background: rgb(255 228 230); color: rgb(190 18 60); }
+.attendance-page .ar-cal-leave { background: rgb(254 243 199); color: rgb(180 83 9); }
+.attendance-page .ar-cal-wfh { background: rgb(237 233 254); color: rgb(109 40 217); }
+.attendance-page .ar-cal-none { background: rgb(241 245 249); color: rgb(100 116 139); }
+
+.attendance-page .ar-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.attendance-page .ar-modal[hidden] {
+  display: none;
+}
+
+.attendance-page .ar-modal-panel {
+  width: 100%;
+  max-width: 42rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: arModalIn 0.25s ease;
+}
+
+@keyframes arModalIn {
+  from { opacity: 0; transform: scale(0.98) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.attendance-page .ar-accent-text {
+  color: rgb(196 181 253);
+}
+
+.attendance-page .ar-trend-up { color: rgb(5 150 105); }
+.attendance-page .ar-trend-down { color: rgb(225 29 72); }
+
+.attendance-page .ar-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  background: linear-gradient(180deg, rgb(248 250 252) 0%, #fff 100%);
+}
+
+.dark .attendance-page .ar-panel-head {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+}
+
+@media print {
+  .ar-no-print { display: none !important; }
+  .attendance-page .ar-glass { border: 1px solid #ccc; box-shadow: none; }
+}

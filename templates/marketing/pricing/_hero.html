@@ -1,0 +1,33 @@
+<section class="hrms-price-hero" aria-labelledby="price-hero-heading">
+  <div class="hrms-price-hero__bg" aria-hidden="true">
+    <div class="hrms-hero__orb hrms-hero__orb--1"></div>
+    <div class="hrms-hero__orb hrms-hero__orb--2"></div>
+  </div>
+  <div class="hrms-container hrms-price-hero__inner hrms-reveal">
+    <div class="hrms-pill">
+      <span class="hrms-pill__dot"></span>
+      14-day free trial on all plans
+    </div>
+    <h1 id="price-hero-heading" class="hrms-price-hero__title">
+      Simple, transparent pricing for
+      <span class="hrms-gradient-text">every stage of growth</span>
+    </h1>
+    <p class="hrms-price-hero__subtitle">
+      Flat monthly or annual billing for your entire organization — no per-employee surprises. Choose the plan that fits your team.
+    </p>
+
+    <div class="hrms-price-toggle" role="group" aria-label="Billing period">
+      <button type="button" class="hrms-price-toggle__btn is-active" data-billing="monthly" aria-pressed="true">
+        Monthly
+      </button>
+      <button type="button" class="hrms-price-toggle__btn" data-billing="yearly" aria-pressed="false">
+        Yearly
+        <span class="hrms-price-toggle__badge">Save {{ yearly_savings_percent }}%</span>
+      </button>
+    </div>
+    <p class="hrms-price-toggle__hint" data-yearly-hint hidden>
+      <i data-lucide="sparkles" class="inline h-3.5 w-3.5"></i>
+      You're viewing annual pricing — billed once per year
+    </p>
+  </div>
+</section>

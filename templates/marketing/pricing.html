@@ -1,0 +1,24 @@
+{% extends "marketing/base_marketing.html" %}
+{% load static %}
+
+{% block title %}Pricing — HRMS Suite | Simple Flat Monthly Plans{% endblock %}
+{% block og_title %}HRMS Suite Pricing — Flat Monthly & Annual Plans{% endblock %}
+
+{% block marketing_extra_head %}
+<meta name="description" content="HRMS Suite pricing: Basic ₹2,000/mo, Professional ₹5,000/mo, Growth ₹6,000/mo. Flat monthly billing for your organization. 14-day free trial.">
+<link rel="stylesheet" href="{% static 'pricing.css' %}">
+{% endblock %}
+
+{% block marketing_content %}
+  {% include "marketing/pricing/_hero.html" %}
+  {% include "marketing/pricing/_plans.html" %}
+  {% include "marketing/pricing/_comparison.html" %}
+  {% include "marketing/pricing/_addons.html" %}
+  {% include "marketing/pricing/_trust.html" %}
+  {% include "marketing/pricing/_bottom.html" %}
+  {% include "marketing/pricing/_faq.html" %}
+{% endblock %}
+
+{% block marketing_extra_js %}
+<script src="{% static 'pricing.js' %}" defer></script>
+{% endblock %}

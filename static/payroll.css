@@ -1,0 +1,363 @@
+/* Payroll — same canvas as attendance & other HRMS dashboard pages */
+
+.payroll-page {
+  width: 100%;
+  max-width: none;
+}
+
+.payroll-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, rgb(76 29 149) 0%, rgb(109 40 217) 45%, rgb(79 70 229) 100%);
+  color: #fff;
+  box-shadow: 0 20px 40px -12px rgba(109, 40, 217, 0.45);
+}
+
+.payroll-hero::before {
+  content: "";
+  position: absolute;
+  right: -2rem;
+  top: -3rem;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.payroll-hero::after {
+  content: "";
+  position: absolute;
+  right: 4rem;
+  bottom: -4rem;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.payroll-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.pr-glass {
+  border-radius: 1.25rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dark .pr-glass {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+}
+
+.pr-stat {
+  border-radius: 1rem;
+  padding: 1rem 1.15rem;
+  background: #fff;
+  border: 1px solid rgb(226 232 240);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pr-stat:hover,
+.pr-stat--glow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(109, 40, 217, 0.15);
+}
+
+.dark .pr-stat {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.pr-stat::before {
+  display: none;
+}
+
+.pr-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.75rem;
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(109 40 217);
+}
+
+.dark .pr-stat-icon {
+  color: rgb(196 181 253);
+}
+
+.pr-counter {
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgb(109 40 217), rgb(79 70 229));
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.pr-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(109, 40, 217, 0.4);
+}
+
+.pr-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(109 40 217);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pr-btn-ghost:hover {
+  background: rgb(245 243 255);
+  border-color: rgb(196 181 253);
+}
+
+.dark .pr-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgb(196 181 253);
+}
+
+.dark .pr-btn-ghost:hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.pr-input {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+  color: rgb(15 23 42);
+}
+
+.pr-input:focus {
+  outline: none;
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.dark .pr-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  color-scheme: dark;
+}
+
+.pr-filter-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.pr-filter-item {
+  flex: 0 0 auto;
+  min-width: 7rem;
+}
+
+.pr-filter-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(100 116 139);
+}
+
+.dark .pr-filter-label {
+  color: #94a3b8;
+}
+
+.pr-table-wrap {
+  overflow: auto;
+  max-height: 28rem;
+}
+
+.pr-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.pr-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgb(248 250 252);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(100 116 139);
+  border-bottom: 1px solid rgb(226 232 240);
+  white-space: nowrap;
+}
+
+.dark .pr-table thead th {
+  background: rgb(30 41 59);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pr-table tbody td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  color: rgb(51 65 85);
+  white-space: nowrap;
+}
+
+.dark .pr-table tbody td {
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.pr-table tbody tr:hover {
+  background: rgb(248 250 252);
+}
+
+.dark .pr-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pr-badge {
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pr-badge--paid { background: rgb(209 250 229); color: rgb(4 120 87); }
+.pr-badge--pending { background: rgb(254 243 199); color: rgb(180 83 9); }
+.pr-badge--processing { background: rgb(224 242 254); color: rgb(3 105 161); }
+.pr-badge--failed { background: rgb(255 228 230); color: rgb(190 18 60); }
+
+.dark .pr-badge--paid { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.dark .pr-badge--pending { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+.dark .pr-badge--processing { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+.dark .pr-badge--failed { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+
+.pr-component-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(233 213 255);
+  background: rgb(245 243 255);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(109 40 217);
+}
+
+.dark .pr-component-chip {
+  border-color: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.1);
+  color: #ddd6fe;
+}
+
+.pr-progress {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgb(241 245 249);
+  overflow: hidden;
+}
+
+.dark .pr-progress {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pr-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(109 40 217), rgb(79 70 229));
+  transition: width 0.6s ease;
+}
+
+.pr-insight {
+  border-radius: 0.875rem;
+  border: 1px solid rgb(233 213 255);
+  background: rgb(245 243 255);
+  padding: 0.875rem 1rem;
+}
+
+.dark .pr-insight {
+  border-color: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.pr-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  background: linear-gradient(180deg, rgb(248 250 252) 0%, #fff 100%);
+}
+
+.dark .pr-panel-head {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+}
+
+.pr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.pr-modal[hidden] {
+  display: none;
+}
+
+.pr-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 40;
+}
+
+@media print {
+  .pr-no-print { display: none !important; }
+  .payroll-page { background: transparent; padding: 0; }
+}

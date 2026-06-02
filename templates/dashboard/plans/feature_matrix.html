@@ -1,0 +1,238 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Plans · Platform Console{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'financials-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'plan-matrix.css' %}">
+<script>
+window.PLAN_MATRIX = {
+  csrf: "{{ csrf_token }}",
+  apiUrl: "{% url 'dashboard:plans:matrix_api' %}"
+};
+</script>
+<script src="{% static 'plan-matrix.js' %}" defer></script>
+{% endblock %}
+
+{% block page_back %}{% endblock %}
+
+{% block content %}
+<div class="fin-page pmx-page">
+
+  {# ── Hero (matches Financials / HRMS super admin) ── #}
+  <header class="fin-hero ot-no-print">
+    <div class="fin-hero__inner">
+      <div>
+        <p class="fin-eyebrow">Super Admin · Plans</p>
+        <h1 class="fin-title">Subscription plans</h1>
+        <p class="fin-subtitle">Configure pricing tiers, set capacity limits, and control feature access across your platform.</p>
+      </div>
+      <div class="fin-hero__actions">
+        <a href="{% url 'accounts:pricing' %}" target="_blank" rel="noopener" class="fin-btn fin-btn--ghost">
+          <i data-lucide="external-link"></i> Live pricing
+        </a>
+        <a href="{% url 'dashboard:financials:plans' %}" class="fin-btn fin-btn--ghost">
+          <i data-lucide="receipt"></i> Billing
+        </a>
+      </div>
+    </div>
+  </header>
+
+  {# ── KPI strip ── #}
+  <div class="pmx-kpis ot-no-print">
+    <div class="pmx-kpi">
+      <span class="pmx-kpi__label">Plans</span>
+      <span class="pmx-kpi__value">{{ page_stats.plan_count }}</span>
+    </div>
+    <div class="pmx-kpi">
+      <span class="pmx-kpi__label">Features</span>
+      <span class="pmx-kpi__value">{{ page_stats.feature_count }}</span>
+    </div>
+    <div class="pmx-kpi">
+      <span class="pmx-kpi__label">Active orgs</span>
+      <span class="pmx-kpi__value pmx-kpi__value--accent">{{ page_stats.org_count }}</span>
+    </div>
+    <div class="pmx-kpi">
+      <span class="pmx-kpi__label">Categories</span>
+      <span class="pmx-kpi__value">{{ page_stats.category_count }}</span>
+    </div>
+  </div>
+
+  {# ── Plan pricing cards ── #}
+  <section class="pmx-plans ot-no-print">
+    <div class="pmx-plans__head">
+      <div>
+        <h2 class="pmx-plans__title">Pricing &amp; limits</h2>
+        <p class="pmx-plans__desc">Each tier's monthly price, employee cap, and storage quota.</p>
+      </div>
+    </div>
+    <div class="pmx-plans__grid">
+      {% for card in plan_cards %}
+      <div class="pmx-plan-card{% if card.is_featured %} pmx-plan-card--featured{% endif %}"
+           data-plan-id="{{ card.plan_id }}"
+           style="--plan-accent: {{ card.accent_color }}; --plan-bg: {{ card.accent_bg }}; --plan-ring: {{ card.accent_ring }};">
+        <div class="pmx-plan-card__accent"></div>
+        <div class="pmx-plan-card__body">
+          <div class="pmx-plan-card__header">
+            <span class="pmx-plan-card__badge">{{ card.plan_name }}</span>
+            {% if card.is_featured %}<span class="pmx-plan-card__tag">Popular</span>{% endif %}
+            {% if not card.is_active %}<span class="pmx-plan-card__tag pmx-plan-card__tag--muted">Inactive</span>{% endif %}
+          </div>
+          <p class="pmx-plan-card__price" data-display-price="{{ card.plan_id }}">
+            ₹{{ card.monthly_price_inr|floatformat:0 }}<small>/mo</small>
+          </p>
+          <dl class="pmx-plan-card__meta">
+            <div><dt>Employees</dt><dd data-display-employees="{{ card.plan_id }}">{{ card.employee_label }}</dd></div>
+            <div><dt>Storage</dt><dd data-display-storage="{{ card.plan_id }}">{{ card.storage_label }}</dd></div>
+            <div><dt>Organizations</dt><dd>{{ card.org_count }}</dd></div>
+          </dl>
+
+          <div class="pmx-plan-card__view" data-card-view="{{ card.plan_id }}">
+            <button type="button" class="pmx-plan-card__edit pmx-card-edit" data-plan-id="{{ card.plan_id }}">
+              <i data-lucide="pencil"></i> Edit
+            </button>
+          </div>
+          <div class="pmx-plan-card__form is-hidden" data-card-edit="{{ card.plan_id }}">
+            <label class="pmx-fld">
+              <span>Price (₹/mo)</span>
+              <input type="number" min="0" class="pmx-fld__input pmx-plan-setting"
+                     data-plan-id="{{ card.plan_id }}" data-field="monthly_price_inr"
+                     value="{{ card.monthly_price_inr|floatformat:0 }}">
+            </label>
+            <label class="pmx-fld">
+              <span>Employee limit</span>
+              <input type="number" min="0" class="pmx-fld__input pmx-plan-setting"
+                     data-plan-id="{{ card.plan_id }}" data-field="employee_limit"
+                     value="{{ card.employee_limit|default:'' }}" placeholder="Unlimited">
+            </label>
+            <label class="pmx-fld">
+              <span>Storage (MB)</span>
+              <input type="number" min="0" step="100" class="pmx-fld__input pmx-plan-setting"
+                     data-plan-id="{{ card.plan_id }}" data-field="storage_limit_mb"
+                     value="{{ card.storage_limit_mb|default:'' }}" placeholder="Unlimited">
+            </label>
+            <div class="pmx-plan-card__form-actions">
+              <button type="button" class="pmx-plan-card__cancel pmx-card-cancel" data-plan-id="{{ card.plan_id }}">Cancel</button>
+              <button type="button" class="pmx-save-btn pmx-plan-card__save" data-plan-id="{{ card.plan_id }}" disabled>Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── Feature comparison ── #}
+  <section class="pmx-compare ot-no-print">
+    <div class="pmx-compare__head">
+      <div>
+        <h2 class="pmx-compare__title">Feature comparison</h2>
+        <p class="pmx-compare__desc">Toggle switches save instantly. Compare entitlements side-by-side.</p>
+      </div>
+      <div class="pmx-compare__search-wrap">
+        <i data-lucide="search"></i>
+        <input type="search" id="pmx-feature-search" class="pmx-compare__search" placeholder="Search features…" autocomplete="off">
+      </div>
+    </div>
+
+    {# Plan legend with enabled counts #}
+    <div class="pmx-legend">
+      {% for ps in plan_summaries %}
+      <div class="pmx-legend__item{% if ps.is_featured %} pmx-legend__item--featured{% endif %}">
+        <span class="pmx-legend__dot" style="background: {{ ps.accent_color }}"></span>
+        <span class="pmx-legend__name">{{ ps.plan_name }}</span>
+        <span class="pmx-legend__count">{{ ps.enabled_count }}/{{ total_features }}</span>
+        <span class="pmx-legend__bulk">
+          <button type="button" class="pmx-legend__bulk-btn pmx-bulk-btn" data-plan-id="{{ ps.plan_id }}" data-enable-all="1">All on</button>
+          <button type="button" class="pmx-legend__bulk-btn pmx-bulk-btn" data-plan-id="{{ ps.plan_id }}" data-enable-all="0">All off</button>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="pmx-compare__layout">
+      {# Category sidebar #}
+      <nav class="pmx-cat-nav" aria-label="Feature categories">
+        <p class="pmx-cat-nav__label">Categories</p>
+        {% for group in groups %}
+        <button type="button" class="pmx-cat-nav__item" data-jump="cat-{{ group.category_id }}">
+          {% if group.category %}<i data-lucide="{{ group.category_icon }}"></i>{% endif %}
+          <span>{{ group.category_name }}</span>
+          <em>{{ group.rows|length }}</em>
+        </button>
+        {% endfor %}
+      </nav>
+
+      {# Matrix #}
+      <div class="pmx-matrix-panel">
+        <div class="pmx-matrix-panel__scroll" id="pmx-matrix-scroll">
+          <table class="pmx-matrix">
+            <colgroup>
+              <col class="pmx-col-eq">
+              {% for ps in plan_summaries %}
+              <col class="pmx-col-eq">
+              {% endfor %}
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="pmx-matrix__feat-col">Feature</th>
+                {% for ps in plan_summaries %}
+                <th class="pmx-matrix__plan-col{% if ps.is_featured %} is-featured{% endif %}"
+                    data-plan-col="{{ ps.plan_id }}" title="{{ ps.plan_name }}">
+                  <span class="pmx-matrix__dot" style="background: {{ ps.accent_color }}"></span>
+                  <span class="pmx-matrix__plan-label">{{ ps.plan_short }}</span>
+                </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in groups %}
+              <tr class="pmx-matrix__cat" id="cat-{{ group.category_id }}">
+                <td colspan="{{ plans|length|add:1 }}">
+                  <button type="button" class="pmx-matrix__cat-btn pmx-cat-toggle" data-category="cat-{{ group.category_id }}" aria-expanded="true">
+                    <i data-lucide="chevron-down"></i>
+                    {{ group.category_name }}
+                    <span class="pmx-matrix__cat-count">{{ group.rows|length }}</span>
+                  </button>
+                </td>
+              </tr>
+              {% for row in group.rows %}
+              <tr class="pmx-matrix__row{% if forloop.counter0|divisibleby:2 %} pmx-matrix__row--alt{% endif %}{% if row.is_child %} pmx-matrix__row--child{% endif %} pmx-feat-row"
+                  data-category="cat-{{ group.category_id }}"
+                  data-feature-key="{{ row.feature_key }}"
+                  data-feature-name="{{ row.name|lower }}"
+                  data-parent-key="{{ row.parent_key }}">
+                <th class="pmx-matrix__feat-col pmx-feat-name" scope="row">
+                  {% if row.is_child %}<span class="pmx-matrix__indent"></span>{% endif %}
+                  {{ row.name }}
+                </th>
+                {% for check in row.checks %}
+                <td class="pmx-matrix__cell{% if check.plan_slug == 'growth' %} is-featured{% endif %}" data-plan-col="{{ check.plan_id }}">
+                  <label class="pmx-switch" title="{{ row.name }} — {{ check.plan_slug }}">
+                    <input type="checkbox" class="pmx-toggle"
+                           data-plan-id="{{ check.plan_id }}"
+                           data-feature-id="{{ row.feature_id }}"
+                           data-feature-key="{{ row.feature_key }}"
+                           {% if check.enabled %}checked{% endif %}>
+                    <span class="pmx-switch__track" aria-hidden="true">
+                      <span class="pmx-switch__icons">
+                        <svg class="pmx-switch__ico pmx-switch__ico--off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        <svg class="pmx-switch__ico pmx-switch__ico--on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+                      </span>
+                      <span class="pmx-switch__thumb"></span>
+                    </span>
+                  </label>
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="pmx-toast-root" id="pmx-toast-root" aria-live="polite"></div>
+</div>
+{% endblock %}

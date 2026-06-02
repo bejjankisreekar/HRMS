@@ -1,0 +1,101 @@
+{% extends "dashboard/financials/_base.html" %}
+{% block financials_extra_head %}
+<script>
+window.FINANCIALS_CONFIG.charts = {
+  revenue: {{ revenue_chart_json|safe }},
+  subscriptions: {{ subscription_chart_json|safe }},
+  plans: {{ plan_breakdown_json|safe }}
+};
+</script>
+{% endblock %}
+
+{% block financials_content %}
+<section class="fin-kpi-grid">
+  <article class="fin-kpi fin-kpi--accent"><p class="fin-kpi__label">MRR</p><p class="fin-kpi__value">₹{{ kpis.mrr|floatformat:0 }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">ARR</p><p class="fin-kpi__value">₹{{ kpis.arr|floatformat:0 }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Total revenue</p><p class="fin-kpi__value">₹{{ kpis.total_revenue|floatformat:0 }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Pending payments</p><p class="fin-kpi__value">{{ kpis.pending_payments }}</p></article>
+  <article class="fin-kpi fin-kpi--warn"><p class="fin-kpi__label">Failed payments</p><p class="fin-kpi__value">{{ kpis.failed_payments }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Active subscriptions</p><p class="fin-kpi__value">{{ kpis.active_subscriptions }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Trial orgs</p><p class="fin-kpi__value">{{ kpis.trial_organizations }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Expired orgs</p><p class="fin-kpi__value">{{ kpis.expired_organizations }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Add-on revenue</p><p class="fin-kpi__value">₹{{ kpis.addon_revenue|floatformat:0 }}</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Growth</p><p class="fin-kpi__value fin-kpi__value--up">{{ kpis.growth_percent }}%</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Churn rate</p><p class="fin-kpi__value">{{ kpis.churn_rate }}%</p></article>
+  <article class="fin-kpi"><p class="fin-kpi__label">Profit margin</p><p class="fin-kpi__value">{{ kpis.profit_margin }}%</p></article>
+</section>
+
+<div class="fin-grid-2">
+  <section class="fin-panel">
+    <h2 class="fin-panel__title">Revenue growth</h2>
+    <canvas id="fin-chart-revenue" height="120"></canvas>
+  </section>
+  <section class="fin-panel">
+    <h2 class="fin-panel__title">Subscription trends</h2>
+    <canvas id="fin-chart-subs" height="120"></canvas>
+  </section>
+</div>
+
+<div class="fin-grid-2">
+  <section class="fin-panel">
+    <h2 class="fin-panel__title">Plan-wise MRR</h2>
+    <canvas id="fin-chart-plans" height="140"></canvas>
+  </section>
+  <section class="fin-panel">
+    <h2 class="fin-panel__title">Payment success rate</h2>
+    <div class="fin-payment-rates">
+      <div class="fin-rate fin-rate--ok"><span>Success</span><strong>{{ payment_rates.success }}%</strong></div>
+      <div class="fin-rate fin-rate--fail"><span>Failed</span><strong>{{ payment_rates.failed }}%</strong></div>
+      <div class="fin-rate"><span>Pending</span><strong>{{ payment_rates.pending }}%</strong></div>
+    </div>
+    <h3 class="fin-panel__subtitle">AI insights</h3>
+    <ul class="fin-insights">
+      {% for item in ai_insights %}
+      <li class="fin-insight fin-insight--{{ item.tone }}">
+        <i data-lucide="{{ item.icon }}"></i>
+        <div><strong>{{ item.title }}</strong><p>{{ item.body }}</p></div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+<section class="fin-panel">
+  <h2 class="fin-panel__title">Automation (coming soon)</h2>
+  <div class="fin-automation-grid">
+    {% for a in automation_placeholders %}
+    <div class="fin-automation">
+      <span>{{ a.name }}</span>
+      <span class="fin-badge fin-badge--{% if a.enabled %}ok{% else %}muted{% endif %}">{{ a.status }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="fin-grid-3">
+  <section class="fin-panel fin-panel--compact">
+    <h2 class="fin-panel__title">Recent payments</h2>
+    <ul class="fin-list">
+      {% for p in recent_payments %}
+      <li><span>{{ p.organization.name }}</span><strong>₹{{ p.amount_inr }}</strong></li>
+      {% empty %}<li class="fin-muted">No payments yet.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="fin-panel fin-panel--compact">
+    <h2 class="fin-panel__title">Recent invoices</h2>
+    <ul class="fin-list">
+      {% for inv in recent_invoices %}
+      <li><span>{{ inv.invoice_number }}</span><strong>{{ inv.get_status_display }}</strong></li>
+      {% empty %}<li class="fin-muted">No invoices yet.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="fin-panel fin-panel--compact">
+    <h2 class="fin-panel__title">Audit activity</h2>
+    <ul class="fin-list">
+      {% for log in recent_audit %}
+      <li><span>{{ log.summary|truncatechars:40 }}</span><strong class="fin-muted">{{ log.created_at|date:"M d" }}</strong></li>
+      {% empty %}<li class="fin-muted">No activity yet.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

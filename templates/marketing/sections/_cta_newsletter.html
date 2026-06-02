@@ -1,0 +1,27 @@
+<section class="hrms-section hrms-cta" aria-labelledby="cta-heading">
+  <div class="hrms-container">
+    <div class="hrms-cta__box hrms-reveal">
+      <div class="hrms-cta__glow" aria-hidden="true"></div>
+      <h2 id="cta-heading" class="hrms-cta__title">Ready to transform your HR operations?</h2>
+      <p class="hrms-cta__desc">Join hundreds of companies running HR on HRMS Suite. Start your free trial in under 5 minutes.</p>
+      <div class="hrms-cta__actions">
+        <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--white hrms-btn--lg">Start free trial</a>
+        <button type="button" class="hrms-btn hrms-btn--glass hrms-btn--lg" data-demo-open>Book demo</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-newsletter" aria-labelledby="newsletter-heading">
+  <div class="hrms-container hrms-newsletter__inner hrms-reveal">
+    <div>
+      <h2 id="newsletter-heading" class="text-xl font-bold text-white">Stay in the loop</h2>
+      <p class="mt-1 text-sm text-slate-400">Product updates, HR tips, and launch announcements.</p>
+    </div>
+    <form class="hrms-newsletter__form" action="{% url 'accounts:contact' %}" method="get">
+      <label for="newsletter-email" class="sr-only">Email address</label>
+      <input id="newsletter-email" name="email" type="email" required placeholder="you@company.com" class="hrms-input hrms-input--dark">
+      <button type="submit" class="hrms-btn hrms-btn--primary">Subscribe</button>
+    </form>
+  </div>
+</section>

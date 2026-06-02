@@ -1,0 +1,47 @@
+<section class="starter-table-section starter-card" aria-label="Employee overview">
+  <div class="starter-card__head">
+    <h3>Employee overview</h3>
+    <a href="{% url 'dashboard:staff_list' %}" class="starter-link">View all</a>
+  </div>
+
+  {% if has_employees and employee_rows %}
+  <div class="starter-table-wrap">
+    <table class="starter-table">
+      <thead>
+        <tr>
+          <th scope="col">Employee</th>
+          <th scope="col">Department</th>
+          <th scope="col">Status</th>
+          <th scope="col">Attendance</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in employee_rows %}
+        <tr>
+          <td>
+            <div class="starter-table__user">
+              <span class="starter-table__avatar">{{ row.name|slice:":1"|upper }}</span>
+              <span class="starter-table__name">{{ row.name }}</span>
+            </div>
+          </td>
+          <td>{{ row.department }}</td>
+          <td><span class="starter-pill starter-pill--active">{{ row.status }}</span></td>
+          <td><span class="starter-pill starter-pill--{{ row.attendance_class }}">{{ row.attendance }}</span></td>
+          <td class="starter-table__actions">
+            <a href="{% url 'dashboard:attendance' %}" class="starter-table__action" title="Attendance">
+              <i data-lucide="calendar-check"></i>
+            </a>
+            <a href="{% url 'dashboard:staff_list' %}" class="starter-table__action" title="View profile">
+              <i data-lucide="external-link"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {% include "dashboard/starter/_empty_state.html" with variant="employees" %}
+  {% endif %}
+</section>

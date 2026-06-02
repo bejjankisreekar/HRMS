@@ -1,0 +1,186 @@
+.platform-form {
+  color-scheme: light;
+}
+.dark .platform-form {
+  color-scheme: dark;
+}
+
+.platform-section {
+  border-radius: 1rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  overflow: hidden;
+}
+.dark .platform-section {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+}
+
+.platform-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  padding: 1rem 1.25rem;
+  background: rgb(248 250 252);
+}
+.dark .platform-section-header {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.platform-section-body {
+  padding: 1.25rem;
+}
+
+.platform-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(51 65 85);
+  margin-bottom: 0.375rem;
+}
+
+html.dark .platform-label,
+.dark .platform-label {
+  color: #e2e8f0;
+}
+
+.platform-hint {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: rgb(100 116 139);
+  line-height: 1.4;
+}
+
+html.dark .platform-hint,
+.dark .platform-hint {
+  color: #94a3b8;
+}
+
+html.dark .platform-section-header p,
+.dark .platform-section-header p {
+  color: #94a3b8;
+}
+
+html.dark .platform-section-header h2,
+.dark .platform-section-header h2 {
+  color: #f1f5f9;
+}
+
+.platform-input,
+.platform-form select.platform-input,
+.platform-form textarea.platform-input,
+.platform-form input.platform-input,
+.platform-form .platform-input {
+  display: block;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(15 23 42);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+html.dark .platform-input,
+html.dark .platform-form select.platform-input,
+html.dark .platform-form textarea.platform-input,
+html.dark .platform-form input.platform-input,
+html.dark .platform-form .platform-input,
+.dark .platform-input,
+.dark .platform-form select.platform-input,
+.dark .platform-form textarea.platform-input,
+.dark .platform-form input.platform-input,
+.dark .platform-form .platform-input {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+html.dark .platform-input::placeholder,
+.dark .platform-input::placeholder {
+  color: #64748b;
+}
+
+.platform-form select.platform-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.1rem;
+  padding-right: 2.5rem;
+}
+html.dark .platform-form select.platform-input option,
+.dark .platform-form select.platform-input option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.platform-input:focus,
+.platform-form select.platform-input:focus,
+.platform-form textarea.platform-input:focus {
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.platform-input:disabled,
+.platform-input[readonly] {
+  cursor: not-allowed;
+  opacity: 0.7;
+  background: rgb(241 245 249);
+}
+.dark .platform-input:disabled,
+.dark .platform-input[readonly] {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.platform-form input[type="file"].platform-input,
+.platform-form input[type="file"] {
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.platform-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dark .platform-check {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.platform-check:has(input:checked) {
+  border-color: rgb(139 92 246);
+  background: rgba(139, 92, 246, 0.06);
+}
+.dark .platform-check:has(input:checked) {
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.platform-check input {
+  margin-top: 0.125rem;
+  height: 1rem;
+  width: 1rem;
+  flex-shrink: 0;
+  accent-color: rgb(124 58 237);
+}
+
+.platform-error {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: rgb(225 29 72);
+}
+
+html.dark .platform-error,
+.dark .platform-error {
+  color: #fda4af;
+}

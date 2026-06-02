@@ -1,0 +1,598 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}My Dashboard · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'employee-dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="ess-page w-full space-y-5 pb-8">
+
+  {# ── 1. Welcome Hero ── #}
+  <section class="ess-hero ess-fade-in">
+    <div class="ess-hero-inner flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="ess-avatar">
+          {% if profile_picture_url %}
+          <img src="{{ profile_picture_url }}" alt="{{ display_name }}">
+          {% else %}
+          {{ profile_initials }}
+          {% endif %}
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Employee Workspace</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{{ greeting }}, {{ display_name }} 👋</h1>
+          <p class="mt-1 text-base font-medium text-white/95">{{ designation_label }}</p>
+          <p class="text-sm text-violet-100/90">{{ department_name }} Department</p>
+          <div class="ess-hero-meta">
+            <span><i data-lucide="hash" class="h-3.5 w-3.5"></i> {{ employee_id }}</span>
+            {% if manager %}
+            <span><i data-lucide="user-check" class="h-3.5 w-3.5"></i> {{ manager.name }}</span>
+            {% endif %}
+            <span><i data-lucide="calendar" class="h-3.5 w-3.5"></i> {{ today|date:"l, d M Y" }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="{% url 'leaves:apply' %}" class="ess-btn ess-btn--ghost !bg-white/15 !text-white hover:!bg-white/25">Apply Leave</a>
+        <a href="{% url 'dashboard:attendance' %}" class="ess-btn ess-btn--ghost !bg-white/15 !text-white hover:!bg-white/25">My Attendance</a>
+      </div>
+    </div>
+  </section>
+
+  {# ── 2. Quick Stats KPIs ── #}
+  <section class="ess-kpi-grid ess-fade-in" aria-label="Key metrics">
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-emerald-100 text-emerald-600"><i data-lucide="calendar-check" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Attendance This Month</p>
+      <p class="ess-kpi-value text-emerald-600">{{ kpi.attendance_rate }}%</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-sky-100 text-sky-600"><i data-lucide="palmtree" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Leave Balance</p>
+      <p class="ess-kpi-value text-sky-600">{{ kpi.leave_balance_display }}</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-teal-100 text-teal-600"><i data-lucide="sun" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Paid Leaves Left</p>
+      <p class="ess-kpi-value text-teal-600">{{ kpi.paid_leaves_display }}</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-indigo-100 text-indigo-600"><i data-lucide="briefcase" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Working Days</p>
+      <p class="ess-kpi-value text-indigo-600">{{ kpi.working_days }}</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-amber-100 text-amber-600"><i data-lucide="clock" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Pending Requests</p>
+      <p class="ess-kpi-value text-amber-600">{{ kpi.pending_requests }}</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-violet-100 text-violet-600"><i data-lucide="party-popper" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Holidays This Month</p>
+      <p class="ess-kpi-value text-violet-600">{{ kpi.upcoming_holidays }}</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-rose-100 text-rose-600"><i data-lucide="star" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Performance Score</p>
+      <p class="ess-kpi-value text-rose-600">{{ kpi.performance_score }}</p>
+    </div>
+    <div class="ess-kpi">
+      <div class="ess-kpi-icon bg-purple-100 text-purple-600"><i data-lucide="award" class="h-4 w-4"></i></div>
+      <p class="ess-kpi-label">Years of Service</p>
+      <p class="ess-kpi-value text-purple-600">{{ kpi.years_of_service }}</p>
+    </div>
+  </section>
+
+  <div class="ess-layout">
+
+    {# ── Main column ── #}
+    <div class="ess-main-grid">
+
+      {# 3. Today's Attendance + 4. Leave Management #}
+      <div class="ess-two-col">
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="fingerprint" class="h-4 w-4"></i></span> Today's Attendance</h2>
+            <a href="{% url 'dashboard:attendance' %}" class="ess-card-link">View all →</a>
+          </div>
+          <div class="ess-card-body">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <span class="ess-status ess-status--{{ work_status.variant }}">
+                <span class="ess-status-dot"></span>
+                {{ work_status.label }}
+                {% if work_status.detail %}· {{ work_status.detail }}{% endif %}
+              </span>
+              {% if my_shift_timing.has_shift %}
+              <span class="text-xs text-slate-500">{{ my_shift_timing.name }} · {{ my_shift_timing.range }}</span>
+              {% endif %}
+            </div>
+            <div class="ess-stat-row">
+              <div class="ess-stat">
+                <p class="ess-stat-label">Check-In</p>
+                <p class="ess-stat-value text-emerald-600">{{ today_row.login_time|default:"—" }}</p>
+              </div>
+              <div class="ess-stat">
+                <p class="ess-stat-label">Check-Out</p>
+                <p class="ess-stat-value text-violet-600">{{ today_row.logout_time|default:"—" }}</p>
+              </div>
+              <div class="ess-stat">
+                <p class="ess-stat-label">Hours Worked</p>
+                <p class="ess-stat-value text-indigo-600">{{ today_row.working_hours|default:"—" }}</p>
+              </div>
+              <div class="ess-stat">
+                <p class="ess-stat-label">Break Time</p>
+                <p class="ess-stat-value text-slate-600">{{ break_display }}</p>
+              </div>
+            </div>
+            <p class="mt-4 text-xs text-slate-500 rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2">
+              <i data-lucide="info" class="inline h-3.5 w-3.5 mr-1"></i>
+              Attendance is recorded by HR. Request a correction from <a href="{% url 'dashboard:attendance' %}" class="font-semibold text-violet-600">My Attendance</a>.
+            </p>
+          </div>
+        </div>
+
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="palmtree" class="h-4 w-4"></i></span> Leave Management</h2>
+            <a href="{% url 'leaves:management' %}" class="ess-card-link">Manage →</a>
+          </div>
+          <div class="ess-card-body">
+            {% for lb in leave_balances|slice:":4" %}
+            <div class="ess-leave-item">
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-medium text-slate-800 dark:text-slate-200">{{ lb.name }}</span>
+                <span class="font-bold tabular-nums" style="color: {{ lb.color }}">{{ lb.remaining_display }} left</span>
+              </div>
+              <div class="ess-progress">
+                <div class="ess-progress-bar" style="width: {{ lb.used_pct }}%; background: {{ lb.color }}"></div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="ess-empty">No leave balances configured yet.</div>
+            {% endfor %}
+            <div class="mt-4 flex flex-wrap gap-2">
+              <a href="{% url 'leaves:apply' %}" class="ess-btn ess-btn--primary text-xs">Apply Leave</a>
+              <a href="{% url 'leaves:management' %}" class="ess-btn ess-btn--outline text-xs">View History</a>
+            </div>
+            {% if pending_leave_requests or upcoming_leaves %}
+            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+              {% for req in pending_leave_requests %}
+              <div class="ess-list-item !py-2">
+                <div class="ess-list-icon bg-amber-100 text-amber-600"><i data-lucide="hourglass" class="h-3.5 w-3.5"></i></div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium">{{ req.leave_type.name }} · Pending</p>
+                  <p class="text-xs text-slate-500">{{ req.start_date|date:"d M" }} – {{ req.end_date|date:"d M Y" }}</p>
+                </div>
+              </div>
+              {% endfor %}
+              {% for req in upcoming_leaves %}
+              <div class="ess-list-item !py-2">
+                <div class="ess-list-icon bg-emerald-100 text-emerald-600"><i data-lucide="calendar" class="h-3.5 w-3.5"></i></div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium">{{ req.leave_type.name }} · Approved</p>
+                  <p class="text-xs text-slate-500">{{ req.start_date|date:"d M" }} – {{ req.end_date|date:"d M Y" }}</p>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# 5. Payroll + 7. Upcoming Holidays #}
+      <div class="ess-two-col">
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="wallet" class="h-4 w-4"></i></span> My Payroll</h2>
+            <a href="{% url 'payroll:management' %}" class="ess-card-link">Payroll →</a>
+          </div>
+          <div class="ess-card-body">
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div class="ess-stat">
+                <p class="ess-stat-label">Monthly CTC</p>
+                <p class="ess-stat-value text-violet-600 text-sm">{{ salary_display }}</p>
+              </div>
+              <div class="ess-stat">
+                <p class="ess-stat-label">Last Payslip</p>
+                <p class="ess-stat-value text-sm">
+                  {% if latest_payslip %}
+                  {{ latest_payslip.payroll_run.period_label }}
+                  {% else %}—{% endif %}
+                </p>
+              </div>
+              <div class="ess-stat">
+                <p class="ess-stat-label">Status</p>
+                <p class="ess-stat-value text-sm">{{ payroll_status }}</p>
+              </div>
+            </div>
+            {% if latest_payslip %}
+            <p class="mt-3 text-sm text-slate-600 dark:text-slate-400">
+              Net pay: <strong class="text-emerald-600">₹{{ latest_payslip.net_salary|floatformat:0 }}</strong>
+            </p>
+            {% endif %}
+            <div class="mt-4 flex flex-wrap gap-2">
+              {% if latest_payslip %}
+              <a href="{% url 'payroll:management' %}?payslip={{ latest_payslip.pk }}" class="ess-btn ess-btn--primary text-xs">
+                <i data-lucide="download" class="h-3.5 w-3.5"></i> Download Payslip
+              </a>
+              {% endif %}
+              <a href="{% url 'payroll:management' %}" class="ess-btn ess-btn--outline text-xs">Salary History</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="calendar-days" class="h-4 w-4"></i></span> Upcoming Holidays</h2>
+          </div>
+          <div class="ess-card-body">
+            {% for h in upcoming_holidays %}
+            <div class="ess-list-item">
+              <div class="ess-holiday-date">
+                <span class="day">{{ h.date|date:"d" }}</span>
+                <span class="mon">{{ h.date|date:"M" }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ h.name }}</p>
+                <p class="text-xs text-slate-500">{{ h.date|date:"l, d F Y" }} · {{ h.get_holiday_type_display }}</p>
+              </div>
+            </div>
+            {% empty %}
+            <div class="ess-empty">No upcoming holidays scheduled.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {# 6. Announcements #}
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-head">
+          <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="megaphone" class="h-4 w-4"></i></span> Announcements & Updates</h2>
+        </div>
+        <div class="ess-card-body">
+          {% for n in announcements %}
+          <a href="{{ n.url|default:'#' }}" class="ess-list-item block hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg -mx-2 px-2 transition-colors no-underline">
+            <div class="ess-list-icon bg-violet-100 text-violet-600"><i data-lucide="{{ n.icon|default:'bell' }}" class="h-3.5 w-3.5"></i></div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ n.title }}</p>
+              <p class="text-xs text-slate-500 truncate">{{ n.message }}</p>
+            </div>
+            {% if not n.is_read %}<span class="h-2 w-2 rounded-full bg-violet-500 shrink-0"></span>{% endif %}
+          </a>
+          {% empty %}
+          <div class="ess-empty">No announcements right now. Check back for HR updates and policy changes.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {# 8. Tasks + 9. Performance #}
+      <div class="ess-two-col">
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="list-checks" class="h-4 w-4"></i></span> My Tasks</h2>
+            {% if pending_tasks %}<span class="text-xs font-semibold text-amber-600">{{ pending_tasks }} pending</span>{% endif %}
+          </div>
+          <div class="ess-card-body">
+            {% for task in my_tasks %}
+            <div class="ess-list-item">
+              <div class="ess-list-icon {% if task.status == 'DONE' %}bg-emerald-100 text-emerald-600{% else %}bg-slate-100 text-slate-600{% endif %}">
+                <i data-lucide="check-square" class="h-3.5 w-3.5"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-slate-900 dark:text-white">{{ task.title }}</p>
+                <p class="text-xs text-slate-500">
+                  {{ task.get_category_display }}
+                  {% if task.due_date %}· Due {{ task.due_date|date:"d M Y" }}{% endif %}
+                </p>
+              </div>
+              <span class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full
+                {% if task.status == 'PENDING' %}bg-amber-100 text-amber-700
+                {% elif task.status == 'IN_PROGRESS' %}bg-sky-100 text-sky-700
+                {% else %}bg-emerald-100 text-emerald-700{% endif %}">
+                {{ task.get_status_display }}
+              </span>
+            </div>
+            {% empty %}
+            <div class="ess-empty">No assigned tasks. Onboarding and team tasks will appear here.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="target" class="h-4 w-4"></i></span> Performance Summary</h2>
+            <span class="ess-coming-soon">Beta</span>
+          </div>
+          <div class="ess-card-body">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white text-xl font-bold shadow-lg">
+                {{ performance.score }}
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">Score {{ performance.score_display }}</p>
+                <p class="text-xs text-slate-500">Review: {{ performance.review_status }}</p>
+              </div>
+            </div>
+            {% for goal in performance.goals %}
+            <div class="mb-3">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="font-medium text-slate-700 dark:text-slate-300">{{ goal.label }}</span>
+                <span class="font-bold tabular-nums">{{ goal.progress }}%</span>
+              </div>
+              <div class="ess-progress">
+                <div class="ess-progress-bar" style="width: {{ goal.progress }}%; background: {{ goal.color }}"></div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {# 10. Documents + 11. Expenses #}
+      <div class="ess-two-col">
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="folder-open" class="h-4 w-4"></i></span> Document Center</h2>
+          </div>
+          <div class="ess-card-body">
+            {% for doc in my_documents %}
+            <div class="ess-doc-row">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="file-text" class="h-4 w-4 text-violet-500 shrink-0"></i>
+                <span class="text-sm font-medium truncate">{{ doc.get_doc_type_display }}</span>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                {% if doc.file %}
+                <a href="{{ doc.file.url }}" target="_blank" rel="noopener" class="text-xs font-semibold text-violet-600">View</a>
+                <a href="{{ doc.file.url }}" download class="text-xs font-semibold text-slate-500">Download</a>
+                {% endif %}
+              </div>
+            </div>
+            {% empty %}
+            <div class="ess-empty">Your documents will appear here after onboarding uploads.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="receipt" class="h-4 w-4"></i></span> Expense Claims</h2>
+            <a href="{% url 'payroll:management' %}" class="ess-card-link">Submit →</a>
+          </div>
+          <div class="ess-card-body">
+            <div class="grid grid-cols-3 gap-2 mb-4">
+              <div class="ess-expense-stat">
+                <p class="num text-amber-600">{{ expense_summary.pending }}</p>
+                <p class="lbl">Pending</p>
+              </div>
+              <div class="ess-expense-stat">
+                <p class="num text-emerald-600">{{ expense_summary.approved }}</p>
+                <p class="lbl">Approved</p>
+              </div>
+              <div class="ess-expense-stat">
+                <p class="num text-rose-600">{{ expense_summary.rejected }}</p>
+                <p class="lbl">Rejected</p>
+              </div>
+            </div>
+            <a href="{% url 'payroll:management' %}" class="ess-btn ess-btn--primary w-full text-xs">Submit New Claim</a>
+          </div>
+        </div>
+      </div>
+
+      {# 12. Team Information #}
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-head">
+          <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="users" class="h-4 w-4"></i></span> Team Information</h2>
+          <a href="{% url 'dashboard:orgchart:tree' %}" class="ess-card-link">Org chart →</a>
+        </div>
+        <div class="ess-card-body">
+          {% if manager %}
+          <div class="mb-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 p-3 flex items-center gap-3">
+            <div class="ess-team-avatar">
+              {% if manager.avatar %}<img src="{{ manager.avatar }}" alt="">{% else %}{{ manager.initials }}{% endif %}
+            </div>
+            <div>
+              <p class="text-[10px] uppercase font-semibold text-slate-400">Reporting Manager</p>
+              <p class="text-sm font-semibold">{{ manager.name }}</p>
+              <p class="text-xs text-slate-500">{{ manager.designation }}</p>
+            </div>
+          </div>
+          {% endif %}
+          <p class="text-xs font-semibold text-slate-500 mb-2">Team Members</p>
+          <div class="ess-team-grid">
+            {% for peer in team.peers|slice:":8" %}
+            <div class="ess-team-member">
+              <div class="ess-team-avatar">
+                {% if peer.avatar %}<img src="{{ peer.avatar }}" alt="">{% else %}{{ peer.initials }}{% endif %}
+              </div>
+              <p class="ess-team-name">{{ peer.name }}</p>
+            </div>
+            {% empty %}
+            <p class="text-sm text-slate-500">No peers in your reporting group.</p>
+            {% endfor %}
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50 grid gap-1 text-xs text-slate-500">
+            <p><strong class="text-slate-700 dark:text-slate-300">Department:</strong> {{ department_info.name }} ({{ department_info.member_count }} members)</p>
+            <p><strong class="text-slate-700 dark:text-slate-300">Team:</strong> {{ department_info.team_name }}</p>
+          </div>
+        </div>
+      </div>
+
+      {# 15. Helpdesk + 16. Company Events + 17. Training #}
+      <div class="ess-two-col">
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="life-buoy" class="h-4 w-4"></i></span> Helpdesk</h2>
+            <span class="ess-coming-soon">Coming soon</span>
+          </div>
+          <div class="ess-card-body">
+            <div class="grid grid-cols-3 gap-2 mb-3 text-center text-xs">
+              <div class="ess-expense-stat"><p class="num text-violet-600">0</p><p class="lbl">Open</p></div>
+              <div class="ess-expense-stat"><p class="num text-sky-600">0</p><p class="lbl">HR</p></div>
+              <div class="ess-expense-stat"><p class="num text-indigo-600">0</p><p class="lbl">IT</p></div>
+            </div>
+            <button type="button" class="ess-btn ess-btn--outline w-full text-xs ess-btn--disabled" disabled>Create Ticket</button>
+            <p class="mt-2 text-[11px] text-center text-slate-400">HR & IT support ticketing is on the roadmap.</p>
+          </div>
+        </div>
+
+        <div class="ess-card ess-fade-in">
+          <div class="ess-card-head">
+            <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="sparkles" class="h-4 w-4"></i></span> Company Events</h2>
+          </div>
+          <div class="ess-card-body">
+            {% for ev in company_events %}
+            <div class="ess-list-item">
+              <div class="ess-list-icon bg-pink-100 text-pink-600"><i data-lucide="{{ ev.icon }}" class="h-3.5 w-3.5"></i></div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium">{{ ev.name }}</p>
+                <p class="text-xs text-slate-500">{{ ev.type_label }} · {{ ev.date|date:"d M" }} ({{ ev.day }})</p>
+              </div>
+            </div>
+            {% empty %}
+            <div class="ess-empty">No birthdays or anniversaries in your department this fortnight.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-head">
+          <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="graduation-cap" class="h-4 w-4"></i></span> Learning & Training</h2>
+          <span class="ess-coming-soon">Coming soon</span>
+        </div>
+        <div class="ess-card-body">
+          <div class="grid gap-3 sm:grid-cols-4 text-center">
+            <div class="ess-expense-stat"><p class="num text-violet-600">0</p><p class="lbl">Assigned</p></div>
+            <div class="ess-expense-stat"><p class="num text-emerald-600">0</p><p class="lbl">Completed</p></div>
+            <div class="ess-expense-stat"><p class="num text-sky-600">0</p><p class="lbl">Certs</p></div>
+            <div class="ess-expense-stat"><p class="num text-slate-400">—</p><p class="lbl">Progress</p></div>
+          </div>
+        </div>
+      </div>
+
+      {# 18. AI Assistant placeholder #}
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-body">
+          <div class="ess-ai-box">
+            <div class="flex items-center gap-2">
+              <i data-lucide="bot" class="h-5 w-5 text-violet-600"></i>
+              <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Ask HR Assistant</h2>
+              <span class="ess-coming-soon">Future</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Get instant answers about leaves, payslips, and attendance.</p>
+            <div class="mt-2">
+              <span class="ess-ai-chip">"How many leaves do I have?"</span>
+              <span class="ess-ai-chip">"Download my payslip"</span>
+              <span class="ess-ai-chip">"Show my attendance"</span>
+            </div>
+            <div class="ess-ai-input">
+              <input type="text" placeholder="Ask anything about your HR data…" disabled aria-label="HR Assistant (coming soon)">
+              <button type="button" class="ess-btn ess-btn--primary ess-btn--disabled" disabled>Ask</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# Recent attendance strip #}
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-head">
+          <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="history" class="h-4 w-4"></i></span> Recent Attendance</h2>
+          <a href="{% url 'dashboard:attendance' %}" class="ess-card-link">Full history →</a>
+        </div>
+        <div class="ess-card-body !pt-0">
+          {% for h in recent_rows %}
+          <div class="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-700/40 last:border-0">
+            <div class="text-center w-10 shrink-0">
+              <p class="text-lg font-bold leading-none text-violet-600">{{ h.record.date|date:"d" }}</p>
+              <p class="text-[10px] uppercase text-slate-400">{{ h.record.date|date:"M" }}</p>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium">{{ h.record.date|date:"l" }}</p>
+              {% include "dashboard/_attendance_status_badge.html" with record=h.record %}
+            </div>
+            <div class="hidden sm:flex gap-4 text-right text-xs tabular-nums">
+              <span class="text-emerald-600">{{ h.login_time }}</span>
+              <span class="text-violet-600">{{ h.logout_time }}</span>
+              <span class="font-semibold text-indigo-600">{{ h.working_hours }}</span>
+            </div>
+          </div>
+          {% empty %}
+          <div class="ess-empty">No attendance records yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+
+    {# ── Sidebar ── #}
+    <aside class="ess-sidebar space-y-4">
+
+      {# 13. Profile Card #}
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-body text-center">
+          <div class="ess-profile-ring">
+            <svg viewBox="0 0 80 80" class="h-full w-full">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgb(226 232 240)" stroke-width="6"/>
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgb(109 40 217)" stroke-width="6"
+                stroke-dasharray="{{ profile_ring_dash }} {{ profile_ring_circ }}"
+                stroke-linecap="round"/>
+            </svg>
+            <span class="ess-profile-ring-text">{{ profile_completion }}%</span>
+          </div>
+          <p class="mt-2 text-xs font-semibold text-slate-500">Profile Completion</p>
+          <div class="mt-4 space-y-2 text-left text-xs">
+            <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/50">
+              <span class="text-slate-500">Employee ID</span>
+              <span class="font-semibold">{{ employee_id }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/50">
+              <span class="text-slate-500">Emergency</span>
+              <span class="font-semibold truncate ml-2">{{ emergency_contact.name }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/50">
+              <span class="text-slate-500">Last login</span>
+              <span class="font-semibold">{{ last_login_display }}</span>
+            </div>
+            <div class="flex justify-between py-1.5">
+              <span class="text-slate-500">Status</span>
+              <span class="font-semibold text-emerald-600">{{ account_status }}</span>
+            </div>
+          </div>
+          <a href="{% url 'accounts:profile' %}" class="ess-btn ess-btn--primary w-full mt-4 text-xs">Update Profile</a>
+        </div>
+      </div>
+
+      {# 14. Quick Actions #}
+      <div class="ess-card ess-fade-in">
+        <div class="ess-card-head">
+          <h2 class="ess-card-title"><span class="ess-card-icon"><i data-lucide="zap" class="h-4 w-4"></i></span> Quick Actions</h2>
+        </div>
+        <div class="ess-card-body !pt-2">
+          <div class="ess-actions-grid">
+            <a href="{% url 'leaves:apply' %}" class="ess-action-btn"><i data-lucide="palmtree"></i> Apply Leave</a>
+            <a href="{% url 'payroll:management' %}" class="ess-action-btn"><i data-lucide="download"></i> Payslip</a>
+            <a href="{% url 'payroll:management' %}" class="ess-action-btn"><i data-lucide="receipt"></i> Expense</a>
+            <a href="{% url 'accounts:profile' %}" class="ess-action-btn"><i data-lucide="user-cog"></i> Profile</a>
+            <a href="{% url 'dashboard:attendance' %}" class="ess-action-btn"><i data-lucide="calendar-check"></i> Attendance</a>
+            <a href="{% url 'dashboard:orgchart:tree' %}" class="ess-action-btn"><i data-lucide="network"></i> Org Chart</a>
+            <span class="ess-action-btn opacity-50 cursor-not-allowed" title="Coming soon"><i data-lucide="ticket"></i> HR Ticket</span>
+            <span class="ess-action-btn opacity-50 cursor-not-allowed" title="Upload via onboarding"><i data-lucide="upload"></i> Document</span>
+          </div>
+        </div>
+      </div>
+
+      {% if pending_corrections %}
+      <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200 ess-fade-in">
+        <i data-lucide="alert-circle" class="inline h-4 w-4 mr-1"></i>
+        {{ pending_corrections }} attendance correction(s) pending.
+        <a href="{% url 'dashboard:attendance' %}" class="font-semibold underline">View</a>
+      </div>
+      {% endif %}
+
+    </aside>
+  </div>
+</div>
+{% endblock %}

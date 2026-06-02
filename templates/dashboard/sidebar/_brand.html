@@ -1,0 +1,19 @@
+<div class="hrms-sidebar-brand shrink-0 px-3 pt-4 pb-2">
+  <div class="flex items-center justify-between gap-2">
+    <a href="{% if sidebar.is_super %}{% url 'dashboard:super' %}{% else %}{% url 'dashboard:home' %}{% endif %}"
+       class="hrms-sidebar-brand__link flex min-w-0 flex-1 items-center gap-3">
+      <span class="hrms-sidebar-brand__logo">
+        <span class="hrms-sidebar-brand__logo-inner">H</span>
+      </span>
+      <span class="hrms-sidebar-brand__text min-w-0" data-sidebar-label>
+        <span class="hrms-sidebar-brand__name">HRMS</span>
+      </span>
+    </a>
+    <button type="button"
+            data-sidebar-toggle
+            class="hrms-sidebar-toggle hidden shrink-0 rounded-xl p-2 lg:inline-flex"
+            aria-label="Collapse sidebar">
+      <i data-lucide="panel-left-close" class="h-[18px] w-[18px]"></i>
+    </button>
+  </div>
+</div>

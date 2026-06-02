@@ -1,0 +1,315 @@
+/* Employee lifecycle — onboarding & offboarding */
+
+.lifecycle-page { width: 100%; max-width: none; }
+
+.lifecycle-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, rgb(76 29 149) 0%, rgb(109 40 217) 45%, rgb(79 70 229) 100%);
+  color: #fff;
+  box-shadow: 0 20px 40px -12px rgba(109, 40, 217, 0.45);
+}
+
+.lifecycle-hero::before {
+  content: "";
+  position: absolute;
+  right: -2rem;
+  top: -3rem;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lifecycle-hero-inner { position: relative; z-index: 1; }
+
+.lc-stat {
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px solid rgb(226 232 240);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.lc-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(109, 40, 217, 0.18);
+}
+
+.dark .lc-stat {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.lc-glass {
+  border-radius: 1.25rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.dark .lc-glass {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+}
+
+.lc-input {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+}
+
+.dark .lc-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+.lc-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgb(109 40 217), rgb(79 70 229));
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.lc-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(109 40 217);
+}
+
+.dark .lc-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgb(196 181 253);
+}
+
+.lc-filter-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  overflow-x: auto;
+}
+
+.lc-filter-item { flex: 0 0 auto; min-width: 6.5rem; }
+
+.lc-filter-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.lc-insight {
+  border-radius: 0.875rem;
+  border: 1px solid rgb(233 213 255);
+  background: rgb(245 243 255);
+  padding: 0.75rem 0.9rem;
+}
+
+.dark .lc-insight {
+  border-color: rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.lc-kanban {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  min-height: 12rem;
+}
+
+.lc-kanban-col {
+  flex: 0 0 14rem;
+  border-radius: 1rem;
+  background: rgba(7, 11, 26, 0.04);
+  border: 1px solid rgb(226 232 240);
+  padding: 0.5rem;
+}
+
+.dark .lc-kanban-col {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.lc-kanban-head {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgb(109 40 217);
+  padding: 0.35rem;
+}
+
+.lc-card {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 0.65rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.dark .lc-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(15 23 42);
+}
+
+.lc-progress {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgb(241 245 249);
+  overflow: hidden;
+  margin-top: 0.35rem;
+}
+
+.lc-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(109 40 217), rgb(34 211 238));
+}
+
+.lc-timeline {
+  border-left: 2px solid rgb(233 213 255);
+  padding-left: 1rem;
+  margin-left: 0.5rem;
+}
+
+.dark .lc-timeline { border-color: rgba(139, 92, 246, 0.35); }
+
+.lc-timeline-item {
+  position: relative;
+  padding-bottom: 1rem;
+  font-size: 0.75rem;
+}
+
+.lc-timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -1.35rem;
+  top: 0.25rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: rgb(109 40 217);
+}
+
+.lc-table-wrap { overflow: auto; max-height: 28rem; }
+
+.lc-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: separate;
+}
+
+.lc-table thead th {
+  position: sticky;
+  top: 0;
+  background: rgb(248 250 252);
+  padding: 0.7rem 0.85rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
+.dark .lc-table thead th {
+  background: rgb(30 41 59);
+  color: #94a3b8;
+}
+
+.lc-table tbody td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgb(241 245 249);
+}
+
+.dark .lc-table tbody td {
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+
+.lc-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(6px);
+}
+
+.lc-modal[hidden] { display: none; }
+
+.lc-modal-panel {
+  width: 100%;
+  max-width: 32rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: #0f172a;
+  padding: 1.25rem;
+  color: #e2e8f0;
+}
+
+.lc-doc-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+}
+
+.lc-doc-tile {
+  border-radius: 0.75rem;
+  border: 1px dashed rgb(203 213 225);
+  padding: 0.65rem;
+  text-align: center;
+  font-size: 0.65rem;
+}
+
+.lc-doc-tile--verified { border-color: rgb(16 185 129); background: rgb(209 250 229); }
+.lc-doc-tile--missing { border-color: rgb(251 191 36); background: rgb(254 243 199); }
+
+.dark .lc-doc-tile--verified { background: rgba(16, 185, 129, 0.15); }
+.dark .lc-doc-tile--missing { background: rgba(251, 191, 36, 0.1); }
+
+.lc-nav-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lc-nav-tabs a {
+  border-radius: 0.75rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lc-nav-tabs a.is-active {
+  background: rgb(109 40 217);
+  color: #fff;
+}
+
+.lc-nav-tabs a:not(.is-active) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}

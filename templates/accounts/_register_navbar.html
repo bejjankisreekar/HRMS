@@ -1,0 +1,22 @@
+{% with current=request.resolver_match.view_name %}
+<header class="sticky top-0 z-50 border-b border-white/5 bg-[#0b0f1a]/70 backdrop-blur-xl">
+  <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+    <a href="{% url 'landing' %}" class="flex items-center gap-2.5 font-semibold tracking-tight text-white">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-bold shadow-lg shadow-violet-500/30">H</span>
+      <span>HRMS Suite</span>
+    </a>
+    <nav class="hidden items-center gap-8 text-sm text-slate-300 md:flex">
+      <a href="{% url 'landing' %}" class="transition hover:text-white">Home</a>
+      <a href="{% url 'accounts:features' %}" class="transition hover:text-white">Features</a>
+      <a href="{% url 'accounts:pricing' %}" class="transition hover:text-white">Pricing</a>
+      <a href="{% url 'accounts:contact' %}" class="transition hover:text-white">Contact</a>
+      <a href="{% url 'accounts:login' %}" class="transition hover:text-white">Login</a>
+      <a href="{% url 'accounts:register' %}"
+         class="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:scale-105">
+        Register
+      </a>
+    </nav>
+    <a href="{% url 'accounts:login' %}" class="rounded-xl border border-white/10 px-3 py-2 text-sm text-white md:hidden">Login</a>
+  </div>
+</header>
+{% endwith %}

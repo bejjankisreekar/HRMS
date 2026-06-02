@@ -1,0 +1,23 @@
+{% load static %}
+<div class="hrms-field {% if field.errors %}hrms-field--error{% endif %} {% if field.field.widget.input_type == 'checkbox' %}hrms-field--checkbox{% endif %}">
+  {% if field.field.widget.input_type == 'checkbox' %}
+    <div class="hrms-field__checkbox-group">
+      {{ field }}
+      <label for="{{ field.id_for_label }}" class="hrms-field__checkbox-label">{{ field.label }}</label>
+    </div>
+  {% elif field.field.widget.input_type == 'select' or field.field.widget.template_name == 'django/forms/widgets/select.html' %}
+    <div class="hrms-field__select-wrap">
+      {{ field }}
+      <label for="{{ field.id_for_label }}" class="hrms-field__label">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+    </div>
+  {% elif field.field.widget.input_type == 'textarea' %}
+    {{ field }}
+    <label for="{{ field.id_for_label }}" class="hrms-field__label">{{ field.label }}</label>
+  {% else %}
+    {{ field }}
+    <label for="{{ field.id_for_label }}" class="hrms-field__label">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+  {% endif %}
+  {% if field.errors %}
+    <p class="hrms-field__error">{{ field.errors.0 }}</p>
+  {% endif %}
+</div>

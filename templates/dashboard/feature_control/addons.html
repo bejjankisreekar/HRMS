@@ -1,0 +1,19 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Add-on control</h2></div>
+  <div class="fcc-toggle-grid">
+    {% for addon in addons %}
+    <label class="fcc-toggle-row">
+      <span class="fcc-toggle-row__info">
+        <i data-lucide="{{ addon.icon|default:'puzzle' }}"></i>
+        <strong>{{ addon.name }}</strong>
+        <code>{{ addon.slug }}</code>
+        <span class="fcc-tag">₹{{ addon.monthly_price_inr|floatformat:0 }}/mo</span>
+      </span>
+      <input type="checkbox" class="fcc-switch fcc-addon-toggle" data-addon-id="{{ addon.pk }}"{% if addon.is_active %} checked{% endif %}>
+    </label>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

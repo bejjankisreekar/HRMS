@@ -1,0 +1,21 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Page control</h2><p class="fin-muted">Disabled pages are hidden from UI and routes are blocked.</p></div>
+  <table class="fcc-table">
+    <thead><tr><th>Page</th><th>URL name</th><th>Feature</th><th>Enabled</th></tr></thead>
+    <tbody>
+      {% for page in pages %}
+      <tr>
+        <td><strong>{{ page.name }}</strong><br><code>{{ page.key }}</code></td>
+        <td><code>{{ page.url_name }}</code></td>
+        <td>{{ page.feature.name|default:"—" }}</td>
+        <td><input type="checkbox" class="fcc-switch fcc-page-toggle" data-page-id="{{ page.pk }}"{% if page.is_globally_enabled %} checked{% endif %}></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="fin-muted">No pages configured.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,79 @@
+<section class="starter-charts" aria-label="Analytics">
+  <h2 class="starter-section__title">Analytics</h2>
+  <div class="starter-charts__grid">
+
+    <article class="starter-card">
+      <div class="starter-card__head">
+        <h3>Attendance overview</h3>
+        <span class="starter-card__tag">Today</span>
+      </div>
+      {% if has_employees %}
+      <div class="starter-chart-wrap starter-chart-wrap--pie">
+        <canvas id="chart-attendance" aria-label="Attendance pie chart"></canvas>
+      </div>
+      {% else %}
+      {% include "dashboard/starter/_empty_state.html" with variant="employees" compact=True %}
+      {% endif %}
+    </article>
+
+    <article class="starter-card">
+      <div class="starter-card__head">
+        <h3>Department distribution</h3>
+      </div>
+      {% if has_employees %}
+      <div class="starter-chart-wrap">
+        <canvas id="chart-departments" aria-label="Department bar chart"></canvas>
+      </div>
+      {% else %}
+      {% include "dashboard/starter/_empty_state.html" with variant="employees" compact=True %}
+      {% endif %}
+    </article>
+
+    <article class="starter-card">
+      <div class="starter-card__head">
+        <h3>Leave trends</h3>
+        <span class="starter-card__tag">6 months</span>
+      </div>
+      {% if features.leave_enabled and has_leave_data %}
+      <div class="starter-chart-wrap">
+        <canvas id="chart-leave" aria-label="Leave trends chart"></canvas>
+      </div>
+      {% elif not features.leave_enabled %}
+      {% include "dashboard/starter/_empty_state.html" with variant="feature_off" feature="Leave management" compact=True %}
+      {% else %}
+      {% include "dashboard/starter/_empty_state.html" with variant="reports" compact=True %}
+      {% endif %}
+    </article>
+
+    <article class="starter-card">
+      <div class="starter-card__head">
+        <h3>Employee growth</h3>
+        <span class="starter-card__tag">6 months</span>
+      </div>
+      {% if has_employees %}
+      <div class="starter-chart-wrap">
+        <canvas id="chart-growth" aria-label="Employee growth chart"></canvas>
+      </div>
+      {% else %}
+      {% include "dashboard/starter/_empty_state.html" with variant="employees" compact=True %}
+      {% endif %}
+    </article>
+
+    <article class="starter-card starter-card--wide">
+      <div class="starter-card__head">
+        <h3>Monthly payroll summary</h3>
+        <span class="starter-card__tag">6 months</span>
+      </div>
+      {% if features.payroll_enabled and has_payroll_data %}
+      <div class="starter-chart-wrap starter-chart-wrap--tall">
+        <canvas id="chart-payroll" aria-label="Payroll bar chart"></canvas>
+      </div>
+      {% elif not features.payroll_enabled %}
+      {% include "dashboard/starter/_empty_state.html" with variant="feature_off" feature="Payroll" compact=True %}
+      {% else %}
+      {% include "dashboard/starter/_empty_state.html" with variant="reports" compact=True %}
+      {% endif %}
+    </article>
+
+  </div>
+</section>

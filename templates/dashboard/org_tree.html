@@ -1,0 +1,343 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{{ page_meta.title }} · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'org-tree.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3.1.1" defer></script>
+<script>
+window.ORG_TREE_CONFIG = {
+  chart: {{ chart_json|safe }},
+  csrf: "{{ csrf_token }}",
+  canEdit: {{ can_edit_hierarchy|yesno:"true,false" }},
+  staffCreateUrl: "{{ staff_create_url }}",
+  focusNodeId: {% if focus_node_id %}"{{ focus_node_id }}"{% else %}null{% endif %},
+  currentUserId: "{{ current_user_id }}",
+  api: {
+    data: "{{ api_urls.data }}",
+    employeeTemplate: "{{ api_urls.employeeTemplate|default:api_employee_template }}",
+    move: "{{ api_urls.move|default:'' }}",
+    search: "{{ api_urls.search }}",
+    export: "{{ api_urls.export }}",
+    team: "{{ api_urls.team|default:'' }}"
+  }
+};
+</script>
+<script src="{% static 'org-tree.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="org-tree-page w-full space-y-6">
+  <div class="org-tree-hero ot-no-print">
+    <div class="org-tree-hero-inner flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="{{ page_meta.icon }}" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">
+            HRMS · {% if is_super_admin_view %}Platform{% else %}Organization{% endif %}
+          </p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{{ page_meta.title }}</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">{{ page_meta.subtitle }}</p>
+          <p class="mt-2 text-xs text-violet-200/80">{{ tree_scope }}</p>
+          {% if selected_organization %}
+          <p class="mt-1 text-xs font-semibold text-white/90">{{ selected_organization.name }}</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex flex-col gap-2 sm:items-end">
+        {% if is_super_admin_view and organizations %}
+        <form method="get" class="flex flex-wrap items-center gap-2">
+          {% for key, val in filters_get.items %}
+            {% if key != "org" %}<input type="hidden" name="{{ key }}" value="{{ val }}">{% endif %}
+          {% endfor %}
+          <label class="text-xs text-violet-200">Organization</label>
+          <select name="org" class="ot-input !w-auto min-w-[12rem]" onchange="this.form.submit()">
+            {% for o in organizations %}
+            <option value="{{ o.pk }}" {% if selected_organization.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>
+            {% endfor %}
+          </select>
+          <a href="{% url 'dashboard:super_org_global' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">All orgs</a>
+        </form>
+        {% endif %}
+        {% if can_manage %}
+        <div class="flex flex-wrap gap-2">
+          <a href="{{ staff_create_url }}" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+            <i data-lucide="user-plus" class="inline h-3.5 w-3.5"></i> Add employee
+          </a>
+          <a href="{{ departments_url }}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Departments</a>
+          <button type="button" data-open-team-modal class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Create team</button>
+        </div>
+        {% endif %}
+        {% if is_employee_view %}
+        <button type="button" id="ot-focus-me" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+          <i data-lucide="crosshair" class="inline h-3.5 w-3.5"></i> My team focus
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if is_employee_view and employee_focus %}
+  <section class="ot-team-strip ot-no-print">
+    <div class="ot-team-strip-block">
+      <p class="ot-team-strip-label">Reporting manager</p>
+      {% if employee_focus.manager %}
+      <button type="button" class="ot-mini-card" data-focus-id="{{ employee_focus.manager.id }}">
+        <span class="ot-mini-avatar">{{ employee_focus.manager.initials }}</span>
+        <span>
+          <span class="ot-mini-name">{{ employee_focus.manager.name }}</span>
+          <span class="ot-mini-role">{{ employee_focus.manager.designation }}</span>
+        </span>
+      </button>
+      {% else %}
+      <p class="text-xs text-slate-500">No manager assigned</p>
+      {% endif %}
+    </div>
+    <div class="ot-team-strip-block">
+      <p class="ot-team-strip-label">Peers ({{ employee_focus.peers|length }})</p>
+      <div class="ot-mini-card-row">
+        {% for p in employee_focus.peers %}
+        <button type="button" class="ot-mini-card" data-focus-id="{{ p.id }}" title="{{ p.name }}">
+          <span class="ot-mini-avatar">{{ p.initials }}</span>
+          <span class="ot-mini-name truncate">{{ p.name }}</span>
+        </button>
+        {% empty %}
+        <p class="text-xs text-slate-500">No peers in scope</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="ot-team-strip-block">
+      <p class="ot-team-strip-label">Direct reports ({{ employee_focus.subordinates|length }})</p>
+      <div class="ot-mini-card-row">
+        {% for s in employee_focus.subordinates %}
+        <button type="button" class="ot-mini-card" data-focus-id="{{ s.id }}" title="{{ s.name }}">
+          <span class="ot-mini-avatar">{{ s.initials }}</span>
+          <span class="ot-mini-name truncate">{{ s.name }}</span>
+        </button>
+        {% empty %}
+        <p class="text-xs text-slate-500">No direct reports</p>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="ot-stat-grid ot-no-print">
+    <div class="ot-stat"><p class="ot-stat-label">Total employees</p><p class="ot-stat-value">{{ summary.total_employees }}</p></div>
+    <div class="ot-stat"><p class="ot-stat-label">Departments</p><p class="ot-stat-value">{{ summary.total_departments }}</p></div>
+    <div class="ot-stat"><p class="ot-stat-label">Managers</p><p class="ot-stat-value">{{ summary.managers_count }}</p></div>
+    {% if show_stats_extended %}
+    <div class="ot-stat"><p class="ot-stat-label">Team leads</p><p class="ot-stat-value">{{ summary.team_leads_count }}</p></div>
+    <div class="ot-stat"><p class="ot-stat-label">Open positions</p><p class="ot-stat-value">{{ summary.open_positions }}</p></div>
+    <div class="ot-stat"><p class="ot-stat-label">Reporting depth</p><p class="ot-stat-value">{{ summary.reporting_depth }}</p></div>
+    <div class="ot-stat"><p class="ot-stat-label">Span (avg / max)</p><p class="ot-stat-value">{{ summary.span_avg }} / {{ summary.span_max }}</p></div>
+    {% endif %}
+  </section>
+
+  {% if show_insights %}
+  <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ot-no-print">
+    {% for item in insights %}
+    <div class="ot-insight flex gap-3">
+      <i data-lucide="{{ item.icon }}" class="h-5 w-5 text-violet-400 shrink-0"></i>
+      <div>
+        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ item.title }}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ item.body }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if department_heatmap and show_stats_extended %}
+  <section class="ot-dept-heatmap ot-no-print">
+    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Department distribution</p>
+    <div class="flex flex-wrap gap-2">
+      {% for d in department_heatmap %}
+      <span class="ot-dept-chip" style="--dept-color: {{ d.color }}">
+        <span class="ot-dept-dot"></span>{{ d.name }} <strong>{{ d.count }}</strong>
+      </span>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <form method="get" class="ot-filters ot-no-print">
+    {% if is_super_admin_view and selected_organization %}
+    <input type="hidden" name="org" value="{{ selected_organization.pk }}">
+    {% endif %}
+    <div class="ot-filter-bar">
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">View</label>
+        <select name="view" class="ot-input">
+          {% for val, label in view_modes %}
+          <option value="{{ val }}" {% if filters.view == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if show_full_filters %}
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">Department</label>
+        <select name="department" class="ot-input">
+          <option value="">All</option>
+          {% for d in filter_options.departments %}
+          <option value="{{ d.pk }}" {% if filters.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">Branch</label>
+        <select name="branch" class="ot-input">
+          <option value="">All</option>
+          {% for b in filter_options.branches %}
+          <option value="{{ b }}" {% if filters.branch == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">Manager</label>
+        <select name="manager" class="ot-input">
+          <option value="">All</option>
+          {% for m in filter_options.managers %}
+          <option value="{{ m.pk }}" {% if filters.manager == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">Status</label>
+        <select name="status" class="ot-input">
+          <option value="">All</option>
+          <option value="active" {% if filters.status == "active" %}selected{% endif %}>Active</option>
+          <option value="inactive" {% if filters.status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">Team</label>
+        <select name="team" class="ot-input">
+          <option value="">All</option>
+          {% for t in filter_options.teams %}
+          <option value="{{ t.pk }}" {% if filters.team == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ot-filter-item">
+        <label class="ot-filter-label">Designation</label>
+        <select name="designation" class="ot-input">
+          <option value="">All</option>
+          {% for des in filter_options.designations %}
+          <option value="{{ des }}" {% if filters.designation == des %}selected{% endif %}>{{ des }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="ot-filter-item ot-filter-item--wide">
+        <label class="ot-filter-label">Search</label>
+        <input type="search" id="ot-search-input" name="q" value="{{ filters.q }}" class="ot-input" placeholder="Name, ID, designation…" autocomplete="off">
+      </div>
+      <div class="flex items-end gap-2 pb-0.5">
+        <button type="submit" class="ot-btn-primary">Apply</button>
+        <a href="{% if is_super_admin_view %}{% url 'dashboard:super_org_tree' %}?org={{ selected_organization.pk }}{% else %}{% url 'dashboard:orgchart:tree' %}{% endif %}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">Reset</a>
+      </div>
+    </div>
+  </form>
+
+  <div id="ot-canvas-wrap" class="ot-canvas-wrap">
+    <div class="ot-canvas-particles" aria-hidden="true"></div>
+    <div class="ot-chart-toolbar ot-no-print">
+      <button type="button" id="ot-expand-all" title="Expand all">Expand</button>
+      <button type="button" id="ot-collapse-all" title="Collapse all">Collapse</button>
+      <button type="button" id="ot-fit" title="Fit view (0)">Fit</button>
+      <button type="button" id="ot-zoom-in" title="Zoom in (+)">+</button>
+      <button type="button" id="ot-zoom-out" title="Zoom out (-)">−</button>
+      <button type="button" id="ot-fullscreen" title="Fullscreen">Fullscreen</button>
+      <button type="button" id="ot-export-png" title="Export image">PNG</button>
+      <button type="button" id="ot-print" title="Print chart">Print</button>
+      <a href="#" id="ot-export-link" class="!inline-flex items-center rounded-[0.65rem] border border-slate-500/30 bg-slate-900/85 px-2 py-1 text-[0.6875rem] font-semibold text-slate-300 hover:bg-violet-900/40">CSV</a>
+    </div>
+    <div id="ot-search-results" class="ot-search-results"></div>
+    <div id="ot-minimap" class="ot-minimap ot-no-print" aria-hidden="true" title="Minimap"></div>
+    <div id="ot-chart-container"></div>
+    {% if summary.total_employees == 0 %}
+    <div class="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-8">
+      <p class="text-slate-400 text-sm">No employees in your scope yet.</p>
+      {% if can_manage %}
+      <a href="{{ staff_create_url }}" class="ot-btn-primary mt-3">Add employee</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div id="ot-panel-backdrop" class="ot-panel-backdrop"></div>
+<aside id="ot-employee-panel" class="ot-panel">
+  <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <h2 class="text-sm font-semibold text-white" data-panel-title>Employee</h2>
+    <button type="button" class="text-slate-400 hover:text-white" data-panel-close aria-label="Close">
+      <i data-lucide="x" class="h-5 w-5"></i>
+    </button>
+  </div>
+  <div data-panel-body></div>
+</aside>
+
+<div id="ot-move-modal" class="ot-modal" hidden>
+  <div class="ot-modal-card">
+    <h3 class="text-lg font-semibold text-white">Update reporting line?</h3>
+    <p class="mt-2 text-sm text-slate-400" data-move-text></p>
+    <div class="mt-4 flex gap-2">
+      <button type="button" class="ot-btn-primary" data-move-confirm>Confirm</button>
+      <button type="button" class="ot-btn-ghost" data-move-cancel>Cancel</button>
+    </div>
+  </div>
+</div>
+
+{% if can_manage %}
+<div id="ot-team-modal" class="ot-modal" hidden>
+  <div class="ot-modal-card">
+    <h3 class="text-lg font-semibold text-white">Create team</h3>
+    <form id="ot-team-form" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <div>
+        <label class="ot-filter-label text-slate-400">Team name</label>
+        <input type="text" name="name" class="ot-input" required>
+      </div>
+      <div>
+        <label class="ot-filter-label text-slate-400">Department</label>
+        <select name="department" class="ot-input">
+          <option value="">—</option>
+          {% for d in filter_options.departments %}
+          <option value="{{ d.pk }}">{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="ot-filter-label text-slate-400">Team lead</label>
+        <select name="lead" class="ot-input">
+          <option value="">—</option>
+          {% for m in filter_options.managers %}
+          <option value="{{ m.pk }}">{{ m.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="ot-filter-label text-slate-400">Description</label>
+        <textarea name="description" class="ot-input" rows="2"></textarea>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="ot-btn-primary">Save team</button>
+        <button type="button" class="ot-btn-ghost" data-close-team-modal>Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+document.querySelector("[data-open-team-modal]")?.addEventListener("click", () => {
+  document.getElementById("ot-team-modal").hidden = false;
+});
+document.querySelectorAll("[data-close-team-modal]").forEach((el) => {
+  el.addEventListener("click", () => { document.getElementById("ot-team-modal").hidden = true; });
+});
+</script>
+{% endif %}
+{% endblock %}

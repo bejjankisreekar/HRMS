@@ -1,0 +1,135 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Employee Onboarding · HRMS{% endblock %}
+{% block dashboard_extra_head %}{% include "lifecycle/_shared_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="lifecycle-page w-full space-y-6">
+  <div class="lifecycle-hero lc-no-print">
+    <div class="lifecycle-hero-inner flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="user-plus" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">HRMS · Lifecycle</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Employee Onboarding & Offboarding</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">
+            Manage employee joining workflows, asset allocation, onboarding tasks, exit processes, and clearance workflows.
+          </p>
+        </div>
+      </div>
+      {% if can_manage %}
+      <div class="flex flex-wrap gap-2">
+        <button type="button" data-open-modal="start-onboarding" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Start onboarding</button>
+        <a href="{% url 'lifecycle:offboarding' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Create offboarding</a>
+        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export reports</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="lc-nav-tabs lc-no-print">
+    <a href="{% url 'lifecycle:onboarding' %}" class="is-active">Onboarding</a>
+    <a href="{% url 'lifecycle:offboarding' %}">Offboarding</a>
+  </div>
+
+  <section class="grid gap-3 grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 lc-no-print">
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">New joiners</p><p class="lc-counter mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.new_joiners }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">Pending tasks</p><p class="lc-counter mt-1 text-xl font-bold text-amber-600" data-counter="{{ summary.pending_tasks }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">In orientation</p><p class="lc-counter mt-1 text-xl font-bold text-cyan-600" data-counter="{{ summary.in_orientation }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">Devices allocated</p><p class="lc-counter mt-1 text-xl font-bold text-violet-600" data-counter="{{ summary.devices_allocated }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">Exit requests</p><p class="lc-counter mt-1 text-xl font-bold text-rose-500" data-counter="{{ summary.exit_requests }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">Pending clearances</p><p class="lc-counter mt-1 text-xl font-bold text-orange-500" data-counter="{{ summary.pending_clearances }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">Offboarding done</p><p class="lc-counter mt-1 text-xl font-bold text-emerald-600" data-counter="{{ summary.completed_offboarding }}">0</p></div>
+    <div class="lc-stat"><p class="text-[10px] uppercase text-slate-500">Avg onboard (days)</p><p class="lc-counter mt-1 text-xl font-bold text-teal-600" data-counter="{{ summary.avg_onboarding_days }}">0</p></div>
+  </section>
+
+  <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lc-no-print">
+    {% for item in insights %}<div class="lc-insight flex gap-3"><i data-lucide="{{ item.icon }}" class="h-5 w-5 text-violet-600 shrink-0"></i><div><p class="text-sm font-semibold text-slate-900 dark:text-white">{{ item.title }}</p><p class="text-xs text-slate-500 mt-0.5">{{ item.body }}</p></div></div>{% endfor %}
+  </section>
+
+  <form method="get" class="lc-glass lc-no-print px-4 py-3">
+    <div class="lc-filter-bar">
+      <div class="lc-filter-item"><label class="lc-filter-label">Department</label><select name="department" class="lc-input"><option value="">All</option>{% for d in filter_options.departments %}<option value="{{ d.pk }}" {% if filters.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
+      <div class="lc-filter-item"><label class="lc-filter-label">Branch</label><select name="branch" class="lc-input"><option value="">All</option>{% for b in filter_options.branches %}<option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select></div>
+      <div class="lc-filter-item"><label class="lc-filter-label">Status</label><select name="workflow_status" class="lc-input"><option value="">All</option>{% for val, label in filter_options.onboarding_statuses %}<option value="{{ val }}" {% if filters.workflow_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="lc-filter-item"><label class="lc-filter-label">Joining from</label><input type="date" name="joining_from" value="{{ filters.joining_from|date:'Y-m-d' }}" class="lc-input"></div>
+      <div class="lc-filter-item"><label class="lc-filter-label">Joining to</label><input type="date" name="joining_to" value="{{ filters.joining_to|date:'Y-m-d' }}" class="lc-input"></div>
+      <div class="flex items-end gap-2 pb-0.5"><button type="submit" class="lc-btn-primary">Apply</button><a href="{% url 'lifecycle:onboarding' %}" class="lc-btn-ghost">Reset</a></div>
+    </div>
+  </form>
+
+  <div class="grid gap-4 lg:grid-cols-2 lc-no-print">
+    <section class="lc-glass p-4"><h2 class="text-sm font-semibold text-slate-900 dark:text-white">Active onboarding pipelines</h2>
+      <div class="lc-kanban mt-3">
+        <div class="lc-kanban-col"><div class="lc-kanban-head">In progress</div>
+          {% for w in active_workflows %}{% if w.status != 'COMPLETED' %}
+          <div class="lc-card">
+            <p class="font-semibold text-slate-900 dark:text-white">{{ w.user.display_name }}</p>
+            <p class="text-slate-500">{{ w.joining_date|date:"d M Y" }}</p>
+            <div class="lc-progress"><div class="lc-progress-bar" style="width:{{ w.progress_percent }}%"></div></div>
+            <p class="text-[10px] text-violet-600 mt-1">{{ w.progress_percent }}% complete</p>
+          </div>
+          {% endif %}{% empty %}<p class="text-xs text-slate-500 p-2">No active workflows.</p>{% endfor %}
+        </div>
+        <div class="lc-kanban-col"><div class="lc-kanban-head">Completed</div>
+          {% for w in active_workflows %}{% if w.status == 'COMPLETED' %}
+          <div class="lc-card"><p class="font-semibold">{{ w.user.display_name }}</p><p class="text-emerald-600 text-[10px]">Completed</p></div>
+          {% endif %}{% endfor %}
+        </div>
+      </div>
+    </section>
+    <section class="lc-glass p-4">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Onboarding analytics</h2>
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <div class="h-36"><canvas id="chartJoiningTrend"></canvas></div>
+        <div class="h-36"><canvas id="chartDeptHires"></canvas></div>
+        <div class="h-36"><canvas id="chartDocs"></canvas></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="lc-glass overflow-hidden">
+    <div class="border-b border-slate-200 px-5 py-4 dark:border-white/10"><h2 class="text-sm font-semibold text-slate-900 dark:text-white">Onboarding reports</h2></div>
+    <div class="lc-table-wrap">
+      <table class="lc-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Department</th><th>Joining</th><th>Status</th><th>Progress</th><th>Tasks</th><th>Branch</th></tr></thead>
+        <tbody>
+          {% for row in report_page %}
+          <tr>
+            <td>{{ row.employee_id }}</td>
+            <td class="font-medium text-slate-900 dark:text-white">{{ row.name }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.joining_date }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.progress }}%</td>
+            <td>{{ row.pending_tasks }}</td>
+            <td>{{ row.branch }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="8" class="py-10 text-center text-slate-500">No onboarding records.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+{% if can_manage %}
+<div id="modal-start-onboarding" class="lc-modal" hidden>
+  <div class="lc-modal-panel">
+    <h3 class="text-lg font-semibold text-white">Start onboarding</h3>
+    <form method="post" class="mt-4 space-y-3">{% csrf_token %}
+      <input type="hidden" name="action" value="start_onboarding">
+      {% for field in start_onboarding_form %}<div><label class="lc-filter-label text-slate-400">{{ field.label }}</label>{{ field }}</div>{% endfor %}
+      <button type="submit" class="lc-btn-primary">Start workflow</button>
+    </form>
+  </div>
+</div>
+<script>
+document.querySelectorAll("[data-open-modal]").forEach((b) => b.addEventListener("click", () => {
+  const m = document.getElementById("modal-" + b.getAttribute("data-open-modal"));
+  if (m) m.hidden = false;
+}));
+</script>
+{% endif %}
+{% endblock %}

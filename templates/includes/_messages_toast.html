@@ -1,0 +1,25 @@
+{% if messages %}
+<div class="hrms-toast-stack" aria-live="polite" aria-atomic="false">
+  {% for message in messages %}
+  <div class="hrms-toast hrms-toast--{% if 'error' in message.tags %}error{% elif 'warning' in message.tags %}warning{% elif 'success' in message.tags %}success{% else %}info{% endif %}"
+       data-toast
+       role="alert">
+    <span class="hrms-toast__icon" aria-hidden="true">
+      {% if 'error' in message.tags %}
+        <i data-lucide="circle-x" class="h-4 w-4"></i>
+      {% elif 'warning' in message.tags %}
+        <i data-lucide="triangle-alert" class="h-4 w-4"></i>
+      {% elif 'success' in message.tags %}
+        <i data-lucide="circle-check" class="h-4 w-4"></i>
+      {% else %}
+        <i data-lucide="info" class="h-4 w-4"></i>
+      {% endif %}
+    </span>
+    <p class="hrms-toast__body">{{ message }}</p>
+    <button type="button" class="hrms-toast__close" data-toast-close aria-label="Dismiss notification">
+      <i data-lucide="x" class="h-4 w-4"></i>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

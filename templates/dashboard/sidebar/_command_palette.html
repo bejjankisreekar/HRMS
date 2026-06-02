@@ -1,0 +1,15 @@
+<div id="hrms-command-palette" class="hrms-command-palette hidden" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="hrms-command-palette__backdrop" data-command-close></div>
+  <div class="hrms-command-palette__panel">
+    <div class="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+      <i data-lucide="command" class="h-5 w-5 text-violet-400"></i>
+      <input type="text"
+             id="hrms-command-input"
+             class="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+             placeholder="Search modules and pages…"
+             autocomplete="off">
+      <kbd class="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-white/50">ESC</kbd>
+    </div>
+    <ul id="hrms-command-list" class="max-h-72 overflow-y-auto p-2"></ul>
+  </div>
+</div>

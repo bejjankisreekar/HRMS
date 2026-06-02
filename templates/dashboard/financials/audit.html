@@ -1,0 +1,33 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-panel">
+  <h2 class="fin-panel__title">Financial audit log</h2>
+  <div class="fin-table-wrap">
+    <table class="fin-table">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Action</th>
+          <th>Summary</th>
+          <th>Organization</th>
+          <th>Actor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
+          <td><span class="fin-badge">{{ log.get_action_display }}</span></td>
+          <td>{{ log.summary }}</td>
+          <td>{% if log.organization %}{{ log.organization.name }}{% else %}—{% endif %}</td>
+          <td>{% if log.actor %}{{ log.actor.display_name }}{% else %}System{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="fin-center fin-muted">No audit entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

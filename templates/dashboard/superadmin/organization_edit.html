@@ -1,0 +1,227 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Edit {{ organization.name }} · Platform{% endblock %}
+
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'platform-forms.css' %}">
+{% endblock %}
+
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:super_organization_detail' organization.pk as org_detail_url %}
+  {% include "dashboard/_back_button.html" with back_url=org_detail_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="platform-form mx-auto max-w-5xl space-y-6 pb-24">
+  <!-- Header -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Organization settings</h1>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+        Manage subscription, billing limits, and HRMS configuration.
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-mono font-semibold text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-300">
+        {{ organization.organization_code }}
+      </span>
+      {% if organization.is_active %}
+      <span class="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">Active</span>
+      {% else %}
+      <span class="rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-400">Inactive</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Workspace info (read-only) -->
+  <div class="grid gap-4 sm:grid-cols-3">
+    <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+      <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Workspace ID</p>
+      <p class="mt-1 font-mono text-sm font-semibold text-slate-900 dark:text-white">{{ organization.organization_code|default:"—" }}</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+      <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Database schema</p>
+      <p class="mt-1 font-mono text-sm font-semibold text-slate-900 dark:text-white">{{ organization.schema_name|default:"—" }}</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+      <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Created</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{{ organization.created_at|date:"M j, Y" }}</p>
+    </div>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+      {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    <!-- General -->
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-400">
+          <i data-lucide="building-2" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">General information</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Identity and workspace status</p>
+        </div>
+      </div>
+      <div class="platform-section-body">
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "dashboard/superadmin/_form_field.html" with field=form.name full_width=True %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.organization_type %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.industry %}
+          <div class="sm:col-span-2">
+            <label class="platform-check" for="{{ form.is_active.id_for_label }}">
+              {{ form.is_active }}
+              <span>
+                <span class="block text-sm font-medium text-slate-900 dark:text-white">{{ form.is_active.label }}</span>
+                {% if form.is_active.help_text %}<span class="mt-0.5 block text-xs text-slate-500">{{ form.is_active.help_text }}</span>{% endif %}
+              </span>
+            </label>
+            {% if form.is_active.errors %}<p class="platform-error mt-1">{{ form.is_active.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400">
+          <i data-lucide="mail" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Contact & location</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Billing contact and regional settings</p>
+        </div>
+      </div>
+      <div class="platform-section-body">
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "dashboard/superadmin/_form_field.html" with field=form.official_email %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.official_phone %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.country %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.city %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.currency %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.employee_count %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Subscription -->
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+          <i data-lucide="credit-card" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Subscription & billing</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Plan, status, trial window, and revenue</p>
+        </div>
+      </div>
+      <div class="platform-section-body">
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "dashboard/superadmin/_form_field.html" with field=form.subscription_plan %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.subscription_status %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.annual_revenue_range %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.trial_start_date %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.trial_end_date %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Limits -->
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+          <i data-lucide="gauge" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Plan limits</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Usage caps for this tenant</p>
+        </div>
+      </div>
+      <div class="platform-section-body">
+        <div class="grid gap-5 sm:grid-cols-2">
+          {% include "dashboard/superadmin/_form_field.html" with field=form.employee_limit %}
+          {% include "dashboard/superadmin/_form_field.html" with field=form.storage_limit_mb %}
+        </div>
+      </div>
+    </section>
+
+    <!-- HRMS modules -->
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+          <i data-lucide="layers" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">HRMS modules</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Enabled product capabilities</p>
+        </div>
+      </div>
+      <div class="platform-section-body">
+        <div class="grid gap-3 sm:grid-cols-3">
+          <label class="platform-check" for="{{ form.payroll_enabled.id_for_label }}">
+            {{ form.payroll_enabled }}
+            <span>
+              <span class="block text-sm font-medium text-slate-900 dark:text-white">Payroll</span>
+              <span class="text-xs text-slate-500">Salary processing</span>
+            </span>
+          </label>
+          <label class="platform-check" for="{{ form.leave_management_enabled.id_for_label }}">
+            {{ form.leave_management_enabled }}
+            <span>
+              <span class="block text-sm font-medium text-slate-900 dark:text-white">Leave management</span>
+              <span class="text-xs text-slate-500">Time-off workflows</span>
+            </span>
+          </label>
+          <label class="platform-check" for="{{ form.biometric_enabled.id_for_label }}">
+            {{ form.biometric_enabled }}
+            <span>
+              <span class="block text-sm font-medium text-slate-900 dark:text-white">Biometric</span>
+              <span class="text-xs text-slate-500">Device attendance</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notes -->
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-500/15 text-slate-600 dark:text-slate-400">
+          <i data-lucide="file-text" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Internal notes</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Visible only to platform admins</p>
+        </div>
+      </div>
+      <div class="platform-section-body">
+        {% include "dashboard/superadmin/_form_field.html" with field=form.onboarding_notes full_width=True %}
+      </div>
+    </section>
+
+    <!-- Sticky footer actions -->
+    <div class="fixed bottom-0 left-0 right-0 z-10 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur dark:border-white/10 dark:bg-slate-950/95 lg:pl-72">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-3">
+        <a href="{% url 'dashboard:super_organization_detail' organization.pk %}"
+           class="rounded-xl px-5 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-white/5">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500">
+          <i data-lucide="save" class="h-4 w-4"></i>
+          Save changes
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

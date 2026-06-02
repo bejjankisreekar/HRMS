@@ -1,0 +1,24 @@
+<section class="hrms-section hrms-feat-compare" aria-labelledby="compare-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Why choose us</span>
+      <h2 id="compare-heading" class="hrms-section__title">HRMS Suite vs traditional systems</h2>
+      <p class="hrms-section__desc">Move beyond legacy spreadsheets and siloed tools to a unified cloud platform.</p>
+    </div>
+
+    <div class="hrms-feat-compare__table hrms-reveal">
+      <div class="hrms-feat-compare__head">
+        <span>Capability</span>
+        <span>Traditional HR</span>
+        <span class="hrms-feat-compare__us">HRMS Suite</span>
+      </div>
+      {% for label, legacy, ours in comparison_rows %}
+      <div class="hrms-feat-compare__row">
+        <span class="hrms-feat-compare__label">{{ label }}</span>
+        <span class="hrms-feat-compare__legacy"><i data-lucide="x" class="h-3.5 w-3.5"></i> {{ legacy }}</span>
+        <span class="hrms-feat-compare__ours"><i data-lucide="check" class="h-3.5 w-3.5"></i> {{ ours }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,47 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Storage Analytics · Platform{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'org-storage.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+<script>
+window.STORAGE_CONFIG = {
+  csrf: "{{ csrf_token }}",
+  apiAction: "{{ storage_api }}"
+};
+</script>
+{% block storage_extra_head %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="sto-page">
+  <header class="sto-hero">
+    <div class="sto-hero__inner">
+      <div>
+        <p class="sto-eyebrow">Super Admin · Infrastructure</p>
+        <h1 class="sto-title">Storage Analytics Hub</h1>
+        <p class="sto-subtitle">Platform-wide file consumption, growth forecasting, and organization resource monitoring.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="sto-btn sto-btn--ghost" data-sto-sync-all onclick="fetch('{{ storage_api }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({action:'sync_all'})}).then(()=>location.reload())">
+          <i data-lucide="refresh-cw"></i> Sync all indexes
+        </button>
+        <a href="{% url 'dashboard:super_organizations' %}" class="sto-btn sto-btn--primary">
+          <i data-lucide="building-2"></i> Organizations
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="sto-subnav" aria-label="Storage sections">
+    {% for item in storage_nav %}
+    <a href="{{ item.url }}" class="sto-subnav__item{% if item.active %} is-active{% endif %}">
+      <i data-lucide="{{ item.icon }}"></i>
+      <span>{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% block storage_content %}{% endblock %}
+</div>
+{% endblock %}

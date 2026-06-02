@@ -1,0 +1,40 @@
+<div class="starter-empty{% if compact %} starter-empty--compact{% endif %}">
+  {% if variant == "employees" %}
+  <div class="starter-empty__icon"><i data-lucide="users"></i></div>
+  <h4>No employees yet</h4>
+  <p>Add your first team member to start tracking attendance, leave, and payroll.</p>
+  {% if not compact %}
+  <a href="{% url 'dashboard:staff_create' %}" class="starter-btn starter-btn--primary starter-btn--sm">
+    <i data-lucide="user-plus"></i> Add employee
+  </a>
+  {% endif %}
+
+  {% elif variant == "reports" %}
+  <div class="starter-empty__icon"><i data-lucide="bar-chart-2"></i></div>
+  <h4>No data yet</h4>
+  <p>Reports will appear once you have activity in this module.</p>
+
+  {% elif variant == "notifications" %}
+  <div class="starter-empty__icon"><i data-lucide="bell-off"></i></div>
+  <h4>No recent activity</h4>
+  <p>Updates about employees, leave, and payroll will show here.</p>
+
+  {% elif variant == "feature_off" %}
+  <div class="starter-empty__icon"><i data-lucide="lock"></i></div>
+  <h4>{{ feature }} disabled</h4>
+  <p>Enable this module in organization settings to unlock analytics.</p>
+  {% if not compact %}
+  <a href="{% url 'dashboard:settings' %}" class="starter-link">Open settings →</a>
+  {% endif %}
+
+  {% elif variant == "org" %}
+  <div class="starter-empty__icon"><i data-lucide="building"></i></div>
+  <h4>No organization linked</h4>
+  <p>Your account is not linked to an organization workspace.</p>
+
+  {% else %}
+  <div class="starter-empty__icon"><i data-lucide="inbox"></i></div>
+  <h4>Nothing here yet</h4>
+  <p>Data will appear as your team uses HRMS Suite.</p>
+  {% endif %}
+</div>

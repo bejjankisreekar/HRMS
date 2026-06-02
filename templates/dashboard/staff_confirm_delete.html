@@ -1,0 +1,40 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Remove {{ staff_member.display_name }} · Staff{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'staff-management.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:staff_detail' staff_member.pk as staff_detail_url %}
+  {% include "dashboard/_back_button.html" with back_url=staff_detail_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="stf-page max-w-lg mx-auto mt-8">
+  <div class="stf-modal" style="position:static;box-shadow:none;border:1px solid var(--stf-border)">
+    <h3>Remove team member</h3>
+    <p>You are about to remove <strong style="color:var(--stf-text)">{{ staff_member.display_name }}</strong> ({{ role_label }}). Choose how to proceed:</p>
+    <form method="post" class="mt-6 space-y-3">
+      {% csrf_token %}
+      <label class="flex items-start gap-3 rounded-xl border p-3 cursor-pointer" style="border-color:var(--stf-border)">
+        <input type="radio" name="action" value="deactivate" checked class="mt-1">
+        <div><strong style="color:var(--stf-text)">Deactivate only</strong><p class="text-sm" style="color:var(--stf-muted)">Disable login. History retained.</p></div>
+      </label>
+      <label class="flex items-start gap-3 rounded-xl border p-3 cursor-pointer" style="border-color:var(--stf-border)">
+        <input type="radio" name="action" value="archive" class="mt-1">
+        <div><strong style="color:var(--stf-text)">Archive employee</strong><p class="text-sm" style="color:var(--stf-muted)">Mark archived with timestamp.</p></div>
+      </label>
+      <label class="flex items-start gap-3 rounded-xl border p-3 cursor-pointer border-rose-200 dark:border-rose-500/30">
+        <input type="radio" name="action" value="permanent" class="mt-1">
+        <div><strong class="text-rose-600">Permanent delete</strong><p class="text-sm" style="color:var(--stf-muted)">Irreversible. Use only when required.</p></div>
+      </label>
+      <div class="stf-modal__actions">
+        <a href="{% url 'dashboard:staff_detail' staff_member.pk %}" class="stf-btn stf-btn--ghost">Cancel</a>
+        <button type="submit" class="stf-btn stf-btn--danger">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Leave Submitted · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'apply-leave.css' %}">
+{% endblock %}
+{% block page_back %}{% endblock %}
+
+{% block content %}
+<div class="la-page w-full py-8">
+  <div class="la-success-page la-card p-8">
+    <div class="la-success-icon">
+      <i data-lucide="check" class="h-10 w-10"></i>
+    </div>
+    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Leave request submitted</h1>
+    <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Your request has been sent for approval.</p>
+
+    <div class="mt-6 space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 text-left text-sm">
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-500">Request ID</span>
+        <span class="font-bold tabular-nums text-violet-600">{{ request_ref }}</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-500">Leave type</span>
+        <span class="font-semibold">{{ leave_request.leave_type.name }}</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-500">Dates</span>
+        <span class="font-semibold">{{ leave_request.start_date|date:"d M Y" }} – {{ leave_request.end_date|date:"d M Y" }}</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-500">Total days</span>
+        <span class="font-semibold">{{ leave_request.total_days }}</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-500">Status</span>
+        <span class="font-semibold text-amber-600">{{ leave_request.get_status_display }}</span>
+      </div>
+    </div>
+
+    <div class="la-success-actions">
+      <a href="{% url 'leaves:management' %}" class="la-btn-primary no-underline">View request</a>
+      <a href="{% url 'leaves:apply' %}" class="la-btn-draft no-underline inline-flex items-center">Apply another leave</a>
+      <a href="{% url 'dashboard:employee' %}" class="la-hero-btn la-hero-btn--ghost !text-violet-700 !bg-violet-50">Back to dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+<aside class="login-hero" aria-label="Platform overview">
+  <div class="login-hero__brand">
+    <span class="login-hero__eyebrow">Enterprise HR Platform</span>
+    <h1 class="login-hero__headline">
+      Manage your workforce
+      <span class="login-hero__headline-accent">intelligently & securely</span>
+    </h1>
+    <p class="login-hero__desc">
+      Unified HRMS for payroll, attendance, and employee self-service — built for modern organizations.
+    </p>
+  </div>
+
+  <div class="login-hero__stats">
+    {% for value, label in hero_stats %}
+    <div class="login-hero__stat">
+      <span class="login-hero__stat-value">{{ value }}</span>
+      <span class="login-hero__stat-label">{{ label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="login-hero__preview login-hero__preview--{{ selected_portal.accent }}"
+       :class="'login-hero__preview--' + activePortal.accent">
+    <div class="login-hero__preview-head">
+      <div class="login-hero__preview-title">
+        <span class="login-hero__preview-dot"></span>
+        <span x-text="activePortal.title + ' Preview'">{{ selected_portal.title }} Preview</span>
+      </div>
+      <span class="login-hero__live-badge">Live</span>
+    </div>
+
+    <div class="login-hero__preview-grid">
+      <template x-for="(stat, idx) in activePortal.preview_stats" :key="idx">
+        <div class="login-hero__preview-stat">
+          <span class="login-hero__preview-stat-label" x-text="stat.label"></span>
+          <span class="login-hero__preview-stat-value" x-text="stat.value"></span>
+          <span class="login-hero__preview-stat-delta" x-text="stat.delta"></span>
+        </div>
+      </template>
+    </div>
+
+    <ul class="login-hero__feature-list">
+      <template x-for="(feature, idx) in activePortal.features" :key="idx">
+        <li>
+          <i data-lucide="check"></i>
+          <span x-text="feature"></span>
+        </li>
+      </template>
+    </ul>
+  </div>
+
+  <ul class="login-hero__highlights">
+    <li><i data-lucide="check-circle-2"></i> Multi-tenant workspace isolation</li>
+    <li><i data-lucide="check-circle-2"></i> Real-time attendance & analytics</li>
+    <li><i data-lucide="check-circle-2"></i> Automated payroll & compliance</li>
+  </ul>
+</aside>

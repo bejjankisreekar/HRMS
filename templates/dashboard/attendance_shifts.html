@@ -1,0 +1,284 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Work shifts · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'platform-forms.css' %}">
+<link rel="stylesheet" href="{% static 'attendance.css' %}">
+<style>
+  .shift-check-grid {
+    display: grid;
+    gap: 0.5rem;
+    max-height: 16rem;
+    overflow-y: auto;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(226 232 240);
+    background: rgb(248 250 252);
+  }
+  .dark .shift-check-grid {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .shift-check-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .shift-check-item:hover {
+    background: rgb(255 255 255);
+  }
+  .dark .shift-check-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .shift-check-item input[type="checkbox"] {
+    height: 1rem;
+    width: 1rem;
+    flex-shrink: 0;
+    accent-color: rgb(109 40 217);
+    cursor: pointer;
+  }
+  .shift-check-item span {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(15 23 42);
+  }
+  .dark .shift-check-item span {
+    color: #f8fafc;
+  }
+  .shift-check-role {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+</style>
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:attendance' as attendance_url %}
+  {% include "dashboard/_back_button.html" with back_url=attendance_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="platform-form attendance-page w-full space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900 dark:text-white">Work shifts</h1>
+    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Define timings, assign staff to shifts, and see who uses the org default.</p>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <h2 class="text-sm font-semibold">Create shift</h2>
+      </div>
+      <div class="platform-section-body">
+        <form method="post" class="space-y-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_shift">
+          <div>
+            <label class="platform-label">Name</label>
+            {{ shift_form.name }}
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="platform-label">Start time</label>
+              {{ shift_form.start_time }}
+            </div>
+            <div>
+              <label class="platform-label">End time</label>
+              {{ shift_form.end_time }}
+            </div>
+          </div>
+          <div>
+            <label class="platform-label">Late buffer (minutes)</label>
+            {{ shift_form.grace_minutes }}
+            <p class="platform-hint">Check-in after start + buffer is marked late.</p>
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            {{ shift_form.is_default }}
+            <span>Set as default for organization</span>
+          </label>
+          <button type="submit" class="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">Create shift</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="platform-section">
+      <div class="platform-section-header">
+        <h2 class="text-sm font-semibold">Assign shift to staff</h2>
+        <p class="text-xs text-slate-500">Tick people, then save. Unchecked members leave this shift.</p>
+      </div>
+      <div class="platform-section-body space-y-4">
+        <form method="post" id="assign-shift-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="assign_shift">
+          <div>
+            <label class="platform-label" for="id_shift">Shift to assign</label>
+            {{ assign_form.shift }}
+          </div>
+          <div class="mt-4">
+            <div class="mb-2 flex items-center justify-between">
+              <label class="platform-label mb-0">Select staff</label>
+              <button type="button" id="select-all-staff" class="text-xs font-semibold text-violet-600 hover:underline">Select all</button>
+            </div>
+            <div class="shift-check-grid" id="staff-checkboxes">
+              {% for u in staff_assign_list %}
+              <label class="shift-check-item">
+                <input type="checkbox" name="users" value="{{ u.pk }}"
+                       {% if u.pk in preselected_staff_ids %}checked{% endif %}>
+                <span>{{ u.choice_label }}</span>
+                <span class="shift-check-role">{{ u.get_role_display }}</span>
+              </label>
+              {% empty %}
+              <p class="text-sm text-slate-500">No HR or employees in your organization yet.</p>
+              {% endfor %}
+            </div>
+          </div>
+          <button type="submit" class="mt-4 w-full rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">
+            Save assignments
+          </button>
+        </form>
+        <p class="text-xs text-slate-500">
+          Staff without a specific shift use the org default
+          {% if default_shift %}<strong>{{ default_shift.name }}</strong>{% endif %}.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Staff ↔ shift roster -->
+  <section class="platform-section">
+    <div class="platform-section-header flex-wrap gap-2">
+      <div>
+        <h2 class="text-sm font-semibold">Staff shift assignments</h2>
+        <p class="text-xs text-slate-500">Who is on which shift right now</p>
+      </div>
+      <a href="{% url 'dashboard:staff_list' %}" class="text-xs font-semibold text-violet-600 hover:underline">View staff list →</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="attendance-table attendance-table--nowrap min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500 dark:bg-white/5">
+          <tr>
+            <th class="px-4 py-3">Name</th>
+            <th class="px-4 py-3">Role</th>
+            <th class="px-4 py-3">Assigned shift</th>
+            <th class="px-4 py-3">Shift hours</th>
+            <th class="px-4 py-3">Type</th>
+            <th class="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+          {% for row in assignment_roster %}
+          <tr>
+            <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ row.user.choice_label }}</td>
+            <td class="px-4 py-3">
+              <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-xs dark:bg-white/10">{{ row.user.get_role_display }}</span>
+            </td>
+            <td class="px-4 py-3 font-medium text-violet-700 dark:text-violet-300">{{ row.shift_name }}</td>
+            <td class="px-4 py-3 text-slate-600">{{ row.shift_range|default:"—" }}</td>
+            <td class="px-4 py-3">
+              {% if row.uses_default %}
+              <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-white/10">Org default</span>
+              {% else %}
+              <span class="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">Explicit</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              {% if not row.uses_default %}
+              <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="clear_shift">
+                <input type="hidden" name="user_id" value="{{ row.user.pk }}">
+                <button type="submit" class="text-xs font-semibold text-slate-500 hover:text-rose-600">Use default</button>
+              </form>
+              <span class="mx-1 text-slate-300">|</span>
+              {% endif %}
+              {% if row.shift and not row.uses_default %}
+              <a href="?shift={{ row.shift.pk }}#assign-shift-form" class="text-xs font-semibold text-violet-600 hover:underline">Edit group</a>
+              {% else %}
+              <a href="?shift=" class="text-xs font-semibold text-violet-600 hover:underline">Assign</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-10 text-center text-slate-500">No staff to show.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="platform-section">
+    <div class="platform-section-header">
+      <h2 class="text-sm font-semibold">All shifts</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500 dark:bg-white/5">
+          <tr>
+            <th class="px-4 py-3">Name</th>
+            <th class="px-4 py-3">Hours</th>
+            <th class="px-4 py-3">Buffer</th>
+            <th class="px-4 py-3">Default</th>
+            <th class="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+          {% for s in shifts %}
+          <tr>
+            <td class="px-4 py-3 font-medium">{{ s.name }}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{{ s.time_range_display }}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{{ s.grace_minutes }} min</td>
+            <td class="px-4 py-3">
+              {% if s.is_default %}
+              <span class="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Default</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              <a href="?shift={{ s.pk }}#assign-shift-form" class="text-xs font-semibold text-violet-600 hover:underline">Assign staff</a>
+              {% if not s.is_default %}
+              <form method="post" class="inline ml-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_default">
+                <input type="hidden" name="shift_id" value="{{ s.pk }}">
+                <button type="submit" class="text-xs font-semibold text-violet-600 hover:underline">Make default</button>
+              </form>
+              <form method="post" class="inline ml-2" onsubmit="return confirm('Delete this shift?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_shift">
+                <input type="hidden" name="shift_id" value="{{ s.pk }}">
+                <button type="submit" class="text-xs font-semibold text-rose-600 hover:underline">Delete</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No shifts yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.getElementById("select-all-staff")?.addEventListener("click", function () {
+    document.querySelectorAll("#staff-checkboxes input[type=checkbox]").forEach(function (cb) {
+      cb.checked = true;
+    });
+  });
+  document.getElementById("id_shift")?.addEventListener("change", function () {
+    if (this.value) {
+      window.location.href = "?shift=" + encodeURIComponent(this.value) + "#assign-shift-form";
+    }
+  });
+</script>
+{% endblock %}

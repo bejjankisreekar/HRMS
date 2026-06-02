@@ -1,0 +1,43 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-panel">
+  <h2 class="fin-panel__title">Organization usage & limits</h2>
+  <div class="fin-table-wrap">
+    <table class="fin-table">
+      <thead>
+        <tr>
+          <th>Organization</th>
+          <th>Plan</th>
+          <th>Employees</th>
+          <th>Usage</th>
+          <th>Storage</th>
+          <th>Branches</th>
+          <th>Alert</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in usage_rows %}
+        <tr{% if row.overusage %} class="fin-row-warn"{% endif %}>
+          <td>{{ row.organization.name }}</td>
+          <td>{{ row.plan.name }}</td>
+          <td>{{ row.employees }}{% if row.employee_limit %} / {{ row.employee_limit }}{% endif %}</td>
+          <td>
+            <div class="fin-progress"><span style="width:{{ row.employee_pct }}%"></span></div>
+            {{ row.employee_pct }}%
+          </td>
+          <td>
+            <div class="fin-progress"><span style="width:{{ row.storage_pct }}%"></span></div>
+            {{ row.storage_used_mb }} / {{ row.storage_limit_mb }} MB
+          </td>
+          <td>{{ row.branch_count }}{% if row.branch_limit %} / {{ row.branch_limit }}{% endif %}</td>
+          <td>{% if row.overusage %}<span class="fin-badge fin-badge--warn">Over limit</span>{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="fin-center fin-muted">No usage data.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

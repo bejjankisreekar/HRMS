@@ -1,0 +1,89 @@
+.reg-form {
+  color-scheme: dark;
+}
+
+.reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.reg-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgb(203, 213, 225);
+}
+
+.reg-label-required::after {
+  content: " *";
+  color: rgb(196, 181, 253);
+}
+
+.reg-input,
+.reg-form select.reg-input,
+.reg-form textarea.reg-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: rgba(15, 23, 42, 0.65);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #f8fafc;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.reg-form select.reg-input {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+  padding-right: 2.5rem;
+}
+
+.reg-form select.reg-input option {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+.reg-input::placeholder {
+  color: rgb(100, 116, 139);
+}
+
+.reg-input:hover,
+.reg-form select.reg-input:hover {
+  background-color: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.reg-input:focus,
+.reg-form select.reg-input:focus,
+.reg-form textarea.reg-input:focus {
+  border-color: rgb(139, 92, 246);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.35);
+  background-color: rgba(15, 23, 42, 0.9);
+}
+
+.reg-input:read-only {
+  color: rgb(196, 181, 253);
+  cursor: default;
+}
+
+.reg-hint {
+  font-size: 0.75rem;
+  color: rgb(100, 116, 139);
+}
+
+.reg-error {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: rgb(251, 113, 133);
+}
+
+.reg-error.hidden {
+  display: none;
+}

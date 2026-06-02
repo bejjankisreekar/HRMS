@@ -1,0 +1,56 @@
+<section class="hrms-section hrms-price-guarantee hrms-reveal" aria-labelledby="guarantee-heading">
+  <div class="hrms-container">
+    <div class="hrms-price-guarantee__box">
+      <div class="hrms-price-guarantee__icon">
+        <i data-lucide="badge-check" class="h-10 w-10"></i>
+      </div>
+      <div>
+        <h2 id="guarantee-heading" class="text-xl font-bold">14-day money-back guarantee</h2>
+        <p class="mt-1 text-sm text-slate-400">Try any paid plan risk-free. If HRMS Suite isn't the right fit within 14 days, we'll refund you in full.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-price-social" aria-labelledby="social-heading">
+  <div class="hrms-container">
+    <h2 id="social-heading" class="sr-only">Customer testimonials</h2>
+    <div class="hrms-price-social__grid">
+      {% for t in pricing_testimonials %}
+      <blockquote class="hrms-price-social-card hrms-reveal">
+        <p>"{{ t.quote }}"</p>
+        <footer>
+          <strong>{{ t.name }}</strong>
+          <span>{{ t.role }}</span>
+        </footer>
+      </blockquote>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="hrms-section hrms-price-enterprise" aria-labelledby="custom-pricing-heading">
+  <div class="hrms-container">
+    <div class="hrms-price-enterprise__box hrms-reveal">
+      <div>
+        <span class="hrms-section__eyebrow">Custom</span>
+        <h2 id="custom-pricing-heading" class="hrms-section__title mt-2">Need custom pricing?</h2>
+        <p class="hrms-section__desc mt-2">Volume discounts, custom integrations, and dedicated onboarding for larger teams.</p>
+      </div>
+      <div class="hrms-price-enterprise__actions">
+        <button type="button" class="hrms-btn hrms-btn--primary hrms-btn--lg" data-demo-open>
+          <i data-lucide="calendar" class="h-4 w-4"></i>
+          Book a demo
+        </button>
+        <a href="{% url 'accounts:contact' %}" class="hrms-btn hrms-btn--outline hrms-btn--lg">Contact sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="hrms-price-sticky hidden" data-price-sticky role="region" aria-label="Quick action">
+  <div class="hrms-price-sticky__inner">
+    <p><strong>Start your 14-day free trial</strong> — flat monthly pricing, no per-employee fees</p>
+    <a href="{% url 'accounts:register' %}" class="hrms-btn hrms-btn--primary hrms-btn--sm">Get started</a>
+  </div>
+</div>

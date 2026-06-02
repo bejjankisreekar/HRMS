@@ -1,0 +1,19 @@
+<section class="hrms-section hrms-feat-integrations" aria-labelledby="integrations-heading">
+  <div class="hrms-container">
+    <div class="hrms-feat-integrations__inner hrms-reveal">
+      <div>
+        <span class="hrms-section__eyebrow">Integrations</span>
+        <h2 id="integrations-heading" class="hrms-section__title mt-2">Connect your HR stack</h2>
+        <p class="hrms-section__desc mt-2">Future-ready connectors for the tools your teams already use.</p>
+      </div>
+      <div class="hrms-feat-integrations__grid">
+        {% for name, icon in integrations %}
+        <div class="hrms-feat-integration">
+          <i data-lucide="{{ icon }}" class="h-5 w-5"></i>
+          <span>{{ name }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>

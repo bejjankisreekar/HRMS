@@ -1,0 +1,71 @@
+{% extends "dashboard/storage/_base.html" %}
+
+{% block storage_content %}
+<section class="sto-panel">
+  <h2 class="sto-panel__title">Plan limits vs actual usage</h2>
+  <p class="sto-muted mb-4">Compare subscription entitlements with real storage and seat consumption. Highlight overusage for billing opportunities.</p>
+  <div class="sto-table-wrap">
+    <table class="sto-table">
+      <thead>
+        <tr>
+          <th>Organization</th>
+          <th>Plan</th>
+          <th>Storage</th>
+          <th>Usage</th>
+          <th>Employees</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in org_usage %}
+        <tr>
+          <td>{{ row.organization.name }}</td>
+          <td>{{ row.plan }}</td>
+          <td>{{ row.used_label }} / {{ row.limit_label }}</td>
+          <td>
+            <div class="sto-progress" style="min-width:5rem">
+              <div class="sto-progress__bar sto-progress__bar--{% if row.overusage %}critical{% elif row.usage_percent >= 75 %}warning{% else %}ok{% endif %}" style="width:{{ row.usage_percent }}%"></div>
+            </div>
+            <span class="text-xs sto-muted">{{ row.usage_percent }}%</span>
+          </td>
+          <td>{{ row.employees }} / {{ row.employee_limit }}</td>
+          <td>
+            {% if row.overusage %}
+            <span class="sto-badge sto-badge--critical">Over limit</span>
+            {% elif row.usage_percent >= 75 %}
+            <span class="sto-badge sto-badge--warning">Threshold</span>
+            {% else %}
+            <span class="sto-badge sto-badge--ok">Healthy</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'dashboard:super_organization_detail' row.organization.pk %}" class="sto-action-link">Monitor →</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="sto-muted">No organizations found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sto-panel">
+  <h2 class="sto-panel__title">Upgrade opportunities</h2>
+  <ul class="sto-insights">
+    {% for row in org_usage %}
+      {% if row.overusage or row.usage_percent >= 75 %}
+      <li class="sto-insight sto-insight--warning">
+        <div>
+          <strong>{{ row.organization.name }}</strong>
+          <p>At {{ row.usage_percent }}% storage — recommend plan upgrade or add-on storage pack.</p>
+        </div>
+      </li>
+      {% endif %}
+    {% empty %}
+    <li class="sto-muted">No upgrade prompts at this time.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

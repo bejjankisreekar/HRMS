@@ -1,0 +1,41 @@
+{% comment %}Shared header for mark-attendance table + mobile cards.{% endcomment %}
+<div class="att-mark-head">
+  <div class="att-mark-head__main">
+    <div class="att-mark-head__title-row">
+      <h2 class="att-mark-head__title">Mark attendance</h2>
+      {% if active_shift_meta and active_shift_meta.has_shift %}
+      <span class="att-mark-head__meta">
+        <span class="att-mark-head__meta-item">{{ active_shift_meta.name }} • {{ active_shift_meta.range }}</span>
+        <span class="att-mark-head__meta-sep" aria-hidden="true">|</span>
+        <span class="att-mark-head__meta-item">{{ active_shift_meta.grace_minutes }} Min Buffer • Until {{ active_shift_meta.grace_until }}</span>
+      </span>
+      {% elif selected_shift == "all" and shift_filters %}
+      <span class="att-mark-head__meta att-mark-head__meta--muted">Select a shift to view timing & buffer</span>
+      {% endif %}
+    </div>
+    <p class="att-mark-head__sub">{{ team_rows|length }} people{% if selected_shift == "all" %} · {{ all_team_rows|length }} total{% endif %} · {{ month_label }}</p>
+    {% if shift_filters %}
+    <div class="att-shift-tabs" role="tablist" aria-label="Filter by shift">
+      <a href="{% url 'dashboard:attendance' %}?date={{ selected_date|date:'Y-m-d' }}&shift=all"
+         class="att-shift-tab{% if selected_shift == 'all' %} is-active{% endif %}"
+         role="tab"
+         aria-selected="{% if selected_shift == 'all' %}true{% else %}false{% endif %}">
+        All <span class="att-shift-tab__count">{{ all_team_rows|length }}</span>
+      </a>
+      {% for s in shift_filters %}
+      <a href="{% url 'dashboard:attendance' %}?date={{ selected_date|date:'Y-m-d' }}&shift={{ s.id }}"
+         class="att-shift-tab{% if selected_shift == s.id %} is-active{% endif %}"
+         role="tab"
+         aria-selected="{% if selected_shift == s.id %}true{% else %}false{% endif %}"
+         title="{% if s.has_shift %}{{ s.name }} • {{ s.range }} · {{ s.grace_minutes }} Min Buffer until {{ s.grace_until }}{% else %}{{ s.name }}{% endif %}">
+        {{ s.name }} <span class="att-shift-tab__count">{{ s.count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="att-mark-head__search relative w-full sm:max-w-xs">
+    <i data-lucide="search" class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+    <input type="search" x-model="search" placeholder="Search by name…" class="attendance-search w-full">
+  </div>
+</div>

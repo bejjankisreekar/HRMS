@@ -1,0 +1,151 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Settings · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'settings-pages.css' %}">
+{% endblock %}
+{% block content %}
+<div class="settings-page space-y-8">
+  <div class="settings-hero">
+    <h1>Settings</h1>
+    <p>Configure your organization — structure, attendance, and team defaults. Changes here apply across HRMS.</p>
+  </div>
+
+  {% if is_admin %}
+  <div>
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Organization</h2>
+    <div class="settings-grid">
+      <a href="{% url 'dashboard:departments' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="layers" class="h-5 w-5"></i>
+        </div>
+        <h3>{{ dept_label_plural }}</h3>
+        <p>Create {{ dept_label_plural|lower }}, subjects, or levels for your industry. Assign staff when adding members.</p>
+        <div class="settings-card-footer">
+          <span>{{ department_count }} configured</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      <a href="{% url 'dashboard:attendance_shifts' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="clock" class="h-5 w-5"></i>
+        </div>
+        <h3>Work shifts</h3>
+        <p>Define shift timings, grace periods, and assign employees to shifts.</p>
+        <div class="settings-card-footer">
+          <span>Attendance</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      <a href="{% url 'dashboard:attendance_settings' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="clipboard-check" class="h-5 w-5"></i>
+        </div>
+        <h3>Attendance settings</h3>
+        <p>HR mark-attendance rules, including whether HR can edit their own login and logout times.</p>
+        <div class="settings-card-footer">
+          <span>{% if organization.hr_self_in_mark_attendance %}HR self shown{% else %}HR self hidden{% endif %}</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      <a href="{% url 'dashboard:work_calendar' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="calendar-days" class="h-5 w-5"></i>
+        </div>
+        <h3>Work calendar</h3>
+        <p>Weekends (1-day, 2-day, custom, rotating), holidays, and working-day rules.</p>
+        <div class="settings-card-footer">
+          <span>Holidays & weekends</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      <a href="{% url 'dashboard:module_settings' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="toggle-left" class="h-5 w-5"></i>
+        </div>
+        <h3>HR modules</h3>
+        <p>Enable or disable leave management and payroll for your organization.</p>
+        <div class="settings-card-footer">
+          <span>{% if organization.leave_management_enabled %}Leave on{% else %}Leave off{% endif %}{% if plan_has_payroll %} · {% if organization.payroll_enabled %}Payroll on{% else %}Payroll off{% endif %}{% endif %}</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      {% if plan_has_leave and organization.leave_management_enabled %}
+      <a href="{% url 'leaves:management' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="palmtree" class="h-5 w-5"></i>
+        </div>
+        <h3>Leave policy</h3>
+        <p>Leave types, quotas, and organization holiday calendar.</p>
+        <div class="settings-card-footer">
+          <span>Leave</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      {% if plan_has_payroll and organization.payroll_enabled %}
+      <a href="{% url 'payroll:management' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="wallet" class="h-5 w-5"></i>
+        </div>
+        <h3>Payroll</h3>
+        <p>Salaries, payslips, tax, reimbursements, and payroll processing.</p>
+        <div class="settings-card-footer">
+          <span>Finance</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">General</h2>
+    <div class="settings-grid">
+      <div class="settings-card opacity-80 cursor-default">
+        <div class="settings-card-icon">
+          <i data-lucide="building-2" class="h-5 w-5"></i>
+        </div>
+        <h3>Organization profile</h3>
+        <p>{{ organization.name }} · plan and branding (coming soon).</p>
+        <div class="settings-card-footer">
+          <span class="text-slate-400">Soon</span>
+        </div>
+      </div>
+      <div class="settings-card opacity-80 cursor-default">
+        <div class="settings-card-icon">
+          <i data-lucide="shield" class="h-5 w-5"></i>
+        </div>
+        <h3>Roles & permissions</h3>
+        <p>Admin, HR, and employee access rules (coming soon).</p>
+        <div class="settings-card-footer">
+          <span class="text-slate-400">Soon</span>
+        </div>
+      </div>
+      <div class="settings-card opacity-80 cursor-default">
+        <div class="settings-card-icon">
+          <i data-lucide="credit-card" class="h-5 w-5"></i>
+        </div>
+        <h3>Subscription</h3>
+        <p>{{ organization.get_subscription_plan_display }} · billing (coming soon).</p>
+        <div class="settings-card-footer">
+          <span class="text-slate-400">Soon</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="settings-panel">
+    <div class="settings-panel-body text-center py-12">
+      <i data-lucide="settings" class="mx-auto h-10 w-10 text-slate-400"></i>
+      <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">Organization settings are managed by your admin. Contact them to update {{ dept_label_plural|lower }} or policies.</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

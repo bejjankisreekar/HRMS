@@ -1,0 +1,36 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head">
+    <h2 class="fin-panel__title">Subscription plans</h2>
+    <p class="fin-muted">Basic · Professional · Growth</p>
+  </div>
+  <div class="fin-plan-grid">
+    {% for plan in plans %}
+    <article class="fin-plan-card{% if not plan.is_active %} is-disabled{% endif %}">
+      <div class="fin-plan-card__head">
+        <h3>{{ plan.name }}</h3>
+        <button type="button" class="fin-toggle" data-plan-id="{{ plan.pk }}" data-active="{{ plan.is_active|yesno:'true,false' }}" data-action="toggle_plan">
+          {{ plan.is_active|yesno:"Active,Disabled" }}
+        </button>
+      </div>
+      <p class="fin-muted">{{ plan.description|truncatechars:100 }}</p>
+      <dl class="fin-plan-meta">
+        <div><dt>Monthly</dt><dd>₹{{ plan.monthly_price_inr|floatformat:0 }}</dd></div>
+        <div><dt>Annual</dt><dd>₹{{ plan.yearly_price_inr|floatformat:0 }}</dd></div>
+        <div><dt>Employees</dt><dd>{% if plan.employee_limit %}{{ plan.employee_limit }}{% else %}Unlimited{% endif %}</dd></div>
+        <div><dt>Branches</dt><dd>{% if plan.branch_limit %}{{ plan.branch_limit }}{% else %}Unlimited{% endif %}</dd></div>
+        <div><dt>Storage</dt><dd>{% if plan.storage_limit_mb %}{{ plan.storage_limit_mb }} MB{% else %}Custom{% endif %}</dd></div>
+        <div><dt>Trial</dt><dd>{{ plan.trial_days }} days</dd></div>
+        <div><dt>Setup fee</dt><dd>₹{{ plan.setup_fee_inr|floatformat:0 }}</dd></div>
+      </dl>
+        <p class="fin-muted text-xs">{{ plan.sub_count }} subscriber(s)</p>
+      <a href="{% url 'dashboard:plans:matrix' %}" class="fin-btn fin-btn--ghost fin-btn--sm">Configure features →</a>
+    </article>
+    {% empty %}
+    <p class="fin-muted">Run <code>python manage.py seed_billing_catalog</code> to create plans.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

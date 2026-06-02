@@ -1,0 +1,19 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Module control</h2><p class="fin-muted">Disable a module to hide all its features platform-wide.</p></div>
+  <div class="fcc-toggle-grid">
+    {% for mod in modules %}
+    <label class="fcc-toggle-row">
+      <span class="fcc-toggle-row__info">
+        <i data-lucide="{{ mod.icon }}"></i>
+        <strong>{{ mod.name }}</strong>
+        <code>{{ mod.key }}</code>
+        <span class="fcc-tag">{{ mod.feature_count }} features</span>
+      </span>
+      <input type="checkbox" class="fcc-switch fcc-module-toggle" data-module-id="{{ mod.pk }}"{% if mod.is_globally_enabled %} checked{% endif %}>
+    </label>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

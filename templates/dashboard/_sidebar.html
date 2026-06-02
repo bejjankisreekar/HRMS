@@ -1,0 +1,6 @@
+{% include "dashboard/sidebar/_brand.html" %}
+{% if not sidebar.is_super %}
+{% include "dashboard/sidebar/_search.html" %}
+{% endif %}
+{% include "dashboard/sidebar/_nav.html" %}
+{% include "dashboard/sidebar/_profile.html" %}

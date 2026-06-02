@@ -1,0 +1,25 @@
+{% extends "dashboard/_shell.html" %}
+{% block title %}Delete {{ organization.name }} · Platform{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:super_organization_detail' organization.pk as org_detail_url %}
+  {% include "dashboard/_back_button.html" with back_url=org_detail_url back_label="Back" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg space-y-6">
+  <div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 dark:border-rose-500/30 dark:bg-rose-500/10">
+    <h1 class="text-xl font-semibold text-rose-800 dark:text-rose-200">Delete organization?</h1>
+    <p class="mt-2 text-sm text-rose-700 dark:text-rose-300">
+      This will permanently delete <strong>{{ organization.name }}</strong> ({{ organization.organization_code }}),
+      deactivate all its users, and drop the PostgreSQL schema <code class="font-mono">{{ organization.schema_name }}</code>.
+    </p>
+    <form method="post" class="mt-6 flex gap-3">
+      {% csrf_token %}
+      <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500">Yes, delete permanently</button>
+      <a href="{% url 'dashboard:super_organization_detail' organization.pk %}" class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 dark:text-slate-300 dark:ring-white/10">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

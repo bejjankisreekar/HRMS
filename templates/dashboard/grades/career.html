@@ -1,0 +1,41 @@
+{% extends "dashboard/grades/_base.html" %}
+
+{% block grades_content %}
+<div class="grid gap-6 lg:grid-cols-5">
+  <section class="grd-panel lg:col-span-2">
+    <h2 class="grd-panel__title">Add promotion step</h2>
+    <form method="post" class="space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      {% for field in form %}
+      <div><label class="platform-label">{{ field.label }}</label>{{ field }}</div>
+      {% endfor %}
+      <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Add step</button>
+    </form>
+  </section>
+
+  <section class="grd-panel lg:col-span-3">
+    <h2 class="grd-panel__title">Career progression paths</h2>
+    {% for step in steps %}
+    <div class="grd-career-arrow">
+      <strong>{{ step.from_grade.name }}</strong>
+      <span class="grd-muted">→</span>
+      <strong>{{ step.to_grade.name }}</strong>
+      {% if step.requirements %}<span class="grd-muted">· {{ step.requirements|truncatechars:60 }}</span>{% endif %}
+      <form method="post" class="ml-auto inline">{% csrf_token %}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="step_id" value="{{ step.pk }}">
+        <button type="submit" class="text-xs text-rose-600">Remove</button>
+      </form>
+    </div>
+    {% empty %}
+    <p class="grd-muted">No career paths defined. Default paths are seeded with new organizations.</p>
+    {% endfor %}
+  </section>
+</div>
+
+<section class="grd-panel mt-4">
+  <h2 class="grd-panel__title">Example progression</h2>
+  <p class="text-sm text-slate-600 dark:text-slate-400">Intern → Junior Employee → Associate → Senior Associate → Team Lead → Assistant Manager → Manager → Senior Manager → Director</p>
+</section>
+{% endblock %}

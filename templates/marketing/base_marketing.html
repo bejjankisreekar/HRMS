@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_head %}
+<meta name="description" content="HRMS Suite — Enterprise cloud HR platform for attendance, payroll, leave, and analytics. Start your free trial today.">
+<meta name="keywords" content="HRMS, HR software, payroll, attendance, leave management, employee management">
+<meta property="og:title" content="{% block og_title %}HRMS Suite — Modern Enterprise HR Platform{% endblock %}">
+<meta property="og:description" content="Run HR, payroll, attendance and leave from one premium dashboard.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'landing.css' %}">
+{% block marketing_extra_head %}{% endblock %}
+{% endblock %}
+
+{% block body %}
+<div class="hrms-landing" id="top">
+  {% include "marketing/_navbar.html" %}
+  <main id="main-content">
+    {% block marketing_content %}{% endblock %}
+  </main>
+  {% include "marketing/_footer.html" %}
+  {% include "marketing/_demo_modal.html" %}
+</div>
+<script src="{% static 'landing.js' %}" defer></script>
+{% block marketing_extra_js %}{% endblock %}
+{% endblock %}

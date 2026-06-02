@@ -1,0 +1,397 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Employee Attendance Reports · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'attendance.css' %}">
+<link rel="stylesheet" href="{% static 'attendance-analytics.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script>
+  window.ATTENDANCE_CHARTS = {{ charts_json|safe }};
+</script>
+<script src="{% static 'attendance-analytics.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="attendance-page w-full space-y-6">
+  <div class="attendance-hero ar-no-print">
+    <div class="attendance-hero-inner flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="clipboard-list" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Analytics</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Employee Attendance Reports</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">
+            Track employee attendance, leaves, work hours, and punctuality.
+          </p>
+          <p class="mt-2 text-xs text-violet-200/80">
+            <i data-lucide="calendar" class="inline h-3.5 w-3.5"></i>
+            {{ today|date:"l, d F Y" }} · {{ organization.name }}
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="{% url 'dashboard:attendance' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Mark attendance</a>
+        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30"><i data-lucide="download" class="inline h-3.5 w-3.5"></i> CSV</a>
+        <a href="?{{ filter_query }}&export=excel" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Excel</a>
+        <button type="button" id="btnExportPdf" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">PDF</button>
+        <button type="button" id="btnPrint" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="ar-glass ar-no-print mb-8 p-5">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Filters</h2>
+      <div class="flex gap-2">
+        <a href="{% url 'attendance:reports' %}" class="text-xs font-semibold text-violet-600 hover:text-violet-500">Reset</a>
+      </div>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Organization</label>
+        <input type="text" readonly value="{{ organization.name }}" class="ar-input opacity-80">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Branch / Location</label>
+        <select name="branch" class="ar-input">
+          <option value="">All branches</option>
+          {% for b in filter_options.branches %}
+          <option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">{{ filter_options.dept_label|default:"Department" }}</label>
+        <select name="department" class="ar-input">
+          <option value="">All {{ filter_options.dept_label_plural|default:"departments"|lower }}</option>
+          {% for d in filter_options.departments %}
+          <option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Employee</label>
+        <select name="employee" class="ar-input">
+          <option value="">All employees</option>
+          {% for e in filter_options.employees %}
+          <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">From</label>
+        <input type="date" name="from" value="{{ filters.date_from|date:'Y-m-d' }}" class="ar-input">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">To</label>
+        <input type="date" name="to" value="{{ filters.date_to|date:'Y-m-d' }}" class="ar-input">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Shift</label>
+        <select name="shift" class="ar-input">
+          <option value="">All shifts</option>
+          <option value="default" {% if filters_get.shift == "default" %}selected{% endif %}>Org default</option>
+          {% for s in filter_options.shifts %}
+          <option value="{{ s.pk }}" {% if filters_get.shift == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Status</label>
+        <select name="status" class="ar-input">
+          <option value="">All statuses</option>
+          {% for val, label in status_choices %}
+          <option value="{{ val }}" {% if filters_get.status == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Employment type</label>
+        <select name="employment_type" class="ar-input">
+          <option value="">All types</option>
+          {% for val, label in filter_options.employment_types %}
+          <option value="{{ val }}" {% if filters_get.employment_type == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Search</label>
+        <input type="search" name="q" value="{{ filters.search }}" placeholder="Name, ID…" class="ar-input">
+      </div>
+      <div class="flex flex-wrap items-end gap-3 sm:col-span-2">
+        <label class="flex items-center gap-2 text-xs text-slate-400">
+          <input type="checkbox" name="late" value="1" {% if filters.late_only %}checked{% endif %} class="rounded border-sky-500">
+          Late only
+        </label>
+        <label class="flex items-center gap-2 text-xs text-slate-400">
+          <input type="checkbox" name="wfh" value="1" {% if filters.wfh_only %}checked{% endif %} class="rounded border-sky-500">
+          WFH only
+        </label>
+        <label class="flex items-center gap-2 text-xs text-slate-400">
+          <input type="checkbox" name="leave" value="1" {% if filters.leave_only %}checked{% endif %} class="rounded border-sky-500">
+          Leave only
+        </label>
+      </div>
+    </div>
+    <div class="mt-4 flex gap-2">
+      <button type="submit" class="ar-btn-primary">Apply filters</button>
+      <input type="hidden" name="sort" value="{{ filters.sort }}">
+    </div>
+  </form>
+
+  <!-- Summary cards -->
+  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+    <div class="ar-glass ar-stat-card">
+      <div class="relative flex items-start justify-between">
+        <div>
+          <p class="text-xs text-slate-500">Total Employees</p>
+          <p class="ar-counter mt-2 text-2xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.total_employees }}">0</p>
+        </div>
+        <div class="ar-stat-icon"><i data-lucide="users" class="h-5 w-5"></i></div>
+      </div>
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <div class="relative flex items-start justify-between">
+        <div>
+          <p class="text-xs text-slate-500">Present Today</p>
+          <p class="ar-counter mt-2 text-2xl font-bold text-emerald-400" data-counter="{{ summary.present_today }}">0</p>
+          <p class="mt-1 text-xs text-sky-300">{{ summary.attendance_rate }}% rate</p>
+        </div>
+        <div class="ar-stat-icon"><i data-lucide="user-check" class="h-5 w-5"></i></div>
+      </div>
+      {% if summary.trend_present != 0 %}
+      <p class="relative mt-2 text-xs {% if summary.trend_present > 0 %}ar-trend-up{% else %}ar-trend-down{% endif %}">
+        {% if summary.trend_present > 0 %}↑{% else %}↓{% endif %} {{ summary.trend_present|floatformat:1 }}% vs prior period
+      </p>
+      {% endif %}
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <p class="text-xs text-slate-500">Absent Today</p>
+      <p class="ar-counter mt-2 text-2xl font-bold text-rose-400" data-counter="{{ summary.absent_today }}">0</p>
+      <div class="ar-stat-icon mt-2"><i data-lucide="user-x" class="h-5 w-5"></i></div>
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <p class="text-xs text-slate-500">On Leave</p>
+      <p class="ar-counter mt-2 text-2xl font-bold text-amber-400" data-counter="{{ summary.on_leave }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <p class="text-xs text-slate-500">Late Check-ins</p>
+      <p class="ar-counter mt-2 text-2xl font-bold text-orange-400" data-counter="{{ summary.late_checkins }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <p class="text-xs text-slate-500">Work From Home</p>
+      <p class="ar-counter mt-2 text-2xl font-bold text-sky-300" data-counter="{{ summary.wfh }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <p class="text-xs text-slate-500">Half Day</p>
+      <p class="ar-counter mt-2 text-2xl font-bold text-sky-400" data-counter="{{ summary.half_day }}">0</p>
+    </div>
+    <div class="ar-glass ar-stat-card">
+      <p class="text-xs text-slate-500">Avg Working Hours</p>
+      <p class="mt-2 text-xl font-bold text-cyan-400">{{ summary.avg_working_hours }}</p>
+      <p class="mt-1 text-xs text-slate-500">Today (checked in)</p>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section class="mb-8 grid gap-6 lg:grid-cols-2">
+    <div class="ar-glass p-5">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Monthly Attendance Trend</h3>
+      <p class="text-xs text-slate-500">Present vs absent vs leave</p>
+      <div class="mt-4 h-64"><canvas id="chartMonthly"></canvas></div>
+    </div>
+    <div class="ar-glass p-5">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Weekly Overview</h3>
+      <div class="mt-4 h-64"><canvas id="chartWeekly"></canvas></div>
+    </div>
+    <div class="ar-glass p-5">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Department-wise Attendance</h3>
+      <div class="mt-4 h-64 flex items-center justify-center"><canvas id="chartDepartment"></canvas></div>
+    </div>
+    <div class="ar-glass p-5">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Late Check-in Analysis</h3>
+      <div class="mt-4 h-64"><canvas id="chartLate"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Insights + metrics row -->
+  <section class="mb-8 grid gap-6 lg:grid-cols-3">
+    <div class="ar-glass p-5 lg:col-span-2">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Smart insights</h3>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        {% for item in insights %}
+        <div class="ar-insight-card">
+          <div class="flex gap-3">
+            <i data-lucide="{{ item.icon }}" class="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-400"></i>
+            <div>
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ item.title }}</p>
+              <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">{{ item.body }}</p>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-500">Apply filters to generate insights.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="ar-glass p-5">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Time analytics</h3>
+      <dl class="mt-4 space-y-3 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Avg login</dt><dd class="font-semibold text-cyan-400" id="avgLogin">—</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Avg logout</dt><dd class="font-semibold text-sky-300" id="avgLogout">—</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Overtime (period)</dt><dd class="font-semibold text-amber-400" id="overtimeTotal">—</dd></div>
+      </dl>
+      <script>
+        (function(){
+          const c = window.ATTENDANCE_CHARTS;
+          if(!c) return;
+          document.getElementById('avgLogin').textContent = c.avg_login;
+          document.getElementById('avgLogout').textContent = c.avg_logout;
+          document.getElementById('overtimeTotal').textContent = c.overtime_hours;
+        })();
+      </script>
+    </div>
+  </section>
+
+  <!-- Employee attendance % -->
+  <section class="ar-glass mb-8 p-5">
+    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Employee attendance percentage</h3>
+    <p class="text-xs text-slate-500">{{ filters.date_from|date:"d M Y" }} – {{ filters.date_to|date:"d M Y" }}</p>
+    <div class="mt-4 space-y-3 max-h-64 overflow-y-auto">
+      <div id="empProgressList" class="space-y-3"></div>
+      <script>
+        (function(){
+          const list = document.getElementById('empProgressList');
+          const data = (window.ATTENDANCE_CHARTS && window.ATTENDANCE_CHARTS.employee_pct) || [];
+          if (!list || !data.length) {
+            list.innerHTML = '<p class="text-sm text-slate-500">No data for selected range.</p>';
+            return;
+          }
+          list.innerHTML = data.map(e => `
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-600 dark:text-slate-300">${e.name}</span>
+                <span class="text-violet-600 dark:text-violet-400 font-semibold">${e.pct}%</span>
+              </div>
+              <div class="ar-progress"><div class="ar-progress-bar" data-progress="${e.pct}" style="width:0"></div></div>
+            </div>
+          `).join('');
+          document.querySelectorAll('#empProgressList [data-progress]').forEach(bar => {
+            requestAnimationFrame(() => { bar.style.width = bar.dataset.progress + '%'; });
+          });
+        })();
+      </script>
+    </div>
+  </section>
+
+  <!-- Main table -->
+  <section class="ar-glass mb-8 overflow-hidden">
+    <div class="ar-panel-head ar-no-print">
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Attendance records</h3>
+        <p class="text-xs text-slate-500">{{ page_obj.paginator.count }} rows · click row for details</p>
+      </div>
+      <div class="flex gap-2">
+        <select name="sort" form="sortForm" class="ar-input w-auto text-xs" onchange="this.form.submit()">
+          <option value="-date" {% if filters.sort == "-date" %}selected{% endif %}>Newest first</option>
+          <option value="date" {% if filters.sort == "date" %}selected{% endif %}>Oldest first</option>
+          <option value="name" {% if filters.sort == "name" %}selected{% endif %}>Name A–Z</option>
+          <option value="-hours" {% if filters.sort == "-hours" %}selected{% endif %}>Hours ↓</option>
+        </select>
+        <form id="sortForm" method="get" class="hidden">
+          {% for key, val in filters_get.items %}
+          {% if key != "sort" and key != "page" %}
+          <input type="hidden" name="{{ key }}" value="{{ val }}">
+          {% endif %}
+          {% endfor %}
+        </form>
+      </div>
+    </div>
+    <div class="ar-table-wrap">
+      <table class="ar-table">
+        <thead>
+          <tr>
+            <th>Emp. ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Date</th>
+            <th>Check-in</th>
+            <th>Check-out</th>
+            <th>Hours</th>
+            <th>Break</th>
+            <th>OT</th>
+            <th>Status</th>
+            <th>Late</th>
+            <th>Early</th>
+            <th>Leave</th>
+            <th>Source</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table_rows %}
+          <tr data-employee-id="{{ row.member.pk }}" data-record-date="{{ row.date|date:'Y-m-d' }}">
+            <td>{{ row.employee_id }}</td>
+            <td class="font-medium text-slate-900 dark:text-white">{{ row.employee_name }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.designation }}</td>
+            <td>{{ row.date|date:"d M Y" }}</td>
+            <td>{{ row.check_in }}</td>
+            <td>{{ row.check_out }}</td>
+            <td>{{ row.working_hours }}</td>
+            <td>{{ row.break_time }}</td>
+            <td>{{ row.overtime }}</td>
+            <td>
+              {% if row.status == "PRESENT" %}<span class="ar-badge ar-badge--present">Present</span>
+              {% elif row.status == "ABSENT" %}<span class="ar-badge ar-badge--absent">Absent</span>
+              {% elif row.status == "LEAVE" %}<span class="ar-badge ar-badge--leave">Leave</span>
+              {% elif row.status == "HALF_DAY" %}<span class="ar-badge ar-badge--half">Half day</span>
+              {% elif row.status == "WFH" %}<span class="ar-badge ar-badge--wfh">WFH</span>
+              {% elif row.is_late %}<span class="ar-badge ar-badge--late">Late</span>
+              {% else %}<span class="ar-badge">{{ row.status_display }}</span>{% endif %}
+            </td>
+            <td>{{ row.late_by }}</td>
+            <td>{{ row.early_exit }}</td>
+            <td>{{ row.leave_type }}</td>
+            <td>{{ row.attendance_source }}</td>
+            <td class="max-w-[8rem] truncate">{{ row.remarks }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="16" class="py-16 text-center text-slate-500">
+              No attendance records for this filter. <a href="{% url 'dashboard:attendance' %}" class="text-violet-600 underline">Mark attendance</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="ar-no-print flex items-center justify-between border-t border-slate-200 px-5 py-3 dark:border-white/10">
+      <p class="text-xs text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}" class="ar-btn-ghost text-xs">Previous</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}" class="ar-btn-ghost text-xs">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <p class="ar-no-print text-center text-[11px] text-slate-600 pb-8">
+    Real-time sync · Multi-tenant · Biometric & geo-fencing ready
+  </p>
+</div>
+
+<!-- Employee modal -->
+<div id="employeeModal" class="ar-modal ar-no-print" hidden>
+  <div class="ar-modal-panel ar-glass p-6" id="employeeModalBody"></div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+<nav class="hrms-feat-nav hrms-reveal" aria-label="Feature categories">
+  <div class="hrms-container">
+    <div class="hrms-feat-nav__track" data-feat-nav>
+      {% for cat in feature_categories %}
+      <a href="#{{ cat.id }}" class="hrms-feat-nav__link" data-feat-nav-link="{{ cat.id }}">
+        <i data-lucide="{{ cat.icon }}" class="h-3.5 w-3.5"></i>
+        {{ cat.title }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,19 @@
+{% extends "dashboard/feature_control/_base.html" %}
+{% block fcc_content %}
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Role feature permissions</h2></div>
+  <table class="fcc-table">
+    <thead><tr><th>Feature</th><th>Org Admin</th><th>HR</th><th>Employee</th></tr></thead>
+    <tbody>
+      {% for row in permission_rows %}
+      <tr>
+        <td><strong>{{ row.feature.name }}</strong><br><code>{{ row.feature.key }}</code></td>
+        <td><input type="checkbox" class="fcc-switch fcc-role-toggle" data-feature-id="{{ row.feature.pk }}" data-role="ADMIN"{% if row.admin %} checked{% endif %}></td>
+        <td><input type="checkbox" class="fcc-switch fcc-role-toggle" data-feature-id="{{ row.feature.pk }}" data-role="HR"{% if row.hr %} checked{% endif %}></td>
+        <td><input type="checkbox" class="fcc-switch fcc-role-toggle" data-feature-id="{{ row.feature.pk }}" data-role="EMPLOYEE"{% if row.employee %} checked{% endif %}></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block extra_head %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'sidebar.css' %}">
+<link rel="stylesheet" href="{% static 'topnav.css' %}">
+{% block dashboard_extra_head %}{% endblock %}
+{% endblock %}
+{% block body %}
+  {% load static %}
+  <div class="hrms-dashboard min-h-screen">
+    <div data-mobile-overlay class="hrms-mobile-overlay hidden" aria-hidden="true"></div>
+
+    <!-- Mobile drawer -->
+    <aside data-sidebar data-sidebar-mobile class="hrms-sidebar hrms-sidebar--mobile" aria-label="Mobile navigation">
+      <div class="flex h-14 items-center justify-between px-3 lg:hidden">
+        <span class="text-sm font-semibold text-white">Menu</span>
+        <button data-mobile-sidebar-close class="rounded-xl p-2 text-white/70 hover:bg-white/10" aria-label="Close sidebar">
+          <i data-lucide="x" class="h-5 w-5"></i>
+        </button>
+      </div>
+      <div class="hrms-sidebar__inner">
+        {% if request.user.role == "SUPER_ADMIN" %}
+          {% include "dashboard/_sidebar_super.html" %}
+        {% else %}
+          {% include "dashboard/_sidebar.html" %}
+        {% endif %}
+      </div>
+    </aside>
+
+    <!-- Desktop sidebar -->
+    <aside data-sidebar class="hrms-sidebar hrms-sidebar--desktop hidden lg:flex" aria-label="Main navigation">
+      <div class="hrms-sidebar__glow" aria-hidden="true"></div>
+      <div class="hrms-sidebar__inner">
+        {% if request.user.role == "SUPER_ADMIN" %}
+          {% include "dashboard/_sidebar_super.html" %}
+        {% else %}
+          {% include "dashboard/_sidebar.html" %}
+        {% endif %}
+      </div>
+    </aside>
+
+    <div class="hrms-dashboard-body">
+      {% if request.user.is_authenticated and topnav.platform_title %}
+      {% include "dashboard/_topnav.html" %}
+      {% else %}
+      <header class="hrms-dashboard-header">
+        <div class="hrms-dashboard-header__inner">
+          <p class="text-sm font-semibold">HRMS</p>
+        </div>
+      </header>
+      {% endif %}
+
+      <main class="hrms-dashboard-main">
+        {% block page_back %}
+        {% if not page_back_suppress %}
+        <div class="hrms-page-back">
+          {% include "dashboard/_back_button.html" with back_url=page_back_url|default:dashboard_home_url back_label=page_back_label|default:"Back" %}
+        </div>
+        {% endif %}
+        {% endblock %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  {{ sidebar.search_items|json_script:"hrms-sidebar-search-data" }}
+
+  <script src="{% static 'dashboard.js' %}"></script>
+  <script src="{% static 'sidebar.js' %}"></script>
+  <script src="{% static 'topnav.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+{% endblock %}

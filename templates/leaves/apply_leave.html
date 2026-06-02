@@ -1,0 +1,259 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Apply Leave · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'apply-leave.css' %}">
+<script>
+  window.LA_CONFIG = {
+    previewUrl: "{{ preview_api_url|escapejs }}",
+    holidayDates: {{ holiday_dates_json|safe }},
+    leaveTypes: {{ leave_types_json|safe }}
+  };
+</script>
+{% endblock %}
+{% block page_back %}{% endblock %}
+
+{% block content %}
+<div class="la-page w-full space-y-5 pb-10">
+
+  <nav class="la-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'dashboard:employee' %}">Dashboard</a>
+    <span aria-hidden="true">›</span>
+    <a href="{% url 'leaves:management' %}">Leave Management</a>
+    <span aria-hidden="true">›</span>
+    <span class="text-slate-700 dark:text-slate-300 font-medium">Apply Leave</span>
+  </nav>
+
+  <header class="la-hero">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Leave Application</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Apply Leave</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">Submit a leave request for approval.</p>
+      </div>
+      <div class="la-hero-actions">
+        <a href="{% url 'leaves:management' %}" class="la-hero-btn la-hero-btn--ghost">
+          <i data-lucide="arrow-left" class="h-4 w-4"></i> Back to Leave Dashboard
+        </a>
+        <a href="{% url 'leaves:management' %}" class="la-hero-btn la-hero-btn--solid">
+          <i data-lucide="history" class="h-4 w-4"></i> View Leave History
+        </a>
+      </div>
+    </div>
+  </header>
+
+  {% if balance_cards %}
+  <section class="la-balance-grid" aria-label="Leave balances">
+    {% for b in balance_cards %}
+    <div class="la-balance-card" style="--accent: {{ b.color }}">
+      <div class="la-balance-top">
+        <p class="la-balance-name">{{ b.name }}</p>
+        <p class="la-balance-value" style="color: {{ b.color }}">{{ b.remaining_display }}</p>
+      </div>
+      <p class="la-balance-sub">of {{ b.allocated|floatformat:0 }} remaining</p>
+      <div class="la-progress">
+        <div class="la-progress-bar" style="width: {{ b.used_pct }}%; background: {{ b.color }}"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" id="applyLeaveForm" class="la-layout" novalidate>
+    {% csrf_token %}
+
+    <div class="space-y-5">
+      {% if form.errors %}
+      <div class="la-warning" role="alert">
+        <p class="font-semibold">Please fix the following:</p>
+        <ul class="mt-2 list-disc space-y-1 pl-4 text-sm">
+          {% for field in form %}
+            {% for error in field.errors %}
+            <li>{{ field.label }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if form.non_field_errors %}
+      <div class="la-warning">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div id="laWarnings" class="la-warnings" aria-live="polite"></div>
+
+      <section class="la-card">
+        <div class="la-card-head">
+          <h2 class="la-card-title"><i data-lucide="file-edit" class="inline h-4 w-4 mr-1 text-violet-600"></i> Leave application</h2>
+        </div>
+        <div class="la-card-body">
+          <div class="la-field">
+            <label class="la-label" for="id_leave_type">Leave type</label>
+            {{ form.leave_type }}
+            {% if form.leave_type.errors %}<p class="mt-1 text-xs text-rose-500">{{ form.leave_type.errors.0 }}</p>{% endif %}
+            <p id="laPolicyHint" class="mt-2 text-xs text-slate-500"></p>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="la-field">
+              <label class="la-label" for="id_start_date">Start date</label>
+              {{ form.start_date }}
+              {% if form.start_date.errors %}<p class="mt-1 text-xs text-rose-500">{{ form.start_date.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="la-field">
+              <label class="la-label" for="id_end_date">End date</label>
+              {{ form.end_date }}
+              {% if form.end_date.errors %}<p class="mt-1 text-xs text-rose-500">{{ form.end_date.errors.0 }}</p>{% endif %}
+            </div>
+          </div>
+
+          <div class="la-days-banner mb-4">
+            <div>
+              <p class="text-xs font-semibold uppercase text-violet-600">Total leave</p>
+              <p class="num" id="laTotalDays">—</p>
+            </div>
+            <div class="text-xs text-slate-600">
+              <p>Working days between selected dates</p>
+              <p class="text-slate-400">Weekends & holidays excluded per org policy</p>
+            </div>
+          </div>
+
+          <div class="la-field">
+            <span class="la-label">Duration</span>
+            <div class="la-half-options">
+              {% for radio in form.half_day %}
+              {{ radio }}
+              {% endfor %}
+            </div>
+            {% if form.half_day.errors %}<p class="mt-1 text-xs text-rose-500">{{ form.half_day.errors.0 }}</p>{% endif %}
+          </div>
+
+          <div class="la-field">
+            <label class="la-label" for="id_reason">Reason for leave</label>
+            {{ form.reason }}
+            <p class="la-char-count"><span id="laCharCount">0</span> / 500</p>
+            {% if form.reason.errors %}<p class="mt-1 text-xs text-rose-500">{{ form.reason.errors.0 }}</p>{% endif %}
+          </div>
+
+          <div class="la-field">
+            <label class="la-label" for="id_attachment">Attachments <span class="font-normal text-slate-400">(optional)</span></label>
+            <div class="la-dropzone" id="laDropzone">
+              <i data-lucide="upload-cloud" class="mx-auto h-8 w-8 text-violet-400"></i>
+              <p class="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">Drag & drop or click to upload</p>
+              <p class="mt-1 text-xs text-slate-500">Optional · PDF, JPG, PNG, DOC</p>
+              {{ form.attachment }}
+            </div>
+            <div class="la-dropzone-preview" id="laFilePreview">
+              <span id="laFileName"></span>
+              <button type="button" id="laFileRemove" class="text-xs font-semibold text-rose-500">Remove</button>
+            </div>
+            {% if form.attachment.errors %}<p class="mt-1 text-xs text-rose-500">{{ form.attachment.errors.0 }}</p>{% endif %}
+          </div>
+
+          <div class="la-field">
+            <label class="la-label" for="id_emergency_contact">Emergency contact (optional)</label>
+            {{ form.emergency_contact }}
+          </div>
+
+          <div class="la-actions">
+            <button type="submit" name="action" value="save_draft" class="la-btn-draft">Save draft</button>
+            <button type="submit" name="action" value="submit" class="la-btn-primary">
+              <i data-lucide="send" class="h-4 w-4"></i> Submit request
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="la-card">
+        <div class="la-card-head">
+          <h2 class="la-card-title"><i data-lucide="users" class="inline h-4 w-4 mr-1 text-sky-600"></i> Team impact</h2>
+        </div>
+        <div class="la-card-body text-sm">
+          <p><strong>Reporting manager:</strong> {{ manager_name }}{% if manager_designation %} · {{ manager_designation }}{% endif %}</p>
+          <div id="laTeamImpact" class="mt-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 hidden"></div>
+          <ul id="laTeamList" class="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400"></ul>
+        </div>
+      </section>
+
+      <section class="la-future">
+        <p class="font-semibold text-slate-700 dark:text-slate-300">Coming soon</p>
+        <p class="mt-1">AI leave assistant · Calendar sync · Team availability planner · Smart leave suggestions</p>
+      </section>
+    </div>
+
+    <aside class="la-sidebar">
+      <section class="la-card">
+        <div class="la-card-head">
+          <h2 class="la-card-title">Leave summary</h2>
+        </div>
+        <div class="la-card-body">
+          <div class="la-summary-row"><span class="lbl">Leave type</span><span class="val" id="sumType">—</span></div>
+          <div class="la-summary-row"><span class="lbl">Dates</span><span class="val" id="sumDates">—</span></div>
+          <div class="la-summary-row"><span class="lbl">Total days</span><span class="val" id="sumDays">—</span></div>
+          <div class="la-summary-row"><span class="lbl">Balance after</span><span class="val" id="sumBalance">—</span></div>
+          <div class="la-summary-row"><span class="lbl">Approver</span><span class="val">{{ manager_name }}</span></div>
+        </div>
+      </section>
+
+      <section class="la-card">
+        <div class="la-card-head">
+          <h2 class="la-card-title">Approval flow</h2>
+        </div>
+        <div class="la-card-body">
+          {% for step in approval_chain %}
+          <div class="la-flow-step {% if step.status == 'current' %}is-current{% elif step.status == 'pending' %}is-pending{% elif step.status == 'final' %}is-final{% endif %}">
+            <span class="la-flow-dot"></span>
+            <div>
+              <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ step.role }}</p>
+              <p class="text-[11px] text-slate-500">{{ step.name }}</p>
+            </div>
+          </div>
+          {% if not forloop.last %}<div class="ml-[0.2rem] h-3 border-l-2 border-dashed border-slate-200 dark:border-slate-600"></div>{% endif %}
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="la-card">
+        <div class="la-card-head">
+          <h2 class="la-card-title">Calendar preview</h2>
+        </div>
+        <div class="la-card-body">
+          <div class="la-cal-mini mb-1">
+            <span class="la-cal-mini-head">M</span><span class="la-cal-mini-head">T</span><span class="la-cal-mini-head">W</span>
+            <span class="la-cal-mini-head">T</span><span class="la-cal-mini-head">F</span><span class="la-cal-mini-head">S</span><span class="la-cal-mini-head">S</span>
+          </div>
+          <div class="la-cal-mini" id="laCalGrid">
+            {% for week in calendar_weeks %}
+              {% for cell in week %}
+                {% if cell.day == 0 %}
+                <span class="la-cal-mini-cell"></span>
+                {% else %}
+                <span class="la-cal-mini-cell {% if cell.is_holiday %}la-cal-mini-cell--holiday{% elif cell.is_off %}la-cal-mini-cell--off{% endif %}"
+                      data-cal-day="{{ cell.date|date:'Y-m-d' }}">{{ cell.day }}</span>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      {% if drafts %}
+      <section class="la-card">
+        <div class="la-card-head">
+          <h2 class="la-card-title">Saved drafts</h2>
+        </div>
+        <div class="la-card-body space-y-2 text-xs">
+          {% for d in drafts %}
+          <p class="text-slate-600">{{ d.leave_type.name }} · {{ d.start_date|date:"d M" }} – {{ d.end_date|date:"d M" }}</p>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    </aside>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'apply-leave.js' %}" defer></script>
+{% endblock %}

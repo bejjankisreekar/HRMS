@@ -1,0 +1,26 @@
+<section class="hrms-section hrms-pricing" id="pricing" aria-labelledby="pricing-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Pricing</span>
+      <h2 id="pricing-heading" class="hrms-section__title">Simple, transparent pricing</h2>
+      <p class="hrms-section__desc">Flat monthly plans for your organization. <a href="{% url 'accounts:pricing' %}" class="text-violet-400 hover:underline">View full pricing →</a></p>
+    </div>
+
+    <div class="hrms-pricing-grid">
+      {% for plan in pricing_plans %}
+      <article class="hrms-pricing-card hrms-reveal{% if plan.popular %} hrms-pricing-card--featured{% endif %}">
+        {% if plan.popular %}<span class="hrms-pricing-card__badge">Most popular</span>{% endif %}
+        <h3>{{ plan.name }}</h3>
+        <p class="hrms-pricing-card__price"><span>₹{{ plan.monthly_price|floatformat:0 }}</span><small>/month</small></p>
+        <p class="hrms-pricing-card__desc">{{ plan.description|truncatechars:60 }}</p>
+        <ul class="hrms-pricing-card__features">
+          {% for feature in plan.features|slice:":4" %}
+          <li><i data-lucide="check" class="h-4 w-4"></i> {{ feature }}</li>
+          {% endfor %}
+        </ul>
+        <a href="{% url 'accounts:register' %}?plan={{ plan.id }}" class="hrms-btn {% if plan.popular %}hrms-btn--primary{% else %}hrms-btn--outline{% endif %} w-full">{{ plan.cta_label }}</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

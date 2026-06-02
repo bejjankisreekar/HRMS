@@ -1,0 +1,14 @@
+<form method="get" action="{% url attendance_url_name|default:'dashboard:attendance' %}" class="attendance-date-nav-form">
+  <input type="hidden" name="date" value="{% if direction == 'prev' %}{{ prev_date|date:'Y-m-d' }}{% else %}{{ next_date|date:'Y-m-d' }}{% endif %}">
+  {% if history_period and not is_team_view %}<input type="hidden" name="period" value="{{ history_period }}">{% endif %}
+  {% if selected_shift and selected_shift != 'all' %}
+  <input type="hidden" name="shift" value="{{ selected_shift }}">
+  {% endif %}
+  <button type="submit" class="attendance-date-nav {{ nav_class|default:'' }}" aria-label="{% if direction == 'prev' %}Previous day{% else %}Next day{% endif %}">
+    {% if direction == 'prev' %}
+    <i data-lucide="chevron-left" class="h-4 w-4"></i>
+    {% else %}
+    <i data-lucide="chevron-right" class="h-4 w-4"></i>
+    {% endif %}
+  </button>
+</form>

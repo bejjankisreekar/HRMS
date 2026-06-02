@@ -1,0 +1,5 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'lifecycle.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script>window.LIFECYCLE_CHARTS = {{ charts_json|safe }};</script>
+<script src="{% static 'lifecycle.js' %}" defer></script>

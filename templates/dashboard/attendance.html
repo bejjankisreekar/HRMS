@@ -1,0 +1,521 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{% if is_team_view %}Team attendance{% else %}My attendance{% endif %} · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'attendance.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'attendance-time-picker.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="attendance-page w-full space-y-6" {% if is_team_view %}x-data="{ search: '' }"{% endif %}>
+
+  <!-- Hero -->
+  <div class="attendance-hero">
+    <div class="attendance-hero-inner flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="calendar-check" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Attendance</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{{ page_title }}</h1>
+          <p class="mt-1.5 text-sm text-violet-100/90">{{ page_subtitle }}</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div class="attendance-date-display">
+          {% include "dashboard/_attendance_date_step.html" with direction="prev" %}
+          <span class="attendance-date-display__label">
+            <i data-lucide="calendar" class="h-4 w-4 opacity-80"></i>
+            {{ selected_date|date:"l, d M Y" }}
+            {% if selected_date == today %}
+            <span class="rounded-full bg-emerald-400/30 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-100">Today</span>
+            {% endif %}
+          </span>
+          {% include "dashboard/_attendance_date_step.html" with direction="next" %}
+        </div>
+
+        {% if is_team_view %}
+        <div class="flex flex-wrap items-center gap-2">
+          {% if show_my_attendance_link %}
+          <a href="{% url 'dashboard:attendance' %}"
+             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">My attendance</a>
+          {% endif %}
+          <a href="{% url 'attendance:reports' %}"
+             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Full report</a>
+          {% if can_review_corrections %}
+          <a href="{% url 'dashboard:attendance_corrections' %}"
+             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">
+            Corrections{% if pending_corrections_count %} ({{ pending_corrections_count }}){% endif %}
+          </a>
+          {% endif %}
+          {% if is_admin %}
+          <a href="{% url 'dashboard:attendance_shifts' %}"
+             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Shifts</a>
+          <a href="{% url 'dashboard:attendance_settings' %}"
+             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Attendance settings</a>
+          {% endif %}
+        </div>
+        <div class="attendance-date-bar">
+          {% include "dashboard/_attendance_date_step.html" with direction="prev" nav_class="attendance-date-nav--bar" %}
+          <form method="get" action="{% url attendance_url_name|default:'dashboard:attendance_team' %}" class="attendance-date-bar__picker">
+            {% if selected_shift and selected_shift != "all" %}
+            <input type="hidden" name="shift" value="{{ selected_shift }}">
+            {% endif %}
+            <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" aria-label="Select date">
+            <button type="submit"
+                    class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500">
+              Apply
+            </button>
+            {% if selected_date != today %}
+            <a href="{% url attendance_url_name|default:'dashboard:attendance_team' %}{% if selected_shift and selected_shift != 'all' %}?shift={{ selected_shift }}{% endif %}"
+               class="rounded-lg px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+              Today
+            </a>
+            {% endif %}
+          </form>
+          {% include "dashboard/_attendance_date_step.html" with direction="next" nav_class="attendance-date-nav--bar" %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if is_team_view %}
+  <!-- Summary stats -->
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Total team</p>
+          <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ team_summary.total }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-violet-500/15 text-violet-600">
+          <i data-lucide="users" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Present</p>
+          <p class="mt-1 text-2xl font-bold text-emerald-600">{{ team_summary.present }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-emerald-500/15 text-emerald-600">
+          <i data-lucide="user-check" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Absent</p>
+          <p class="mt-1 text-2xl font-bold text-rose-600">{{ team_summary.absent }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-rose-500/15 text-rose-600">
+          <i data-lucide="user-x" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">On leave</p>
+          <p class="mt-1 text-2xl font-bold text-sky-600">{{ team_summary.leave }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-sky-500/15 text-sky-600">
+          <i data-lucide="palmtree" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Not marked</p>
+          <p class="mt-1 text-2xl font-bold text-slate-500">{{ team_summary.unmarked }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-slate-500/15 text-slate-500">
+          <i data-lucide="circle-dashed" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+    <div class="attendance-stat">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500">Late</p>
+          <p class="mt-1 text-2xl font-bold text-rose-600">{{ team_summary.late }}</p>
+        </div>
+        <div class="attendance-stat-icon bg-rose-500/15 text-rose-600">
+          <i data-lucide="alarm-clock" class="h-5 w-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team table (desktop / tablet scroll) -->
+  <div class="attendance-panel attendance-table-wrap hidden md:block">
+    <div class="attendance-panel-head attendance-panel-head--mark">
+      {% include "dashboard/_attendance_mark_head.html" %}
+    </div>
+
+    <table class="attendance-table attendance-mark-table">
+      <colgroup>
+        <col class="att-col att-col--employee">
+        <col class="att-col att-col--username">
+        <col class="att-col att-col--status">
+        <col class="att-col att-col--login">
+        <col class="att-col att-col--logout">
+        <col class="att-col att-col--hours">
+        <col class="att-col att-col--punctuality">
+        <col class="att-col att-col--actions">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="att-th att-th--employee">Employee</th>
+          <th class="att-th att-th--username">Username</th>
+          <th class="att-th att-th--status">Status</th>
+          <th class="att-th att-th--login">Login</th>
+          <th class="att-th att-th--logout">Logout</th>
+          <th class="att-th att-th--hours">Hours</th>
+          <th class="att-th att-th--punctuality">Punctuality</th>
+          {% if can_mark_team %}<th class="att-th att-th--actions">Mark / edit</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in team_rows %}
+        {% with member=row.member record=row.record %}
+        <tr class="att-mark-row"
+            data-search="{{ member.choice_label|lower }} {{ member.employee_id|lower }} {{ member.username|lower }}"
+            x-show="!search || $el.dataset.search.includes(search.toLowerCase())">
+          <td class="att-cell att-cell--employee">
+            <div class="att-employee" title="{{ member.display_name }}">
+              <span class="att-employee-icon" aria-hidden="true">👤</span>
+              <span class="att-employee-name">{{ member.display_name }}</span>
+            </div>
+          </td>
+          <td class="att-cell att-cell--username">
+            <span class="att-username" title="{{ member.username }}">{{ member.username }}</span>
+          </td>
+          <td class="att-cell att-cell--status">{% include "dashboard/_attendance_status_badge.html" with record=record %}</td>
+          <td class="att-cell att-cell--login">
+            {% if can_mark_team %}
+            <div class="att-punch att-punch--in">
+              <span class="att-punch-time">{{ row.login_time }}</span>
+              <span class="att-punch-sep" aria-hidden="true">|</span>
+              <form method="post" class="attendance-time-form">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" value="{{ member.pk }}">
+                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+                <input type="hidden" name="action" value="set_check_in">
+                <input type="time" name="check_in_time" value="{% if record and record.check_in %}{{ record.check_in|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--in attendance-time-input--compact" aria-label="Check-in time for {{ member.display_name }}">
+                <button type="submit" class="att-punch-badge att-punch-badge--in">IN</button>
+              </form>
+            </div>
+            {% else %}
+            <span class="att-hours">{{ row.login_time }}</span>
+            {% endif %}
+          </td>
+          <td class="att-cell att-cell--logout">
+            {% if can_mark_team %}
+            <div class="att-punch att-punch--out">
+              <span class="att-punch-time">{{ row.logout_time }}</span>
+              <span class="att-punch-sep" aria-hidden="true">|</span>
+              <form method="post" class="attendance-time-form">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" value="{{ member.pk }}">
+                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+                <input type="hidden" name="action" value="set_check_out">
+                <input type="time" name="check_out_time" value="{% if record and record.check_out %}{{ record.check_out|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--out attendance-time-input--compact" aria-label="Check-out time for {{ member.display_name }}">
+                <button type="submit" class="att-punch-badge att-punch-badge--out" {% if not record or not record.check_in %}disabled{% endif %}>OUT</button>
+              </form>
+            </div>
+            {% else %}
+            <span class="att-hours">{{ row.logout_time }}</span>
+            {% endif %}
+          </td>
+          <td class="att-cell att-cell--hours">
+            <span class="att-hours">{{ row.working_hours }}</span>
+          </td>
+          <td class="att-cell att-cell--punctuality">{% include "dashboard/_attendance_late_badge.html" with record=record lateness=row.lateness %}</td>
+          {% if can_mark_team %}
+          <td class="att-cell att-cell--actions">
+            <form method="post" class="att-mark-form">
+              {% csrf_token %}
+              <input type="hidden" name="user_id" value="{{ member.pk }}">
+              <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+              {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+              <input type="hidden" name="action" value="set_status">
+              <select name="status" class="attendance-status-select" aria-label="Status for {{ member.display_name }}">
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if record and record.status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="attendance-btn attendance-btn--set">Save</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="{% if can_mark_team %}8{% else %}7{% endif %}" class="att-empty-cell">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600">
+              <i data-lucide="users" class="h-7 w-7"></i>
+            </div>
+            <p class="mt-4 font-medium text-slate-700 dark:text-slate-300">No team members yet</p>
+            <p class="mt-1 text-sm text-slate-500">Add HR and employees to start marking attendance.</p>
+            <a href="{% url 'dashboard:staff_create' %}"
+               class="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
+              <i data-lucide="user-plus" class="h-4 w-4"></i> Add member
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile card layout -->
+  <div class="attendance-panel md:hidden">
+    <div class="attendance-panel-head attendance-panel-head--mark">
+      {% include "dashboard/_attendance_mark_head.html" %}
+    </div>
+    <div class="att-mark-cards">
+      {% for row in team_rows %}
+      {% with member=row.member record=row.record %}
+      <article class="att-mark-card"
+               data-search="{{ member.choice_label|lower }} {{ member.employee_id|lower }} {{ member.username|lower }}"
+               x-show="!search || $el.dataset.search.includes(search.toLowerCase())">
+        <header class="att-mark-card__head">
+          <div class="att-mark-card__identity">
+            <div class="att-employee" title="{{ member.display_name }}">
+              <span class="att-employee-icon" aria-hidden="true">👤</span>
+              <span class="att-employee-name">{{ member.display_name }}</span>
+            </div>
+            <span class="att-username att-username--card">{{ member.username }}</span>
+          </div>
+          {% include "dashboard/_attendance_status_badge.html" with record=record %}
+        </header>
+        <dl class="att-mark-card__meta">
+          <div><dt>Hours</dt><dd class="att-hours">{{ row.working_hours }}</dd></div>
+          <div><dt>Punctuality</dt><dd>{% include "dashboard/_attendance_late_badge.html" with record=record lateness=row.lateness %}</dd></div>
+        </dl>
+        <div class="att-mark-card__punches">
+          <div class="att-punch att-punch--in">
+            <span class="att-punch-time">{{ row.login_time }}</span>
+            <form method="post" class="attendance-time-form">
+              {% csrf_token %}
+              <input type="hidden" name="user_id" value="{{ member.pk }}">
+              <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+              {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+              <input type="hidden" name="action" value="set_check_in">
+              <input type="time" name="check_in_time" value="{% if record and record.check_in %}{{ record.check_in|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--in">
+              <button type="submit" class="att-punch-badge att-punch-badge--in">IN</button>
+            </form>
+          </div>
+          <div class="att-punch att-punch--out">
+            <span class="att-punch-time">{{ row.logout_time }}</span>
+            <form method="post" class="attendance-time-form">
+              {% csrf_token %}
+              <input type="hidden" name="user_id" value="{{ member.pk }}">
+              <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+              {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+              <input type="hidden" name="action" value="set_check_out">
+              <input type="time" name="check_out_time" value="{% if record and record.check_out %}{{ record.check_out|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--out">
+              <button type="submit" class="att-punch-badge att-punch-badge--out" {% if not record or not record.check_in %}disabled{% endif %}>OUT</button>
+            </form>
+          </div>
+        </div>
+        <form method="post" class="att-mark-form att-mark-card__actions">
+          {% csrf_token %}
+          <input type="hidden" name="user_id" value="{{ member.pk }}">
+          <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+          {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+          <input type="hidden" name="action" value="set_status">
+          <select name="status" class="attendance-status-select">
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if record and record.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="attendance-btn attendance-btn--set">Save</button>
+        </form>
+      </article>
+      {% endwith %}
+      {% empty %}
+      <div class="att-empty-cell">No team members yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Employee self view -->
+  <div class="space-y-6">
+    {% if show_staff_attendance_link %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'dashboard:attendance_team' %}?date={{ selected_date|date:'Y-m-d' }}"
+         class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500">
+        Mark staff attendance
+      </a>
+      {% if can_review_corrections %}
+      <a href="{% url 'dashboard:attendance_corrections' %}"
+         class="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 dark:border-violet-500/30 dark:text-violet-300">
+        Correction requests{% if pending_corrections_count %} ({{ pending_corrections_count }}){% endif %}
+      </a>
+      {% endif %}
+    </div>
+    {% elif has_team_link %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'dashboard:attendance_team' %}?date={{ selected_date|date:'Y-m-d' }}"
+         class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500">
+        View my team attendance
+      </a>
+      {% if can_review_corrections %}
+      <a href="{% url 'dashboard:attendance_corrections' %}"
+         class="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">
+        Correction requests{% if pending_corrections_count %} ({{ pending_corrections_count }}){% endif %}
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% include "dashboard/_attendance_employee_stats.html" %}
+
+    <div class="attendance-panel p-5">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white">My attendance · {{ selected_date|date:"l, d M Y" }}</h2>
+          {% if my_shift_timing.has_shift %}
+          <p class="mt-1 text-sm text-slate-500">Shift {{ my_shift_timing.name }} · {{ my_shift_timing.range }} · {{ my_shift_timing.grace_label }}</p>
+          {% endif %}
+        </div>
+        <div class="attendance-date-bar attendance-date-bar--panel">
+          {% include "dashboard/_attendance_date_step.html" with direction="prev" nav_class="attendance-date-nav--panel" %}
+          <form method="get" action="{% url 'dashboard:attendance' %}" class="attendance-date-bar__picker">
+            <input type="hidden" name="period" value="{{ history_period }}">
+            <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" aria-label="Select date">
+            <button type="submit" class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white">Go</button>
+            {% if selected_date != today %}
+            <a href="{% url 'dashboard:attendance' %}" class="text-xs font-semibold text-violet-600">Today</a>
+            {% endif %}
+          </form>
+          {% include "dashboard/_attendance_date_step.html" with direction="next" nav_class="attendance-date-nav--panel" %}
+        </div>
+      </div>
+
+      {% if my_row.is_marked %}
+      <div class="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-center text-xs font-medium text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+        Your attendance for this day is on record{% if today_record.check_in %} — login, logout, and hours are shown below{% endif %}.
+      </div>
+      {% include "dashboard/_attendance_day_summary.html" with row=my_row %}
+      {% else %}
+      <p class="mb-4 text-center text-sm text-slate-500">No attendance marked yet for this day. Contact HR if you believe this is incorrect, or submit a correction request below.</p>
+      {% endif %}
+    </div>
+
+  <div class="attendance-panel">
+    <div class="attendance-panel-head flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Attendance history</h2>
+      <div class="flex flex-wrap gap-1">
+        <a href="?date={{ selected_date|date:'Y-m-d' }}&period=day"
+           class="rounded-lg px-2.5 py-1 text-xs font-semibold {% if history_period == 'day' %}bg-violet-600 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">Daily</a>
+        <a href="?date={{ selected_date|date:'Y-m-d' }}&period=week"
+           class="rounded-lg px-2.5 py-1 text-xs font-semibold {% if history_period == 'week' %}bg-violet-600 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">Weekly</a>
+        <a href="?date={{ selected_date|date:'Y-m-d' }}&period=month"
+           class="rounded-lg px-2.5 py-1 text-xs font-semibold {% if history_period == 'month' %}bg-violet-600 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">Monthly</a>
+      </div>
+    </div>
+    <div>
+      {% for h in history_rows %}
+      <div class="attendance-history-row">
+        <div class="attendance-history-date">
+          <div class="attendance-history-day">{{ h.record.date|date:"d" }}</div>
+          <div class="attendance-history-month">{{ h.record.date|date:"M" }}</div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="font-medium text-slate-900 dark:text-white">{{ h.record.date|date:"l" }}</p>
+          {% include "dashboard/_attendance_status_badge.html" with record=h.record %}
+        </div>
+        <div class="hidden gap-3 text-right sm:flex sm:items-center">
+          <div>
+            <p class="text-[10px] uppercase text-slate-400">Login</p>
+            <p class="text-sm font-semibold tabular-nums text-emerald-600">{{ h.login_time }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-slate-400">Logout</p>
+            <p class="text-sm font-semibold tabular-nums text-violet-600">{{ h.logout_time }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-slate-400">Hours</p>
+            <p class="text-sm font-semibold tabular-nums text-indigo-600">{{ h.working_hours }}</p>
+          </div>
+          <div>{% include "dashboard/_attendance_late_badge.html" with record=h.record lateness=h.lateness %}</div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="px-5 py-14 text-center text-slate-500">
+        <i data-lucide="calendar-x" class="mx-auto h-10 w-10 opacity-40"></i>
+        <p class="mt-3 text-sm">No attendance history yet.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="attendance-panel p-5">
+    <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Request attendance correction</h2>
+    <p class="mt-1 text-xs text-slate-500">Forgot to punch in/out? Submit a regularization request for HR or your manager to approve.</p>
+    <form method="post" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {% csrf_token %}
+      <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+      <input type="hidden" name="action" value="request_regularization">
+      <div>
+        <label class="text-xs font-medium text-slate-500">Date</label>
+        {{ regularization_form.date }}
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-500">Check-in</label>
+        {{ regularization_form.requested_check_in }}
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-500">Check-out</label>
+        {{ regularization_form.requested_check_out }}
+      </div>
+      <div>
+        <label class="text-xs font-medium text-slate-500">Status (optional)</label>
+        {{ regularization_form.requested_status }}
+      </div>
+      <div class="sm:col-span-2 lg:col-span-2">
+        <label class="text-xs font-medium text-slate-500">Reason</label>
+        {{ regularization_form.reason }}
+      </div>
+      <div class="flex items-end">
+        <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">Submit request</button>
+      </div>
+    </form>
+    {% if my_regularizations %}
+    <div class="mt-5 border-t border-slate-200 pt-4 dark:border-white/10">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">My requests</p>
+      <ul class="mt-2 space-y-2">
+        {% for req in my_regularizations %}
+        <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-white/5">
+          <span>{{ req.date|date:"d M Y" }} · {{ req.get_status_display }}</span>
+          <span class="text-xs text-slate-500">{{ req.created_at|date:"d M" }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if is_team_view %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% with lateness=lateness %}
+{% if lateness.is_late %}
+<span class="attendance-late-badge attendance-late-badge--late" title="Late by {{ lateness.late_minutes }} minutes">🔴 {{ lateness.label }}</span>
+{% elif lateness.in_grace %}
+<span class="attendance-late-badge attendance-late-badge--grace" title="Within grace buffer">🟡 {{ lateness.label }}</span>
+{% elif lateness.on_time %}
+<span class="attendance-late-badge attendance-late-badge--ok">🟢 On Time</span>
+{% elif record and record.check_in %}
+<span class="attendance-late-badge attendance-late-badge--none">—</span>
+{% else %}
+<span class="attendance-late-badge attendance-late-badge--none">—</span>
+{% endif %}
+{% endwith %}

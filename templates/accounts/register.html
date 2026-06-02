@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Register · HRMS Suite{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'register.css' %}">
+<style>[x-cloak]{display:none!important}</style>
+{% endblock %}
+
+{% block body %}
+<div class="hrms-auth-page min-h-screen text-slate-100 reg-form" x-data="registerOnboarding()" x-init="init()">
+  {% include "accounts/_register_navbar.html" %}
+
+  <div class="pointer-events-none fixed inset-0 overflow-hidden">
+    <div class="hrms-auth-orb-violet absolute -left-40 top-20 h-[28rem] w-[28rem] rounded-full blur-3xl"></div>
+    <div class="hrms-auth-orb-indigo absolute -right-32 top-40 h-80 w-80 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-3xl"></div>
+    {% for i in "123456" %}
+    <div class="absolute h-2 w-2 rounded-full bg-white/10 animate-pulse" style="top:{{ forloop.counter|add:10 }}%;left:{{ forloop.counter|add:5 }}%;animation-delay:{{ forloop.counter }}00ms"></div>
+    {% endfor %}
+  </div>
+
+  <div class="relative mx-auto grid max-w-7xl gap-10 px-4 py-8 lg:grid-cols-2 lg:items-start lg:px-8 lg:py-12">
+    <div class="hidden lg:block lg:sticky lg:top-24">
+      <p class="text-sm font-semibold uppercase tracking-widest text-violet-300">Enterprise HRMS</p>
+      <h1 class="mt-4 text-4xl font-semibold leading-tight tracking-tight text-white">
+        Build your organization workspace
+      </h1>
+      <p class="mt-4 max-w-md text-base leading-relaxed text-slate-400">
+        Manage employees, payroll, attendance, leaves, and HR operations from one powerful platform.
+      </p>
+      <ul class="mt-8 space-y-4 text-sm text-slate-300">
+        <li class="flex items-center gap-3"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">✓</span> Multi-tenant organization setup</li>
+        <li class="flex items-center gap-3"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">✓</span> Payroll & attendance automation</li>
+        <li class="flex items-center gap-3"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">✓</span> Secure employee management</li>
+        <li class="flex items-center gap-3"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">✓</span> Real-time HR analytics</li>
+      </ul>
+      <div class="mt-10 rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-5 backdrop-blur-xl">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Dashboard preview</span>
+          <span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-300">Live</span>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div class="rounded-2xl bg-black/30 p-3 ring-1 ring-white/10">
+            <div class="text-xs text-slate-500">Employees</div>
+            <div class="mt-1 text-xl font-semibold text-white">128</div>
+          </div>
+          <div class="rounded-2xl bg-black/30 p-3 ring-1 ring-white/10">
+            <div class="text-xs text-slate-500">Attendance</div>
+            <div class="mt-1 text-xl font-semibold text-white">96%</div>
+          </div>
+        </div>
+      </div>
+      <p class="mt-8 text-xs uppercase tracking-wider text-slate-500">Trusted by modern businesses</p>
+    </div>
+
+    <div class="lg:hidden">
+      <p class="text-xs font-semibold uppercase tracking-widest text-violet-300">Enterprise HRMS</p>
+      <h2 class="mt-2 text-2xl font-semibold text-white">Build your organization workspace</h2>
+      <p class="mt-2 text-sm text-slate-400">Payroll, attendance, leaves, and HR — in one platform.</p>
+    </div>
+
+    <div class="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+      <div class="mb-6 lg:hidden">
+        <p class="text-sm text-slate-500">Step <span x-text="step"></span> of <span x-text="total"></span></p>
+      </div>
+
+      <div class="mb-8 flex flex-wrap gap-2 text-xs font-medium">
+        <template x-for="(label, i) in ['Organization','Admin']" :key="i">
+          <button type="button" @click="step = i + 1"
+                  class="flex items-center gap-2 rounded-full px-3 py-1.5 transition"
+                  :class="step === i + 1 ? 'bg-violet-600 text-white' : (step > i + 1 ? 'bg-white/10 text-slate-300' : 'bg-white/5 text-slate-500')">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full text-[10px]"
+                  :class="step >= i + 1 ? 'bg-white/20' : 'bg-white/10'" x-text="i + 1"></span>
+            <span class="hidden sm:inline" x-text="label"></span>
+          </button>
+        </template>
+      </div>
+
+      <form method="post" action="{% url 'accounts:register' %}" enctype="multipart/form-data" id="signupForm" class="reg-form" novalidate @submit="onSubmit($event)">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="mb-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <!-- STEP 1 -->
+        <div class="reg-step space-y-5" data-step="1" x-show="step === 1" x-transition.opacity.duration.300ms>
+          <h3 class="text-lg font-semibold text-white">Organization details</h3>
+
+          <div class="reg-field">
+            <label class="reg-label reg-label-required" for="f_org_name">Organization name</label>
+            <input name="organization_name" id="f_org_name"
+                   value="{{ form.organization_name.value|default:'' }}"
+                   class="reg-input" placeholder="Acme Corporation">
+            {% if form.organization_name.errors %}<p class="reg-error">{{ form.organization_name.errors.0 }}</p>{% endif %}
+          </div>
+
+          <div class="reg-field">
+            <label class="reg-label" for="orgCodePreview">Organization code (preview)</label>
+            <input id="orgCodePreview" readonly class="reg-input font-mono tracking-widest" tabindex="-1">
+            <p class="reg-hint">Preview only — not saved. On submit, the server generates a unique 8-character code, checks the database and PostgreSQL schema, then assigns your real workspace ID.</p>
+            <button type="button" @click="regenCode()" class="text-left text-xs font-semibold text-violet-300 hover:text-violet-200">Regenerate preview (demo)</button>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="reg-field">
+              <label class="reg-label" for="f_org_type">Organization type</label>
+              <select name="organization_type" id="f_org_type" class="reg-input">
+                {% for value, label in form.fields.organization_type.choices %}
+                  <option value="{{ value }}" {% if form.organization_type.value == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="reg-field" x-show="otherType" x-cloak>
+              <label class="reg-label" for="f_org_type_other">Specify type</label>
+              <input name="organization_type_other" id="f_org_type_other"
+                     value="{{ form.organization_type_other.value|default:'' }}"
+                     class="reg-input" placeholder="Describe your organization type">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_industry">Industry</label>
+              <input name="industry" id="f_industry" value="{{ form.industry.value|default:'' }}"
+                     class="reg-input" placeholder="e.g. Technology, Healthcare">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_org_size">Company size</label>
+              <select name="organization_size" id="f_org_size" class="reg-input">
+                <option value="">Select size</option>
+                {% for value, label in form.fields.organization_size.choices %}
+                  {% if value %}
+                  <option value="{{ value }}" {% if form.organization_size.value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="reg-field">
+              <label class="reg-label" for="f_official_email">Official email</label>
+              <input name="official_email" id="f_official_email" type="email"
+                     value="{{ form.official_email.value|default:'' }}"
+                     class="reg-input" placeholder="hr@company.com">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_official_phone">Official phone</label>
+              <input name="official_phone" id="f_official_phone"
+                     value="{{ form.official_phone.value|default:'' }}"
+                     class="reg-input" placeholder="+91 98765 43210">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_website">Website</label>
+              <input name="website" id="f_website" value="{{ form.website.value|default:'' }}"
+                     class="reg-input" placeholder="https://company.com">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_employee_count">Employee count</label>
+              <input name="employee_count" id="f_employee_count" type="number" min="0"
+                     value="{{ form.employee_count.value|default:'' }}"
+                     class="reg-input" placeholder="50">
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div class="reg-field">
+              <label class="reg-label" for="f_country">Country</label>
+              <input name="country" id="f_country" class="reg-input" value="{{ form.country.value|default:'' }}" placeholder="India">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_state">State</label>
+              <input name="state" id="f_state" class="reg-input" value="{{ form.state.value|default:'' }}" placeholder="Maharashtra">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_city">City</label>
+              <input name="city" id="f_city" class="reg-input" value="{{ form.city.value|default:'' }}" placeholder="Mumbai">
+            </div>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="reg-field">
+              <label class="reg-label" for="f_gst">GST number</label>
+              <input name="gst_number" id="f_gst" class="reg-input" value="{{ form.gst_number.value|default:'' }}" placeholder="GSTIN">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_reg_no">Registration number</label>
+              <input name="registration_number" id="f_reg_no" class="reg-input" value="{{ form.registration_number.value|default:'' }}" placeholder="CIN / Reg. no.">
+            </div>
+          </div>
+
+          <div class="reg-field">
+            <label class="reg-label" for="f_address">Street address</label>
+            <textarea name="street_address" id="f_address" rows="2" class="reg-input" placeholder="Building, street, area">{{ form.street_address.value|default:'' }}</textarea>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="reg-field">
+              <label class="reg-label" for="f_timezone">Timezone</label>
+              <input name="timezone" id="f_timezone" class="reg-input" value="{{ form.timezone.value|default:'Asia/Kolkata' }}" placeholder="Asia/Kolkata">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_currency">Currency</label>
+              <select name="currency" id="f_currency" class="reg-input">
+                <option value="INR" {% if form.currency.value|default:'INR' == 'INR' %}selected{% endif %}>INR — Indian Rupee</option>
+                <option value="USD" {% if form.currency.value == 'USD' %}selected{% endif %}>USD — US Dollar</option>
+                <option value="EUR" {% if form.currency.value == 'EUR' %}selected{% endif %}>EUR — Euro</option>
+                <option value="GBP" {% if form.currency.value == 'GBP' %}selected{% endif %}>GBP — British Pound</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: Admin + review -->
+        <div class="reg-step space-y-5" data-step="2" style="display:none" x-show="step === 2" x-transition.opacity.duration.300ms>
+          <h3 class="text-lg font-semibold text-white">Admin account</h3>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="reg-field">
+              <label class="reg-label" for="f_admin_fn">First name</label>
+              <input name="admin_first_name" id="f_admin_fn" value="{{ form.admin_first_name.value|default:'' }}"
+                     class="reg-input" placeholder="John">
+            </div>
+            <div class="reg-field">
+              <label class="reg-label" for="f_admin_ln">Last name</label>
+              <input name="admin_last_name" id="f_admin_ln" value="{{ form.admin_last_name.value|default:'' }}"
+                     class="reg-input" placeholder="Doe">
+            </div>
+          </div>
+
+          <div class="reg-field">
+            <label class="reg-label reg-label-required" for="f_admin_user">Username</label>
+            <input name="admin_username" id="f_admin_user" value="{{ form.admin_username.value|default:'' }}"
+                   class="reg-input" placeholder="johndoe" autocomplete="username">
+            {% if form.admin_username.errors %}<p class="reg-error">{{ form.admin_username.errors.0 }}</p>{% endif %}
+          </div>
+
+          <div class="reg-field">
+            <label class="reg-label reg-label-required" for="f_admin_email">Email</label>
+            <input name="admin_email" id="f_admin_email" type="email"
+                   value="{{ form.admin_email.value|default:'' }}"
+                   class="reg-input" placeholder="john@company.com" autocomplete="email">
+            {% if form.admin_email.errors %}<p class="reg-error">{{ form.admin_email.errors.0 }}</p>{% endif %}
+          </div>
+
+          <div class="reg-field relative">
+            <label class="reg-label reg-label-required" for="f_admin_pwd">Password</label>
+            <input name="admin_password" id="f_admin_pwd" :type="showPwd ? 'text' : 'password'"
+                   @input="onPwdInput($event)" class="reg-input pr-16" placeholder="••••••••" autocomplete="new-password">
+            <button type="button" @click="showPwd = !showPwd"
+                    class="absolute right-3 top-[2.125rem] text-xs font-medium text-slate-400 hover:text-violet-300">
+              <span x-text="showPwd ? 'Hide' : 'Show'"></span>
+            </button>
+            {% if form.admin_password.errors %}<p class="reg-error">{{ form.admin_password.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div class="h-full rounded-full transition-all duration-300"
+                 :class="pwdScore < 2 ? 'w-1/4 bg-rose-500' : (pwdScore < 4 ? 'w-2/4 bg-amber-500' : 'w-full bg-emerald-500')"></div>
+          </div>
+          <p class="reg-hint">Use 8+ characters with letters, numbers and symbols.</p>
+
+          <div class="reg-field relative">
+            <label class="reg-label reg-label-required" for="f_admin_pwd2">Confirm password</label>
+            <input name="admin_confirm_password" id="f_admin_pwd2" :type="showConfirm ? 'text' : 'password'"
+                   class="reg-input pr-16" placeholder="••••••••" autocomplete="new-password">
+            <button type="button" @click="showConfirm = !showConfirm"
+                    class="absolute right-3 top-[2.125rem] text-xs font-medium text-slate-400 hover:text-violet-300">
+              <span x-text="showConfirm ? 'Hide' : 'Show'"></span>
+            </button>
+          </div>
+
+          <div class="border-t border-white/10 pt-6">
+            <h4 class="text-sm font-semibold text-white">Review & submit</h4>
+            <div class="mt-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
+              <p>We will create your isolated PostgreSQL schema and organization admin.</p>
+              <p class="mt-2 font-mono text-violet-300">Schema: <span x-text="orgCode.toLowerCase()"></span></p>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              <label class="flex items-start gap-3 text-sm text-slate-300">
+                <input type="checkbox" name="terms_accepted" value="on" @change="onTermsChange()"
+                       class="mt-1 rounded border-white/20 bg-slate-900 text-violet-600 focus:ring-violet-500"
+                       {% if form.terms_accepted.value %}checked{% endif %}>
+                <span>I agree to the Terms of Service *</span>
+              </label>
+              {% if form.terms_accepted.errors %}<p class="reg-error">{{ form.terms_accepted.errors.0 }}</p>{% endif %}
+
+              <label class="flex items-start gap-3 text-sm text-slate-300">
+                <input type="checkbox" name="privacy_policy_accepted" value="on" @change="onTermsChange()"
+                       class="mt-1 rounded border-white/20 bg-slate-900 text-violet-600 focus:ring-violet-500"
+                       {% if form.privacy_policy_accepted.value %}checked{% endif %}>
+                <span>I agree to the Privacy Policy *</span>
+              </label>
+              {% if form.privacy_policy_accepted.errors %}<p class="reg-error">{{ form.privacy_policy_accepted.errors.0 }}</p>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" x-show="step > 1" @click="prev()" class="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5">Back</button>
+          <div class="flex gap-3 sm:ml-auto">
+            <button type="button" x-show="step < total" @click="next()" class="rounded-xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/15">Continue</button>
+            <button type="submit" x-show="step === total" :disabled="!canSubmit() || loading"
+                    class="flex items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-xl transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50">
+              <span x-show="!loading">Create Organization Workspace</span>
+              <span x-show="loading" x-cloak class="flex items-center gap-2">
+                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                Creating…
+              </span>
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <p class="mt-6 text-center text-sm text-slate-500">
+        Already have an account? <a href="{% url 'accounts:login' %}" class="font-semibold text-violet-300 hover:text-violet-200">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>window.__REGISTER_INITIAL_STEP__ = {{ register_initial_step|default:1 }};</script>
+<script src="{% static 'register.js' %}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endblock %}

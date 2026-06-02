@@ -1,0 +1,64 @@
+{% extends "dashboard/feature_control/_base.html" %}
+
+{% block fcc_content %}
+<div class="fcc-stats-grid">
+  <div class="fcc-stat"><span>Features</span><strong>{{ stats.features }}</strong></div>
+  <div class="fcc-stat"><span>Modules</span><strong>{{ stats.modules }}</strong></div>
+  <div class="fcc-stat"><span>Pages</span><strong>{{ stats.pages }}</strong></div>
+  <div class="fcc-stat"><span>Nav items</span><strong>{{ stats.nav_items }}</strong></div>
+  <div class="fcc-stat"><span>Plans</span><strong>{{ stats.plans }}</strong></div>
+  <div class="fcc-stat"><span>Org overrides</span><strong>{{ stats.orgs_with_overrides }}</strong></div>
+</div>
+
+<div class="fcc-hub-grid">
+  <a href="{% url 'dashboard:feature_control:global' %}" class="fcc-hub-card">
+    <i data-lucide="toggle-right"></i>
+    <h3>Global features</h3>
+    <p>Enable or disable features platform-wide.</p>
+  </a>
+  <a href="{% url 'dashboard:feature_control:modules' %}" class="fcc-hub-card">
+    <i data-lucide="boxes"></i>
+    <h3>Modules</h3>
+    <p>Control complete HRMS modules.</p>
+  </a>
+  <a href="{% url 'dashboard:feature_control:navigation' %}" class="fcc-hub-card">
+    <i data-lucide="menu"></i>
+    <h3>Navigation</h3>
+    <p>Reorder and show/hide sidebar items.</p>
+  </a>
+  <a href="{% url 'dashboard:feature_control:pages' %}" class="fcc-hub-card">
+    <i data-lucide="file"></i>
+    <h3>Pages</h3>
+    <p>Enable or block individual pages.</p>
+  </a>
+  <a href="{% url 'dashboard:plans:list' %}" class="fcc-hub-card">
+    <i data-lucide="layers"></i>
+    <h3>Plan features</h3>
+    <p>Configure features per subscription plan.</p>
+  </a>
+  <a href="{% url 'dashboard:feature_control:addons' %}" class="fcc-hub-card">
+    <i data-lucide="puzzle"></i>
+    <h3>Add-ons</h3>
+    <p>Manage purchasable modules.</p>
+  </a>
+</div>
+
+<section class="fin-panel">
+  <div class="fin-panel__head"><h2 class="fin-panel__title">Recent changes</h2></div>
+  <table class="fcc-table">
+    <thead><tr><th>When</th><th>Action</th><th>Summary</th><th>By</th></tr></thead>
+    <tbody>
+      {% for log in stats.recent_audit %}
+      <tr>
+        <td>{{ log.created_at|date:"M j, H:i" }}</td>
+        <td><code>{{ log.get_action_display }}</code></td>
+        <td>{{ log.summary }}</td>
+        <td>{{ log.actor.email|default:"System" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="fin-muted">No audit entries yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

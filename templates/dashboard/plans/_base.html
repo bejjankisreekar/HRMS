@@ -1,0 +1,40 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Feature Management · Platform Console{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'financials-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'plan-management.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="fin-page pm-page">
+  <header class="fin-hero ot-no-print">
+    <div class="fin-hero__inner">
+      <div class="fin-hero__text">
+        <p class="fin-eyebrow">Super Admin · Platform</p>
+        <h1 class="fin-title">Feature Management</h1>
+        <p class="fin-subtitle">Configure subscription plans, features, navigation order, limits, and add-ons.</p>
+      </div>
+      <div class="fin-hero__actions">
+        <form method="post" action="{% url 'dashboard:plans:create' %}" class="pm-inline-form">
+          {% csrf_token %}
+          <input type="hidden" name="name" value="New Plan">
+          <button type="submit" class="fin-btn fin-btn--primary"><i data-lucide="plus"></i> Create plan</button>
+        </form>
+        <a href="{% url 'dashboard:financials:hub' %}" class="fin-btn fin-btn--ghost"><i data-lucide="indian-rupee"></i> Billing center</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="fin-subnav ot-no-print" aria-label="Plan sections">
+    {% for item in plan_nav %}
+    <a href="{{ item.url }}" class="fin-subnav__item{% if item.active %} is-active{% endif %}">
+      <i data-lucide="{{ item.icon }}"></i>
+      <span>{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% block plans_content %}{% endblock %}
+</div>
+{% endblock %}

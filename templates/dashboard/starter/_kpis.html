@@ -1,0 +1,46 @@
+<section class="starter-kpis" aria-label="Key metrics">
+  <a href="{% url 'dashboard:staff_list' %}?role=EMPLOYEE&status=active" class="starter-kpi starter-kpi--violet">
+    <div class="starter-kpi__icon"><i data-lucide="users"></i></div>
+    <div class="starter-kpi__body">
+      <span class="starter-kpi__label">Total employees</span>
+      <span class="starter-kpi__value">{{ kpis.total_employees }}</span>
+    </div>
+  </a>
+
+  <a href="{% url 'dashboard:attendance' %}" class="starter-kpi starter-kpi--emerald">
+    <div class="starter-kpi__icon"><i data-lucide="user-check"></i></div>
+    <div class="starter-kpi__body">
+      <span class="starter-kpi__label">Present today</span>
+      <span class="starter-kpi__value">{{ kpis.present_today }}</span>
+      {% if kpis.total_employees %}<span class="starter-kpi__hint">{{ kpis.attendance_rate }}% attendance</span>{% endif %}
+    </div>
+  </a>
+
+  <a href="{% if features.leave_enabled %}{% url 'leaves:management' %}{% else %}#{% endif %}"
+     class="starter-kpi starter-kpi--amber {% if not features.leave_enabled %}starter-kpi--disabled{% endif %}">
+    <div class="starter-kpi__icon"><i data-lucide="palmtree"></i></div>
+    <div class="starter-kpi__body">
+      <span class="starter-kpi__label">On leave</span>
+      <span class="starter-kpi__value">{{ kpis.on_leave }}</span>
+    </div>
+  </a>
+
+  <a href="{% if features.leave_enabled %}{% url 'leaves:management' %}?status=PENDING{% else %}#{% endif %}"
+     class="starter-kpi starter-kpi--rose {% if not features.leave_enabled %}starter-kpi--disabled{% endif %}">
+    <div class="starter-kpi__icon"><i data-lucide="inbox"></i></div>
+    <div class="starter-kpi__body">
+      <span class="starter-kpi__label">Pending requests</span>
+      <span class="starter-kpi__value">{{ kpis.pending_requests }}</span>
+    </div>
+  </a>
+
+  <a href="{% if features.payroll_enabled %}{% url 'payroll:management' %}{% else %}#{% endif %}"
+     class="starter-kpi starter-kpi--cyan {% if not features.payroll_enabled %}starter-kpi--disabled{% endif %}">
+    <div class="starter-kpi__icon"><i data-lucide="wallet"></i></div>
+    <div class="starter-kpi__body">
+      <span class="starter-kpi__label">Monthly payroll</span>
+      <span class="starter-kpi__value starter-kpi__value--sm">{{ kpis.monthly_payroll_display }}</span>
+      <span class="starter-kpi__hint">{{ kpis.payroll_label }}</span>
+    </div>
+  </a>
+</section>

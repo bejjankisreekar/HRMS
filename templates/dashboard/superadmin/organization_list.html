@@ -1,0 +1,96 @@
+{% extends "dashboard/_shell.html" %}
+{% block title %}Organizations · Platform{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Organizations</h1>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Create, edit, deactivate, or remove tenant workspaces.</p>
+    </div>
+    <a href="{% url 'dashboard:super_organization_create' %}"
+       class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500">Create organization</a>
+  </div>
+
+  <form method="get" class="flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+    <div class="min-w-[12rem] flex-1">
+      <label class="text-xs font-medium text-slate-500">Search</label>
+      {{ filter_form.q }}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Plan</label>
+      {{ filter_form.plan }}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Status</label>
+      {{ filter_form.status }}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-slate-500">Active</label>
+      {{ filter_form.active }}
+    </div>
+    <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-slate-900">Filter</button>
+  </form>
+
+  <div class="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-white/10">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500 dark:bg-white/5">
+        <tr>
+          <th class="px-4 py-3">Organization</th>
+          <th class="px-4 py-3">Workspace ID</th>
+          <th class="px-4 py-3">Plan</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Users</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+        {% for org in organizations %}
+        <tr class="hover:bg-slate-50 dark:hover:bg-white/5">
+          <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ org.name }}</td>
+          <td class="px-4 py-3 font-mono text-xs text-violet-600 dark:text-violet-400">{{ org.organization_code|default:"—" }}</td>
+          <td class="px-4 py-3">{{ org.get_subscription_plan_display }}</td>
+          <td class="px-4 py-3">
+            <span class="rounded-full px-2 py-0.5 text-xs bg-slate-100 dark:bg-white/10">{{ org.get_subscription_status_display }}</span>
+          </td>
+          <td class="px-4 py-3">{{ org.user_count }}</td>
+          <td class="px-4 py-3 text-right">
+            <a href="{% url 'dashboard:super_organization_detail' org.pk %}" class="font-semibold text-violet-600 hover:text-violet-500">Manage</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No organizations found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="flex justify-center gap-2 text-sm">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="rounded-lg px-3 py-1 ring-1 ring-slate-200 dark:ring-white/10">Previous</a>
+    {% endif %}
+    <span class="px-3 py-1 text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="rounded-lg px-3 py-1 ring-1 ring-slate-200 dark:ring-white/10">Next</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<style>
+  #id_q, #id_plan, #id_status, #id_active {
+    margin-top: 0.25rem;
+    display: block;
+    width: 100%;
+    min-width: 8rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(226 232 240);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  .dark #id_q, .dark #id_plan, .dark #id_status, .dark #id_active {
+    border-color: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: white;
+  }
+</style>
+{% endblock %}

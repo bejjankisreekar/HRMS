@@ -1,0 +1,62 @@
+{% extends "dashboard/grades/_base.html" %}
+
+{% block grades_content %}
+<div class="grid gap-6 lg:grid-cols-5">
+  <section class="grd-panel lg:col-span-2">
+    <h2 class="grd-panel__title">Add designation</h2>
+    <form method="post" class="space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      {% for field in form %}
+      <div>
+        <label class="platform-label">{{ field.label }}</label>
+        {{ field }}
+      </div>
+      {% endfor %}
+      <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Create designation</button>
+    </form>
+
+    {% if edit_designation %}
+    <div class="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
+      <h3 class="grd-panel__title">Edit {{ edit_designation.name }}</h3>
+      <form method="post" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="designation_id" value="{{ edit_designation.pk }}">
+        {% for field in edit_form %}
+        <div><label class="platform-label">{{ field.label }}</label>{{ field }}</div>
+        {% endfor %}
+        <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Save</button>
+      </form>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="grd-panel lg:col-span-3">
+    <h2 class="grd-panel__title">Designations</h2>
+    <table class="grd-table">
+      <thead><tr><th>Title</th><th>Grade</th><th>Staff</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for d in designations %}
+        <tr>
+          <td><strong>{{ d.name }}</strong>{% if d.code %} <span class="grd-muted">({{ d.code }})</span>{% endif %}</td>
+          <td>{% if d.grade %}{{ d.grade.name }}{% else %}—{% endif %}</td>
+          <td>{{ d.holder_count }}</td>
+          <td>{{ d.get_status_display }}</td>
+          <td>
+            <a href="?edit={{ d.pk }}" class="text-xs text-teal-600 font-semibold">Edit</a>
+            <form method="post" class="inline">{% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="designation_id" value="{{ d.pk }}">
+              <button type="submit" class="text-xs text-rose-600 ml-2" onclick="return confirm('Delete designation?')">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="grd-muted">No designations yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

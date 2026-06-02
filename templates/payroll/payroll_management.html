@@ -1,0 +1,367 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Payroll Management · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'payroll.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script>window.PAYROLL_CHARTS = {{ charts_json|safe }};</script>
+<script src="{% static 'payroll.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <!-- Hero -->
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="wallet" class="h-7 w-7 text-white"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Finance · Payroll</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Payroll Management</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">
+            Manage salaries, payroll processing, payslips, taxes, reimbursements, and compliance.
+          </p>
+          <p class="mt-2 text-xs text-violet-200/70">{{ filters.period_label }} · {{ organization.name }}
+            {% if payroll_run %}· <span class="uppercase">{{ payroll_run.get_status_display }}</span>{% endif %}
+          </p>
+        </div>
+      </div>
+      {% if can_process %}
+      <div class="flex flex-wrap gap-2">
+        <form method="post" class="inline">{% csrf_token %}
+          <input type="hidden" name="action" value="run_payroll">
+          <input type="hidden" name="year" value="{{ filters.year }}">
+          <input type="hidden" name="month" value="{{ filters.month }}">
+          <button type="submit" class="pr-btn-primary"><i data-lucide="play" class="h-4 w-4"></i> Run Payroll</button>
+        </form>
+        <form method="post" class="inline">{% csrf_token %}
+          <input type="hidden" name="action" value="generate_payslips">
+          <input type="hidden" name="year" value="{{ filters.year }}">
+          <input type="hidden" name="month" value="{{ filters.month }}">
+          <button type="submit" class="pr-btn-ghost"><i data-lucide="file-text" class="h-4 w-4"></i> Generate Payslips</button>
+        </form>
+        {% if is_admin %}
+        <form method="post" class="inline">{% csrf_token %}
+          <input type="hidden" name="action" value="approve_payroll">
+          <input type="hidden" name="year" value="{{ filters.year }}">
+          <input type="hidden" name="month" value="{{ filters.month }}">
+          <button type="submit" class="pr-btn-ghost"><i data-lucide="check-circle" class="h-4 w-4"></i> Approve</button>
+        </form>
+        <form method="post" class="inline">{% csrf_token %}
+          <input type="hidden" name="action" value="mark_paid">
+          <input type="hidden" name="year" value="{{ filters.year }}">
+          <input type="hidden" name="month" value="{{ filters.month }}">
+          <button type="submit" class="pr-btn-ghost"><i data-lucide="banknote" class="h-4 w-4"></i> Mark Paid</button>
+        </form>
+        {% endif %}
+        <a href="?{{ filter_query }}&export=csv" class="pr-btn-ghost"><i data-lucide="download" class="h-4 w-4"></i> Export</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="pr-glass pr-no-print px-4 py-3">
+    <div class="pr-filter-bar">
+      <div class="pr-filter-item" style="min-width:9rem">
+        <label class="pr-filter-label">Organization</label>
+        <input type="text" readonly value="{{ organization.name }}" class="pr-input opacity-70">
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Branch</label>
+        <select name="branch" class="pr-input">
+          <option value="">All</option>
+          {% for b in filter_options.branches %}
+          <option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Department</label>
+        <select name="department" class="pr-input">
+          <option value="">All</option>
+          {% for d in filter_options.departments %}
+          <option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Payroll month</label>
+        <div class="flex gap-1">
+          <select name="month" class="pr-input w-24">
+            {% for num, name in month_choices %}
+            <option value="{{ num }}" {% if filters.month == num %}selected{% endif %}>{{ name|slice:":3" }}</option>
+            {% endfor %}
+          </select>
+          <input type="number" name="year" value="{{ filters.year }}" class="pr-input w-20" min="2020" max="2100">
+        </div>
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Employee</label>
+        <select name="employee" class="pr-input">
+          <option value="">All</option>
+          {% for e in filter_options.employees %}
+          <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Payment status</label>
+        <select name="payment_status" class="pr-input">
+          <option value="">All</option>
+          {% for val, label in filter_options.payment_statuses %}
+          <option value="{{ val }}" {% if filters_get.payment_status == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex items-end gap-2 pb-0.5">
+        <button type="submit" class="pr-btn-primary text-xs py-2">Apply</button>
+        <a href="{% url 'payroll:management' %}" class="pr-btn-ghost text-xs py-2">Reset</a>
+      </div>
+    </div>
+  </form>
+
+  <!-- Stats -->
+  <section class="grid gap-3 grid-cols-2 sm:grid-cols-4 xl:grid-cols-8">
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <div class="relative flex justify-between">
+        <div>
+          <p class="text-[10px] uppercase text-slate-500">Total payroll</p>
+          <p class="pr-counter mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.total_payroll }}" data-money="1">0</p>
+          {% if summary.trend_payroll %}<p class="text-[10px] text-emerald-400">↑ {{ summary.trend_payroll }}%</p>{% endif %}
+        </div>
+        <div class="pr-stat-icon"><i data-lucide="indian-rupee" class="h-5 w-5"></i></div>
+      </div>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Processed</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-violet-300" data-counter="{{ summary.employees_processed }}">0</p>
+      <p class="text-[10px] text-slate-500">of {{ summary.team_total }}</p>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Pending</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-amber-400" data-counter="{{ summary.pending_payroll }}">0</p>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Paid</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-emerald-400" data-counter="{{ summary.paid_salaries }}">0</p>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Reimb. pending</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-cyan-400" data-counter="{{ summary.reimbursements_pending }}">0</p>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Bonuses</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-pink-400" data-counter="{{ summary.bonuses_paid }}" data-money="1">0</p>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Deductions</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-rose-400" data-counter="{{ summary.total_deductions }}" data-money="1">0</p>
+    </div>
+    <div class="pr-glass pr-stat pr-stat--glow">
+      <p class="text-[10px] uppercase text-slate-500">Avg salary</p>
+      <p class="pr-counter mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.average_salary }}" data-money="1">0</p>
+    </div>
+  </section>
+
+  {% if can_process %}
+  <!-- Processing + approval -->
+  <div class="grid gap-6 lg:grid-cols-3">
+    <section class="pr-glass p-5 lg:col-span-2">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Payroll processing</h2>
+      <p class="text-xs text-slate-500">Attendance · leave · overtime · tax · batch validation</p>
+      {% with pct=summary.employees_processed|default:0 total=summary.team_total|default:1 %}
+      <div id="payrollProgress" class="mt-4" data-progress="{% widthratio pct total 100 %}">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>Progress</span>
+          <span>{{ summary.employees_processed }} / {{ summary.team_total }} employees</span>
+        </div>
+        <div class="pr-progress"><div class="pr-progress-bar" style="width:0"></div></div>
+      </div>
+      {% endwith %}
+      <ul class="mt-4 grid gap-2 sm:grid-cols-2 text-xs text-slate-400">
+        <li class="flex items-center gap-2"><i data-lucide="check" class="h-3.5 w-3.5 text-emerald-400"></i> Attendance integration</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="h-3.5 w-3.5 text-emerald-400"></i> Leave & LOP deductions</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="h-3.5 w-3.5 text-emerald-400"></i> PF / ESI / PT / TDS</li>
+        <li class="flex items-center gap-2"><i data-lucide="check" class="h-3.5 w-3.5 text-emerald-400"></i> Loan EMI auto-deduct</li>
+      </ul>
+    </section>
+    <section class="pr-glass p-5">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Approval workflow</h2>
+      <ul class="mt-4 space-y-3">
+        {% for step in approval_steps %}
+        <li class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/5">
+          <span>{{ step.get_step_display }}</span>
+          <span class="pr-badge {% if step.status == 'APPROVED' %}pr-badge--paid{% elif step.status == 'REJECTED' %}pr-badge--failed{% else %}pr-badge--pending{% endif %}">{{ step.get_status_display }}</span>
+        </li>
+        {% empty %}
+        <li class="text-slate-500">Run payroll to start approvals.</li>
+        {% endfor %}
+      </ul>
+      {% if is_admin and payroll_run %}
+      <form method="post" class="mt-4">{% csrf_token %}
+        <input type="hidden" name="action" value="lock_payroll">
+        <input type="hidden" name="year" value="{{ filters.year }}">
+        <input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="pr-btn-ghost w-full justify-center text-xs">Lock payroll</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+
+  <!-- Salary structure -->
+  <section class="pr-glass p-5">
+    <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Salary structure components</h2>
+    <p class="text-xs text-slate-500">Templates · CTC breakdown · statutory deductions</p>
+    <div class="mt-4 flex flex-wrap gap-2">
+      {% for c in salary_components %}
+      <span class="pr-component-chip">
+        {% if c.component_type == 'EARNING' %}<i data-lucide="plus-circle" class="h-3 w-3 text-emerald-400"></i>{% else %}<i data-lucide="minus-circle" class="h-3 w-3 text-rose-400"></i>{% endif %}
+        {{ c.name }}
+      </span>
+      {% endfor %}
+    </div>
+    {% if salary_structures %}
+    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {% for s in salary_structures %}
+      <div class="rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs dark:border-violet-500/20 dark:bg-violet-500/5">
+        <p class="font-semibold text-slate-900 dark:text-white">{{ s.name }}</p>
+        <p class="text-slate-400">₹{{ s.monthly_ctc|floatformat:0 }}/mo · {{ s.currency }}{% if s.grade %} · {{ s.grade }}{% endif %}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <!-- Charts -->
+  <section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Monthly payroll trend</h3><div class="mt-2 h-44"><canvas id="chartPayrollMonthly"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Department cost</h3><div class="mt-2 h-44"><canvas id="chartDeptPayroll"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Salary distribution</h3><div class="mt-2 h-44"><canvas id="chartSalaryDist"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Tax analysis</h3><div class="mt-2 h-44"><canvas id="chartTax"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Bonus distribution</h3><div class="mt-2 h-44"><canvas id="chartBonus"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Expense forecast</h3><div class="mt-2 h-44"><canvas id="chartForecast"></canvas></div></div>
+  </section>
+
+  <!-- Insights + reimbursements -->
+  <div class="grid gap-6 lg:grid-cols-3">
+    <section class="pr-glass p-5 lg:col-span-2">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">AI smart insights</h2>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        {% for item in insights %}
+        <div class="pr-insight flex gap-3">
+          <i data-lucide="{{ item.icon }}" class="h-5 w-5 shrink-0 text-violet-400"></i>
+          <div>
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ item.title }}</p>
+            <p class="mt-1 text-xs text-slate-400">{{ item.body }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    <section class="pr-glass p-5">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Reimbursements</h2>
+      <ul class="mt-3 max-h-48 space-y-2 overflow-y-auto text-xs">
+        {% for r in pending_reimbursements %}
+        <li class="rounded-lg border border-white/10 p-2">
+          <p class="text-slate-900 dark:text-white">{{ r.user.choice_label }} · ₹{{ r.amount }}</p>
+          <p class="text-slate-500">{{ r.get_category_display }}</p>
+          {% if is_finance %}
+          <div class="mt-2 flex gap-2">
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="approve_reimbursement"><input type="hidden" name="reimbursement_id" value="{{ r.pk }}"><button class="text-emerald-400">Approve</button></form>
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="reject_reimbursement"><input type="hidden" name="reimbursement_id" value="{{ r.pk }}"><button class="text-rose-400">Reject</button></form>
+          </div>
+          {% endif %}
+        </li>
+        {% empty %}
+        <li class="text-slate-500">No pending claims.</li>
+        {% endfor %}
+      </ul>
+      {% if can_employee_claim %}
+      <button type="button" data-open-reimburse class="mt-3 pr-btn-primary w-full justify-center text-xs">Submit claim</button>
+      {% endif %}
+    </section>
+  </div>
+
+  <!-- Payroll table -->
+  <section class="pr-glass overflow-hidden">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Payroll reports</h2>
+        <p class="text-xs text-slate-500">{{ page_obj.paginator.count }} records · click row for payslip</p>
+      </div>
+    </div>
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        <thead>
+          <tr>
+            <th>Emp. ID</th><th>Name</th><th>Department</th><th>Designation</th>
+            <th>Period</th><th>Gross</th><th>Deductions</th><th>Net</th>
+            <th>Bonus</th><th>Reimb.</th><th>Status</th><th>Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table_rows %}
+          <tr data-payslip="{{ row.id }}">
+            <td>{{ row.employee_id }}</td>
+            <td class="font-medium text-slate-900 dark:text-white">{{ row.employee_name }}</td>
+            <td>{{ row.department }}</td>
+            <td>{{ row.designation }}</td>
+            <td>{{ row.period }}</td>
+            <td>₹{{ row.gross|floatformat:0 }}</td>
+            <td>₹{{ row.deductions|floatformat:0 }}</td>
+            <td class="font-semibold text-violet-300">₹{{ row.net|floatformat:0 }}</td>
+            <td>₹{{ row.bonus|floatformat:0 }}</td>
+            <td>₹{{ row.reimbursements|floatformat:0 }}</td>
+            <td><span class="pr-badge pr-badge--{{ row.payment_status|lower }}">{{ row.payment_status_display }}</span></td>
+            <td>{{ row.payment_date|date:"d M Y"|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="12" class="py-16 text-center text-slate-500">
+            No payroll records. {% if can_process %}Click <strong>Run Payroll</strong> for {{ filters.period_label }}.{% endif %}
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-between border-t border-white/10 px-5 py-3 text-xs">
+      <span class="text-slate-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a href="?{{ filter_query }}&page={{ page_obj.previous_page_number }}" class="pr-btn-ghost text-xs py-1">Prev</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?{{ filter_query }}&page={{ page_obj.next_page_number }}" class="pr-btn-ghost text-xs py-1">Next</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <p class="pr-no-print text-center text-[10px] text-slate-500 dark:text-slate-600 pb-6">
+    Multi-tenant payroll · Bank transfer ready · Compliance audit trail
+  </p>
+</div>
+
+{% if can_employee_claim %}
+<div id="reimburseModal" class="pr-modal pr-no-print" hidden>
+  <div class="pr-glass max-w-md w-full p-6">
+    <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Submit reimbursement</h3>
+    <form method="post" enctype="multipart/form-data" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_reimbursement">
+      <div><label class="pr-filter-label">Category</label>{{ reimbursement_form.category }}</div>
+      <div><label class="pr-filter-label">Amount</label>{{ reimbursement_form.amount }}</div>
+      <div><label class="pr-filter-label">Description</label>{{ reimbursement_form.description }}</div>
+      <div><label class="pr-filter-label">Receipt</label>{{ reimbursement_form.receipt }}</div>
+      <button type="submit" class="pr-btn-primary w-full justify-center">Submit</button>
+    </form>
+    <button type="button" data-close-reimburse class="mt-3 w-full text-xs text-slate-500">Cancel</button>
+  </div>
+</div>
+<script>
+document.querySelector('[data-open-reimburse]')?.addEventListener('click', () => document.getElementById('reimburseModal').hidden = false);
+document.querySelector('[data-close-reimburse]')?.addEventListener('click', () => document.getElementById('reimburseModal').hidden = true);
+</script>
+{% endif %}
+{% endblock %}

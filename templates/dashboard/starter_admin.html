@@ -1,0 +1,44 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{{ organization.name }} · Starter Dashboard{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'starter-dashboard.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+<script src="{% static 'starter-dashboard.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="starter-dash">
+
+  {% if empty_org %}
+  {% include "dashboard/starter/_empty_state.html" with variant="org" %}
+  {% else %}
+
+  <header class="starter-dash__header">
+    <div class="starter-dash__header-text">
+      <span class="starter-dash__badge">Starter Plan</span>
+      <h1 class="starter-dash__title">{{ organization.name }}</h1>
+      <p class="starter-dash__subtitle">Organization overview · {{ today|date:"l, d M Y" }}</p>
+    </div>
+    <div class="starter-dash__header-actions">
+      <a href="{% url 'dashboard:staff_create' %}" class="starter-btn starter-btn--primary">
+        <i data-lucide="user-plus"></i> Add employee
+      </a>
+    </div>
+  </header>
+
+  {% include "dashboard/starter/_kpis.html" %}
+  {% include "dashboard/starter/_quick_actions.html" %}
+
+  <div class="starter-dash__grid starter-dash__grid--analytics">
+    {% include "dashboard/starter/_charts.html" %}
+    {% include "dashboard/starter/_activity.html" %}
+  </div>
+
+  {% include "dashboard/starter/_employee_table.html" %}
+
+  {{ charts|json_script:"starter-charts-data" }}
+
+  {% endif %}
+</div>
+{% endblock %}

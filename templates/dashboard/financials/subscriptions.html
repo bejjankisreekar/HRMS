@@ -1,0 +1,69 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-panel">
+  <form method="get" class="fin-filters">
+    <select name="status" class="fin-input">
+      <option value="">All statuses</option>
+      <option value="active" {% if filters.status == "active" %}selected{% endif %}>Active</option>
+      <option value="trial" {% if filters.status == "trial" %}selected{% endif %}>Trial</option>
+      <option value="expired" {% if filters.status == "expired" %}selected{% endif %}>Expired</option>
+      <option value="suspended" {% if filters.status == "suspended" %}selected{% endif %}>Suspended</option>
+      <option value="past_due" {% if filters.status == "past_due" %}selected{% endif %}>Payment failed</option>
+      <option value="growth" {% if filters.status == "growth" %}selected{% endif %}>Growth</option>
+    </select>
+    <select name="plan" class="fin-input">
+      <option value="">All plans</option>
+      {% for p in plans %}
+      <option value="{{ p.slug }}" {% if filters.plan == p.slug %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <input type="search" name="q" value="{{ filters.q }}" placeholder="Search org…" class="fin-input">
+    <button type="submit" class="fin-btn fin-btn--primary">Filter</button>
+  </form>
+
+  <div class="fin-table-wrap">
+    <table class="fin-table">
+      <thead>
+        <tr>
+          <th>Organization</th>
+          <th>Code</th>
+          <th>Plan</th>
+          <th>Status</th>
+          <th>Employees</th>
+          <th>Monthly bill</th>
+          <th>Renewal</th>
+          <th>Payment</th>
+          <th>Add-ons</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><strong>{{ row.organization.name }}</strong></td>
+          <td>{{ row.organization.organization_code|default:"—" }}</td>
+          <td><span class="fin-badge">{{ row.plan_name }}</span></td>
+          <td>{{ row.status }}</td>
+          <td>{{ row.employee_count }}</td>
+          <td>₹{{ row.monthly_bill|floatformat:0 }}</td>
+          <td>{% if row.renewal_date %}{{ row.renewal_date|date:"M d, Y" }}{% else %}—{% endif %}</td>
+          <td>{{ row.payment_status }}</td>
+          <td class="fin-muted">{% for a in row.addons %}{{ a.addon.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+          <td>
+            <div class="fin-actions" data-org-id="{{ row.organization.pk }}">
+              <button type="button" class="fin-action" data-action="generate_invoice" title="Generate invoice"><i data-lucide="file-plus"></i></button>
+              <button type="button" class="fin-action" data-action="activate" title="Activate"><i data-lucide="check-circle"></i></button>
+              <button type="button" class="fin-action" data-action="suspend" title="Suspend"><i data-lucide="pause-circle"></i></button>
+              <button type="button" class="fin-action" data-action="extend_trial" data-days="14" title="Extend trial"><i data-lucide="clock"></i></button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="fin-muted fin-center">No organizations match filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

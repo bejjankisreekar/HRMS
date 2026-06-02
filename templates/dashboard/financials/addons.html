@@ -1,0 +1,23 @@
+{% extends "dashboard/financials/_base.html" %}
+
+{% block financials_content %}
+<section class="fin-panel">
+  <h2 class="fin-panel__title">Add-on catalog</h2>
+  <div class="fin-addon-grid">
+    {% for addon in addons %}
+    <article class="fin-addon-card">
+      <div class="fin-addon-card__icon"><i data-lucide="{{ addon.icon|default:'puzzle' }}"></i></div>
+      <h3>{{ addon.name }}</h3>
+      <p class="fin-muted">{{ addon.description|default:"Premium module add-on" }}</p>
+      <p class="fin-addon-price">₹{{ addon.monthly_price_inr|floatformat:0 }}/mo</p>
+      {% if addon.setup_fee_inr %}<p class="fin-muted text-xs">Setup ₹{{ addon.setup_fee_inr|floatformat:0 }}</p>{% endif %}
+      <button type="button" class="fin-toggle" data-addon-id="{{ addon.pk }}" data-active="{{ addon.is_active|yesno:'true,false' }}" data-action="toggle_addon_catalog">
+        {{ addon.is_active|yesno:"Enabled,Disabled" }}
+      </button>
+    </article>
+    {% empty %}
+    <p class="fin-muted">Seed add-ons with management command.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

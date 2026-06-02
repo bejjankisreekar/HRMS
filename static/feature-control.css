@@ -1,0 +1,44 @@
+.fcc-page .fin-panel { margin-bottom: 1.25rem; }
+.fcc-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.fcc-search { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.fcc-input { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.45rem 0.65rem; font-size: 0.875rem; min-width: 140px; }
+.fcc-group { margin-top: 1.25rem; }
+.fcc-group__title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 0.65rem; }
+.fcc-toggle-grid { display: grid; gap: 0.35rem; }
+.fcc-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.65rem 0.85rem; border: 1px solid #e2e8f0; border-radius: 0.65rem; background: #fff; cursor: pointer; }
+.fcc-toggle-row__info { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.65rem; }
+.fcc-toggle-row code { font-size: 0.7rem; color: #94a3b8; }
+.fcc-tag { font-size: 0.65rem; background: #f1f5f9; color: #64748b; padding: 0.1rem 0.4rem; border-radius: 999px; }
+.fcc-switch { width: 2.5rem; height: 1.35rem; accent-color: #7c3aed; cursor: pointer; }
+.fcc-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+.fcc-stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.fcc-stat span { font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.fcc-stat strong { font-size: 1.35rem; color: #0f172a; }
+.fcc-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+.fcc-hub-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 0.85rem; padding: 1rem; text-decoration: none; color: inherit; transition: border-color 0.15s; }
+.fcc-hub-card:hover { border-color: #a78bfa; }
+.fcc-hub-card h3 { font-weight: 600; margin: 0.35rem 0; }
+.fcc-hub-card p { font-size: 0.8125rem; color: #64748b; margin: 0; }
+.fcc-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.fcc-table th, .fcc-table td { text-align: left; padding: 0.55rem 0.65rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.fcc-nav-list { list-style: none; margin: 0; padding: 0; border: 1px solid #e2e8f0; border-radius: 0.65rem; overflow: hidden; }
+.fcc-nav-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem; background: #fff; border-bottom: 1px solid #f8fafc; cursor: grab; }
+.fcc-nav-item:last-child { border-bottom: none; }
+.fcc-nav-item__label { flex: 1; font-weight: 600; }
+.fcc-nav-item code { font-size: 0.7rem; color: #94a3b8; }
+.fcc-org-grid { display: grid; gap: 0.5rem; }
+.fcc-org-row { border: 1px solid #e2e8f0; border-radius: 0.65rem; padding: 0.75rem; background: #fff; }
+.fcc-org-row__info { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.fcc-org-row__actions { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+.fcc-org-row__meta { font-size: 0.75rem; }
+.fcc-status { font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 999px; }
+.fcc-status.is-on { background: #dcfce7; color: #166534; }
+.fcc-status.is-off { background: #fee2e2; color: #991b1b; }
+.fcc-legend { display: flex; gap: 1rem; font-size: 0.75rem; color: #64748b; margin: 1rem 0; }
+.fcc-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 999px; margin-right: 0.25rem; }
+.fcc-dot--on { background: #22c55e; }
+.fcc-dot--off { background: #ef4444; }
+.fcc-dot--override { background: #8b5cf6; }
+.fcc-limits-form { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f1f5f9; }
+.fcc-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.65rem; margin: 0.65rem 0; }
+.fcc-form-grid label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.75rem; font-weight: 600; color: #64748b; }

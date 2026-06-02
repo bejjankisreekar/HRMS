@@ -1,0 +1,26 @@
+<section class="hrms-section hrms-price-addons" aria-labelledby="addons-heading">
+  <div class="hrms-container">
+    <div class="hrms-section__head hrms-reveal">
+      <span class="hrms-section__eyebrow">Add-ons</span>
+      <h2 id="addons-heading" class="hrms-section__title">Extend your plan</h2>
+      <p class="hrms-section__desc">Optional flat monthly add-ons — stack on any paid plan.</p>
+    </div>
+    <div class="hrms-price-addons__grid">
+      {% for addon in pricing_addons %}
+      <article class="hrms-price-addon hrms-reveal">
+        <div class="hrms-price-addon__icon">
+          <i data-lucide="{{ addon.icon }}" class="h-5 w-5"></i>
+        </div>
+        <div class="hrms-price-addon__body">
+          <h3>{{ addon.name }}</h3>
+          <p>{{ addon.description }}</p>
+        </div>
+        <div class="hrms-price-addon__price">
+          <span>₹{{ addon.monthly_price|floatformat:0 }}</span>
+          <small>/month</small>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

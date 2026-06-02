@@ -1,0 +1,24 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Letter · HRMS{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  <a href="javascript:history.back()" class="hrms-back-btn">
+    <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+    <span>Back</span>
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto lc-glass p-8">
+  <div class="flex justify-between items-start mb-6">
+    <div>
+      <h1 class="text-xl font-bold text-slate-900 dark:text-white">{{ letter.get_letter_type_display }}</h1>
+      <p class="text-sm text-slate-500">{{ organization.name }} · {{ letter.generated_at|date:"d M Y H:i" }}</p>
+    </div>
+    <button type="button" onclick="window.print()" class="lc-btn-primary text-sm">Print / PDF</button>
+  </div>
+  <pre class="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 font-sans leading-relaxed">{{ letter.content }}</pre>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% comment %}
+  row: enrich_attendance_row dict
+  title: optional card title
+{% endcomment %}
+<div class="attendance-day-summary">
+  <div class="attendance-day-summary-grid">
+    <div class="attendance-day-stat">
+      <p class="attendance-day-stat-label"><i data-lucide="log-in" class="inline h-3.5 w-3.5 text-emerald-500"></i> Login time</p>
+      <p class="attendance-day-stat-value text-emerald-600">{{ row.login_time }}</p>
+    </div>
+    <div class="attendance-day-stat">
+      <p class="attendance-day-stat-label"><i data-lucide="log-out" class="inline h-3.5 w-3.5 text-violet-500"></i> Logout time</p>
+      <p class="attendance-day-stat-value text-violet-600">{{ row.logout_time }}</p>
+    </div>
+    <div class="attendance-day-stat">
+      <p class="attendance-day-stat-label"><i data-lucide="timer" class="inline h-3.5 w-3.5 text-indigo-500"></i> Total hours</p>
+      <p class="attendance-day-stat-value text-indigo-600">{{ row.working_hours }}</p>
+    </div>
+    <div class="attendance-day-stat">
+      <p class="attendance-day-stat-label"><i data-lucide="clock" class="inline h-3.5 w-3.5 text-slate-500"></i> Late buffer</p>
+      {% if row.shift_timing.has_shift %}
+      <p class="attendance-day-stat-value text-slate-800 dark:text-slate-200">{{ row.shift_timing.grace_label }}</p>
+      <p class="text-[10px] text-slate-500">{{ row.shift_timing.grace_detail }}</p>
+      {% else %}
+      <p class="attendance-day-stat-value">—</p>
+      {% endif %}
+    </div>
+    <div class="attendance-day-stat">
+      <p class="attendance-day-stat-label"><i data-lucide="briefcase" class="inline h-3.5 w-3.5"></i> Shift</p>
+      {% if row.shift_timing.has_shift %}
+      <p class="attendance-day-stat-value text-sm">{{ row.shift_timing.name }}</p>
+      <p class="text-[10px] text-slate-500">{{ row.shift_timing.range }}</p>
+      {% else %}
+      <p class="attendance-day-stat-value">—</p>
+      {% endif %}
+    </div>
+    <div class="attendance-day-stat">
+      <p class="attendance-day-stat-label">Punctuality</p>
+      <div class="mt-1">{% include "dashboard/_attendance_late_badge.html" with record=row.record lateness=row.lateness %}</div>
+    </div>
+  </div>
+  {% if row.record %}
+  <p class="mt-3 text-center text-xs text-slate-500">
+    Status: <strong>{{ row.record.get_status_display }}</strong>
+    {% if row.is_marked and not row.record.check_in %} · Marked by HR/admin{% endif %}
+  </p>
+  {% endif %}
+</div>

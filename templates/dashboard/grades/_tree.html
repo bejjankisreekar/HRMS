@@ -1,0 +1,37 @@
+<ul class="grd-tree">
+  {% for node in nodes %}
+  <li>
+    <div class="grd-tree-node">
+      <strong>{{ node.name }}</strong>
+      {% if node.code %}<span class="grd-tree-meta">{{ node.code }}</span>{% endif %}
+      <span class="grd-tree-meta">L{{ node.level_number }} · {{ node.member_count }} staff</span>
+    </div>
+    {% if node.children %}
+    <ul>
+      {% for child in node.children %}
+      <li>
+        <div class="grd-tree-node">
+          <strong>{{ child.name }}</strong>
+          <span class="grd-tree-meta">L{{ child.level_number }} · {{ child.member_count }} staff</span>
+        </div>
+        {% if child.children %}
+        <ul>
+          {% for gc in child.children %}
+          <li>
+            <div class="grd-tree-node">
+              <strong>{{ gc.name }}</strong>
+              <span class="grd-tree-meta">{{ gc.member_count }} staff</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </li>
+  {% empty %}
+  <li class="grd-muted">No grades in this category.</li>
+  {% endfor %}
+</ul>

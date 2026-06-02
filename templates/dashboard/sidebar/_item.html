@@ -1,0 +1,16 @@
+{% load static %}
+<a href="{{ item.url }}"
+   class="hrms-nav-item {% if item.is_active %}hrms-nav-item--active{% endif %}"
+   {% if item.is_active %}aria-current="page"{% endif %}
+   {% if item.url == '#' %}aria-disabled="true" onclick="return false;"{% endif %}
+   data-sidebar-tooltip="{{ item.label }}"
+   title="{{ item.label }}">
+  <span class="hrms-nav-item__indicator" aria-hidden="true"></span>
+  <span class="hrms-nav-item__icon">
+    <i data-lucide="{{ item.icon }}" class="h-[18px] w-[18px]"></i>
+  </span>
+  <span class="hrms-nav-item__label" data-sidebar-label>{{ item.label }}</span>
+  {% if item.badge %}
+  <span class="hrms-nav-item__badge" data-sidebar-label>{{ item.badge }}</span>
+  {% endif %}
+</a>

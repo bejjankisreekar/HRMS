@@ -1,0 +1,15 @@
+<nav class="login-portals" role="tablist" aria-label="Select login portal">
+  {% for p in login_portals %}
+  <button type="button"
+          role="tab"
+          class="login-portals__tab login-portals__tab--{{ p.accent }}"
+          :class="{ 'login-portals__tab--active': portal === '{{ p.id }}' }"
+          :aria-selected="portal === '{{ p.id }}'"
+          @click="setPortal('{{ p.id }}')"
+          id="portal-tab-{{ p.id }}"
+          aria-controls="portal-panel">
+    <i data-lucide="{{ p.icon }}"></i>
+    <span>{{ p.label }}</span>
+  </button>
+  {% endfor %}
+</nav>

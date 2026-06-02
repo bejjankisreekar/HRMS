@@ -1,0 +1,70 @@
+{% extends "dashboard/storage/_base.html" %}
+
+{% block storage_content %}
+<section class="sto-kpi-grid">
+  <article class="sto-kpi sto-kpi--accent">
+    <p class="sto-kpi__label">Total storage</p>
+    <p class="sto-kpi__value">{{ resource_metrics.storage_label }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Indexed files</p>
+    <p class="sto-kpi__value">{{ resource_metrics.file_count }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Active sessions (24h)</p>
+    <p class="sto-kpi__value">{{ resource_metrics.active_sessions }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Organizations</p>
+    <p class="sto-kpi__value">{{ resource_metrics.org_count }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">API calls (today)</p>
+    <p class="sto-kpi__value">{{ resource_metrics.api_calls_today }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Database size</p>
+    <p class="sto-kpi__value">{{ resource_metrics.db_size }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">CPU usage</p>
+    <p class="sto-kpi__value">{{ resource_metrics.cpu_usage }}</p>
+  </article>
+</section>
+
+<div class="sto-grid-2">
+  <section class="sto-panel">
+    <h2 class="sto-panel__title">Resource monitoring</h2>
+    <p class="sto-muted mb-4">Infrastructure metrics for CPU, database, API, and session usage across the platform. Connect observability agents to populate live data.</p>
+    <div class="space-y-3">
+      <div>
+        <div class="flex justify-between text-xs mb-1"><span>Storage utilization</span><span>{{ total_label }}</span></div>
+        <div class="sto-progress"><div class="sto-progress__bar sto-progress__bar--ok" style="width: 42%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between text-xs mb-1"><span>API quota (placeholder)</span><span>—</span></div>
+        <div class="sto-progress"><div class="sto-progress__bar sto-progress__bar--warning" style="width: 18%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between text-xs mb-1"><span>Session capacity</span><span>{{ resource_metrics.active_sessions }} active</span></div>
+        <div class="sto-progress"><div class="sto-progress__bar sto-progress__bar--ok" style="width: 24%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sto-panel">
+    <h2 class="sto-panel__title">Middleware architecture</h2>
+    <ul class="sto-insights">
+      <li class="sto-insight sto-insight--info">
+        <div><strong>StorageTrackingMiddleware</strong><p>Intercept file uploads and record metadata to StoredFile index.</p></div>
+      </li>
+      <li class="sto-insight sto-insight--info">
+        <div><strong>QuotaEnforcementMiddleware</strong><p>Block uploads when org or user quota exceeded.</p></div>
+      </li>
+      <li class="sto-insight sto-insight--info">
+        <div><strong>UsageAggregationJob</strong><p>Nightly Celery task to sync file sizes and compute analytics.</p></div>
+      </li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

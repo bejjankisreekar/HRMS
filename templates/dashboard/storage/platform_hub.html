@@ -1,0 +1,86 @@
+{% extends "dashboard/storage/_base.html" %}
+
+{% block storage_content %}
+<section class="sto-kpi-grid">
+  <article class="sto-kpi sto-kpi--accent">
+    <p class="sto-kpi__label">Platform storage</p>
+    <p class="sto-kpi__value">{{ total_label }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Indexed files</p>
+    <p class="sto-kpi__value">{{ file_count }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Active organizations</p>
+    <p class="sto-kpi__value">{{ org_count }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">File categories</p>
+    <p class="sto-kpi__value">{{ category_totals|length }}</p>
+  </article>
+</section>
+
+<div class="sto-grid-2">
+  <section class="sto-panel">
+    <h2 class="sto-panel__title">Top consuming organizations</h2>
+    <div class="sto-table-wrap">
+      <table class="sto-table">
+        <thead>
+          <tr><th>Organization</th><th>Storage</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in top_orgs %}
+          <tr>
+            <td>{{ row.organization.name }}</td>
+            <td><strong>{{ row.size_label }}</strong></td>
+            <td>
+              <a href="{% url 'dashboard:super_organization_detail' row.organization.pk %}" class="sto-action-link">Details →</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="sto-muted">No indexed files yet. Run sync to populate.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sto-panel">
+    <h2 class="sto-panel__title">File type distribution</h2>
+    <ul class="sto-insights">
+      {% for cat in category_totals %}
+      <li class="sto-insight sto-insight--info">
+        <div><strong>{{ cat.label }}</strong><p>{{ cat.size_label }} · {{ cat.count }} files</p></div>
+      </li>
+      {% empty %}
+      <li class="sto-muted">No category data available.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+<section class="sto-panel">
+  <h2 class="sto-panel__title">Growth forecasting (preview)</h2>
+  <div class="sto-table-wrap">
+    <table class="sto-table">
+      <thead><tr><th>Period</th><th>Projected storage</th></tr></thead>
+      <tbody>
+        {% for f in forecast_placeholder %}
+        <tr><td>{{ f.month }}</td><td>{{ f.projected }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="sto-muted mt-3">Predictive storage forecasting will use historical upload trends and organization growth rates.</p>
+</section>
+
+<section class="sto-panel">
+  <h2 class="sto-panel__title">Future-ready capabilities</h2>
+  <div class="sto-future-grid">
+    <div class="sto-future-card"><strong>AI storage optimization</strong><br>Smart deduplication and tiering recommendations.</div>
+    <div class="sto-future-card"><strong>Automated archival</strong><br>Move inactive files to cold storage automatically.</div>
+    <div class="sto-future-card"><strong>Cost optimization</strong><br>Per-organization storage cost analytics.</div>
+    <div class="sto-future-card"><strong>Malware scanning</strong><br>Security scan integration placeholder.</div>
+  </div>
+</section>
+{% endblock %}

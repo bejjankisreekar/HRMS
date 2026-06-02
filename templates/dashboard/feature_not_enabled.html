@@ -1,0 +1,33 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Feature Not Enabled · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'upgrade-required.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="upg-page">
+  <div class="upg-card">
+    <div class="upg-icon"><i data-lucide="ban"></i></div>
+    <p class="upg-eyebrow">Access restricted</p>
+    <h1 class="upg-title">Feature Not Enabled</h1>
+    <p class="upg-desc">
+      <strong>{{ feature_name }}</strong> is not enabled for your organization.
+      Contact your organization administrator if you need access.
+    </p>
+
+    <div class="upg-actions">
+      <a href="{% url 'dashboard:settings' %}" class="upg-btn upg-btn--primary">
+        <i data-lucide="mail"></i> Contact Organization Admin
+      </a>
+      {% if required_plan_name and current_plan and required_plan_name != current_plan.name %}
+      <a href="{% url 'dashboard:settings' %}?tab=billing" class="upg-btn upg-btn--ghost">
+        <i data-lucide="arrow-up-circle"></i> Upgrade Plan
+      </a>
+      {% endif %}
+    </div>
+
+    <a href="{% url 'dashboard:home' %}" class="upg-back"><i data-lucide="arrow-left"></i> Back to dashboard</a>
+  </div>
+</div>
+{% endblock %}

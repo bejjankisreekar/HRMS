@@ -1,0 +1,70 @@
+{% extends "dashboard/storage/_base.html" %}
+
+{% block storage_content %}
+<section class="sto-kpi-grid">
+  <article class="sto-kpi sto-kpi--warn">
+    <p class="sto-kpi__label">Large files tracked</p>
+    <p class="sto-kpi__value">{{ large_files|length }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Duplicate groups</p>
+    <p class="sto-kpi__value">{{ duplicate_count }}</p>
+  </article>
+  <article class="sto-kpi">
+    <p class="sto-kpi__label">Audit events</p>
+    <p class="sto-kpi__value">{{ audit_logs|length }}</p>
+  </article>
+</section>
+
+<div class="sto-grid-2">
+  <section class="sto-panel">
+    <h2 class="sto-panel__title">Large files</h2>
+    <div class="sto-table-wrap">
+      <table class="sto-table">
+        <thead>
+          <tr><th>File</th><th>Org</th><th>Size</th><th>User</th></tr>
+        </thead>
+        <tbody>
+          {% for f in large_files %}
+          <tr>
+            <td>{{ f.file_name|truncatechars:32 }}</td>
+            <td>{{ f.organization.name|truncatechars:20 }}</td>
+            <td>{{ f.file_size_bytes|filesizeformat }}</td>
+            <td>{% if f.uploaded_by %}{{ f.uploaded_by.display_name }}{% else %}—{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="sto-muted">No large files indexed.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sto-panel">
+    <h2 class="sto-panel__title">Security-sensitive uploads (placeholder)</h2>
+    <ul class="sto-insights">
+      <li class="sto-insight"><div><strong>Malware scan</strong><p>Integration pending — files will be flagged before indexing.</p></div></li>
+      <li class="sto-insight"><div><strong>PII detection</strong><p>Automated classification for employee documents and payroll files.</p></div></li>
+      <li class="sto-insight"><div><strong>Duplicate documents</strong><p>{{ duplicate_count }} hash collision group(s) detected platform-wide.</p></div></li>
+    </ul>
+  </section>
+</div>
+
+<section class="sto-panel">
+  <h2 class="sto-panel__title">Activity timeline</h2>
+  <ul class="sto-timeline">
+    {% for log in audit_logs %}
+    <li>
+      <time>{{ log.created_at|date:"M d H:i" }}</time>
+      <div>
+        <strong>{{ log.get_action_display }}</strong> — {{ log.summary }}
+        {% if log.organization %}<span class="sto-muted"> · {{ log.organization.name }}</span>{% endif %}
+        {% if log.actor %}<span class="sto-muted"> · {{ log.actor.display_name }}</span>{% endif %}
+      </div>
+    </li>
+    {% empty %}
+    <li class="sto-muted">No audit activity yet.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
