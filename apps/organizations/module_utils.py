@@ -7,7 +7,9 @@ from apps.subscriptions.services.entitlements import has_feature
 
 MODULE_PLAN_FEATURES = {
     "leave": "leave",
-    "payroll": "payroll",
+    # The payroll module is gated by the base payroll feature key — there is no
+    # bare "payroll" FeatureDefinition (plans grant "payroll_basic"/"payroll_advanced").
+    "payroll": "payroll_basic",
 }
 
 MODULE_ORG_FLAGS = {

@@ -321,7 +321,7 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
         factor = Decimal(stats["present"]) / Decimal(working_days) if working_days else Decimal("1")
         factor = min(Decimal("1"), max(Decimal("0"), factor))
 
-        lines, earnings, deductions = _calculate_lines(salary.monthly_ctc, components, factor)
+        lines = employee_payslip_lines(salary, factor)
         reimb = _approved_reimbursements(member, start, end)
         emi = _loan_emi(member)
         if emi > 0:
@@ -454,3 +454,149 @@ def generate_payslip_numbers(run: PayrollRun) -> int:
         slip.save(update_fields=["generated_at", "payslip_number"])
         count += 1
     return count
+
+
+def build_salary_structure_rows(viewer: User) -> list[dict]:
+    """Per-employee salary structure breakdown for the Salary Structures page."""
+    org = viewer.organization
+    if not org:
+        return []
+    ensure_payroll_setup(org)
+    components = list(
+        SalaryComponent.objects.filter(organization=org, is_active=True).order_by("sort_order", "name")
+    )
+    team = payroll_team_for(viewer).order_by("first_name", "last_name")
+
+    rows: list[dict] = []
+    for emp in team:
+        salary = get_active_salary(emp)
+        bd = compute_employee_breakdown(salary)
+        earn_lines = [{"label": ln["label"], "amount": float(ln["amount"])} for ln in bd["earnings"]]
+        ded_lines = [{"label": ln["label"], "amount": float(ln["amount"])} for ln in bd["deductions"]]
+        rows.append(
+            {
+                "uid": str(emp.pk),
+                "name": emp.display_name,
+                "emp_id": emp.employee_id or "—",
+                "department": emp.department_name or "—",
+                "designation": emp.designation_label or "—",
+                "salary_type": salary.get_salary_type_display(),
+                "ctc": _money(salary.monthly_ctc),
+                "gross": _money(bd["gross"]),
+                "deductions": _money(bd["total_deductions"]),
+                "net": _money(bd["net"]),
+                "effective_from": salary.effective_from,
+                "is_active": salary.is_active,
+                "earnings": earn_lines,
+                "deduction_lines": ded_lines,
+                "edit_url": f"/payroll/salary-structures/{emp.pk}/",
+            }
+        )
+    return rows
+
+
+def seed_employee_components(salary) -> None:
+    """Populate editable per-employee components from the auto-calculated breakdown."""
+    from django.utils.text import slugify
+
+    from .models import EmployeeSalaryComponent as ESC
+
+    if salary.components.exists():
+        return
+    org = salary.user.organization
+    components = list(
+        SalaryComponent.objects.filter(organization=org, is_active=True).order_by("sort_order", "name")
+    )
+    lines, _earn, _ded = _calculate_lines(salary.monthly_ctc, components, Decimal("1"))
+    # Codes that read nicely as percentages get a percentage mode by default.
+    pct_modes = {
+        "basic": (ESC.Mode.PCT_CTC, Decimal("40")),
+        "hra": (ESC.Mode.PCT_BASIC, Decimal("50")),
+        "pf": (ESC.Mode.PCT_BASIC, Decimal("12")),
+    }
+    objs = []
+    for i, ln in enumerate(lines):
+        comp = ln.get("component")
+        code = (comp.code if comp else slugify(ln["label"]))[:40] or f"comp{i}"
+        if code in pct_modes:
+            mode, value = pct_modes[code]
+        else:
+            mode, value = ESC.Mode.FIXED, ln["amount"]
+        objs.append(
+            ESC(salary=salary, code=code, label=ln["label"], kind=ln["line_type"],
+                mode=mode, value=value, sort_order=i)
+        )
+    if objs:
+        ESC.objects.bulk_create(objs)
+
+
+def _resolve_component_amount(comp, ctc: Decimal, basic: Decimal, factor: Decimal) -> Decimal:
+    from .models import EmployeeSalaryComponent as ESC
+
+    if comp.mode == ESC.Mode.FIXED:
+        return _money(comp.value * factor)
+    if comp.mode == ESC.Mode.PCT_CTC:
+        return _money(ctc * comp.value / Decimal("100"))
+    if comp.mode == ESC.Mode.PCT_BASIC:
+        return _money(basic * comp.value / Decimal("100"))
+    return _money(comp.value)
+
+
+def compute_employee_breakdown(salary, factor: Decimal = Decimal("1")) -> dict:
+    """Earnings/deductions/gross/net from per-employee components (or auto fallback)."""
+    from .models import SalaryComponent as SC
+
+    comps = list(salary.components.all().order_by("sort_order"))
+    if not comps:
+        org = salary.user.organization
+        components = list(
+            SC.objects.filter(organization=org, is_active=True).order_by("sort_order", "name")
+        )
+        lines, earnings, deductions = _calculate_lines(salary.monthly_ctc, components, factor)
+        earn = [{"code": "", "label": l["label"], "amount": l["amount"], "mode": "FIXED",
+                 "value": l["amount"], "kind": l["line_type"]}
+                for l in lines if l["line_type"] == SC.ComponentType.EARNING]
+        ded = [{"code": "", "label": l["label"], "amount": l["amount"], "mode": "FIXED",
+                "value": l["amount"], "kind": l["line_type"]}
+               for l in lines if l["line_type"] == SC.ComponentType.DEDUCTION]
+        return {"earnings": earn, "deductions": ded, "gross": earnings,
+                "total_deductions": deductions, "net": earnings - deductions, "custom": False}
+
+    ctc = _money(salary.monthly_ctc * factor)
+    basic = Decimal("0")
+    for c in comps:
+        if c.code == "basic":
+            basic = _resolve_component_amount(c, ctc, Decimal("0"), factor)
+            break
+
+    earnings, deductions = [], []
+    earn_total = ded_total = Decimal("0")
+    for c in comps:
+        amt = _resolve_component_amount(c, ctc, basic, factor)
+        row = {"code": c.code, "label": c.label, "amount": amt, "mode": c.mode,
+               "value": c.value, "kind": c.kind}
+        if c.kind == SC.ComponentType.EARNING:
+            earnings.append(row)
+            earn_total += amt
+        else:
+            deductions.append(row)
+            ded_total += amt
+    return {"earnings": earnings, "deductions": deductions, "gross": earn_total,
+            "total_deductions": ded_total, "net": earn_total - ded_total, "custom": True}
+
+
+def employee_payslip_lines(salary, factor: Decimal = Decimal("1")) -> list[dict]:
+    """Payslip lines (process_payroll_run format) from per-employee components."""
+    bd = compute_employee_breakdown(salary, factor)
+    org = salary.user.organization
+    comp_by_code = {c.code: c for c in SalaryComponent.objects.filter(organization=org)}
+    lines = []
+    for i, row in enumerate(bd["earnings"] + bd["deductions"]):
+        lines.append({
+            "component": comp_by_code.get(row.get("code")),
+            "label": row["label"],
+            "line_type": row["kind"],
+            "amount": row["amount"],
+            "sort_order": i,
+        })
+    return lines

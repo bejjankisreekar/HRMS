@@ -1,5 +1,6 @@
 import calendar
 import json
+from decimal import Decimal
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -30,9 +31,10 @@ from .analytics import (
     table_rows,
 )
 from .forms import ReimbursementForm, SalaryRevisionForm
-from .models import Payslip, PayrollRun, Reimbursement, SalaryRevision
+from .models import EmployeeSalary, Payslip, PayrollRun, Reimbursement, SalaryComponent, SalaryRevision
 from .services import (
     approve_payroll_run,
+    build_salary_structure_rows,
     ensure_payroll_setup,
     generate_payslip_numbers,
     get_or_create_payroll_run,
@@ -55,7 +57,7 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
         return redirect(url)
 
     def dispatch(self, request, *args, **kwargs):
-        org = request.user.organization
+        org = getattr(request.user, "organization", None)
         if org:
             active, synced = ensure_module(org, "payroll", getattr(request.user, "role", None))
             if synced:
@@ -268,6 +270,156 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
                 "can_employee_claim": user.role in (User.Role.HR, User.Role.EMPLOYEE),
                 "today": timezone.localdate(),
                 "month_choices": [(i, calendar.month_name[i]) for i in range(1, 13)],
+            }
+        )
+        return context
+
+
+class SalaryStructuresView(OrganizationRequiredMixin, TemplateView):
+    """Payroll → Employee Salary Structures: per-employee salary breakdown."""
+
+    template_name = "payroll/salary_structures.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role not in (
+            User.Role.ADMIN,
+            User.Role.HR,
+        ):
+            messages.error(request, "Only Admin and HR can manage salary structures.")
+            return redirect("payroll:management")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        rows = build_salary_structure_rows(user)
+        total_gross = sum((r["gross"] for r in rows), Decimal("0"))
+        total_net = sum((r["net"] for r in rows), Decimal("0"))
+        total_ded = sum((r["deductions"] for r in rows), Decimal("0"))
+        context.update(
+            {
+                "organization": user.organization,
+                "rows": rows,
+                "summary": {
+                    "count": len(rows),
+                    "gross": total_gross,
+                    "deductions": total_ded,
+                    "net": total_net,
+                },
+                "is_admin": user.role == User.Role.ADMIN,
+            }
+        )
+        return context
+
+
+class EmployeeFinancialsView(OrganizationRequiredMixin, TemplateView):
+    """Dedicated salary/financial profile for one employee (CTC, breakdown,
+    bank + statutory details). Not the full HR profile."""
+
+    template_name = "payroll/employee_financials.html"
+    FINANCIAL_FIELDS = [
+        "bank_name", "bank_account_holder", "bank_account_number", "ifsc_code",
+        "pan_number", "aadhaar_number", "pf_account_number", "uan_number", "esi_number",
+    ]
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            if request.user.role not in (User.Role.ADMIN, User.Role.HR):
+                messages.error(request, "Only Admin and HR can manage employee financials.")
+                return redirect("payroll:salary_structures")
+            from .services import payroll_team_for
+
+            self.employee = get_object_or_404(payroll_team_for(request.user), pk=kwargs["pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from django.utils.dateparse import parse_date
+
+        from .models import EmployeeSalaryComponent as ESC
+        from .services import get_active_salary, seed_employee_components
+
+        emp = self.employee
+        salary = get_active_salary(emp)
+
+        # ── Salary (CTC / type / effective) ──
+        try:
+            new_ctc = Decimal(request.POST.get("monthly_ctc") or "0")
+        except Exception:
+            new_ctc = None
+        effective = parse_date(request.POST.get("effective_from") or "") or timezone.localdate()
+        salary_type = request.POST.get("salary_type")
+
+        if new_ctc is not None and new_ctc > 0:
+            if new_ctc != salary.monthly_ctc:
+                SalaryRevision.objects.create(
+                    user=emp,
+                    previous_ctc=salary.monthly_ctc,
+                    new_ctc=new_ctc,
+                    effective_date=effective,
+                    reason=(request.POST.get("revision_reason") or "").strip(),
+                    status=SalaryRevision.Status.APPROVED,
+                    approved_by=request.user,
+                )
+            salary.monthly_ctc = new_ctc
+        if salary_type in EmployeeSalary.SalaryType.values:
+            salary.salary_type = salary_type
+        salary.effective_from = effective
+        salary.save()
+
+        # ── Editable salary components (per employee) ──
+        seed_employee_components(salary)
+        for comp in salary.components.all():
+            mode = request.POST.get(f"comp_{comp.pk}_mode")
+            value = request.POST.get(f"comp_{comp.pk}_value")
+            changed = False
+            if mode in ESC.Mode.values and mode != comp.mode:
+                comp.mode = mode
+                changed = True
+            if value is not None:
+                try:
+                    v = Decimal(value)
+                    if v != comp.value:
+                        comp.value = v
+                        changed = True
+                except Exception:
+                    pass
+            if changed:
+                comp.save(update_fields=["mode", "value"])
+
+        # ── Bank + statutory details on the user ──
+        for field in self.FINANCIAL_FIELDS:
+            setattr(emp, field, (request.POST.get(field) or "").strip())
+        emp.save(update_fields=self.FINANCIAL_FIELDS)
+
+        messages.success(request, f"Saved financial details for {emp.display_name}.")
+        return redirect("payroll:employee_financials", pk=emp.pk)
+
+    def get_context_data(self, **kwargs):
+        from .services import compute_employee_breakdown, get_active_salary, seed_employee_components
+
+        context = super().get_context_data(**kwargs)
+        emp = self.employee
+        salary = get_active_salary(emp)
+        seed_employee_components(salary)
+        components = list(salary.components.all().order_by("sort_order"))
+        comp_json = [
+            {
+                "id": str(c.pk), "code": c.code, "label": c.label,
+                "kind": c.kind, "mode": c.mode, "value": float(c.value),
+            }
+            for c in components
+        ]
+        context.update(
+            {
+                "organization": self.request.user.organization,
+                "employee": emp,
+                "salary": salary,
+                "breakdown": compute_employee_breakdown(salary),
+                "components_json": comp_json,
+                "salary_type_choices": EmployeeSalary.SalaryType.choices,
+                "revisions": SalaryRevision.objects.filter(user=emp)
+                .select_related("approved_by")
+                .order_by("-effective_date", "-created_at")[:10],
             }
         )
         return context

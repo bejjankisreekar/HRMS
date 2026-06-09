@@ -19,13 +19,8 @@ def resolve_post_login_url(user: User, portal_id: str) -> str:
     if portal_id == PORTAL_ADMIN:
         if user.role == User.Role.SUPER_ADMIN:
             return reverse("dashboard:superadmin")
-        org = user.organization
-        if org and org.subscription_plan in (
-            Organization.SubscriptionPlan.PROFESSIONAL,
-            Organization.SubscriptionPlan.GROWTH,
-        ):
-            return reverse("dashboard:professional_admin")
-        return reverse("dashboard:starter_admin")
+        # One unified admin dashboard for every plan (Basic/Professional/Growth).
+        return reverse("dashboard:professional_admin")
 
     if portal_id == PORTAL_HR:
         return reverse("dashboard:attendance_team")

@@ -69,52 +69,67 @@ from .professional_dashboard_utils import get_professional_dashboard_context
 from .starter_dashboard_utils import get_starter_dashboard_context
 
 
+def build_status_board_rows(team_rows) -> list[dict]:
+    """Serializable rows for the status-based attendance board (Alpine table)."""
+    rows = []
+    for r in team_rows:
+        m = r["member"]
+        rec = r.get("record")
+        try:
+            avatar = m.profile_picture.url if m.profile_picture else ""
+        except Exception:
+            avatar = ""
+        name = m.display_name or m.username or ""
+        initials = "".join(p[0] for p in [m.first_name, m.last_name] if p)[:2].upper()
+        if not initials:
+            initials = (name[:2] or "?").upper()
+        rows.append(
+            {
+                "uid": str(m.pk),
+                "name": name,
+                "email": m.email or "",
+                "desig": m.designation_label or "",
+                "empId": m.employee_id or "",
+                "dept": m.department_name or "",
+                "deptId": str(m.department_id or ""),
+                "avatar": avatar,
+                "initials": initials,
+                "status": rec.status if rec else "",
+                "note": (rec.note if rec else "") or "",
+            }
+        )
+    return rows
+
+
 class DashboardRedirectView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         user: User = request.user
         if user.role == User.Role.SUPER_ADMIN:
             return redirect("dashboard:superadmin")
         if user.role == User.Role.ADMIN:
-            org = user.organization
-            if org and org.subscription_plan in (
-                Organization.SubscriptionPlan.PROFESSIONAL,
-                Organization.SubscriptionPlan.GROWTH,
-            ):
-                return redirect("dashboard:professional_admin")
-            return redirect("dashboard:starter_admin")
+            # One unified admin dashboard for every plan (Basic/Professional/Growth).
+            return redirect("dashboard:professional_admin")
         if user.role == User.Role.HR:
             return redirect("dashboard:attendance_team")
         return redirect("dashboard:employee")
 
 
-class OrgAdminDashboardView(OrganizationRequiredMixin, TemplateView):
-    template_name = "dashboard/org_admin.html"
+class OrgAdminDashboardView(OrganizationRequiredMixin, View):
+    """Legacy route — redirects to the single unified admin dashboard."""
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.role != User.Role.ADMIN:
-            return redirect("dashboard:home")
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update(get_org_admin_dashboard_data(self.request.user))
-        context["today"] = timezone.localdate()
-        return context
+    def get(self, request, *args, **kwargs):
+        return redirect("dashboard:professional_admin")
 
 
-class StarterAdminDashboardView(AdminRequiredMixin, TemplateView):
-    """Starter Plan dashboard for small teams (<50 employees)."""
+class StarterAdminDashboardView(OrganizationRequiredMixin, View):
+    """Legacy route — redirects to the single unified admin dashboard."""
 
-    template_name = "dashboard/starter_admin.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update(get_starter_dashboard_context(self.request.user))
-        return context
+    def get(self, request, *args, **kwargs):
+        return redirect("dashboard:professional_admin")
 
 
 class ProfessionalAdminDashboardView(AdminRequiredMixin, TemplateView):
-    """Professional Plan enterprise dashboard for mid-size organizations."""
+    """Unified admin dashboard for every plan (Basic / Professional / Growth)."""
 
     template_name = "dashboard/professional_admin.html"
 
@@ -336,6 +351,9 @@ class AttendanceBaseMixin:
         shift_filters = build_shift_attendance_filters(all_team_rows)
         team_rows = filter_team_rows_by_shift(all_team_rows, selected_shift)
 
+        # Full (shift-filtered) set for the status board — it filters client-side.
+        status_board_source = list(team_rows)
+
         # ── Department filter (admin only — HR sees only their assigned employees) ──
         dept_filter = self.request.GET.get("dept", "all")
         departments = []
@@ -398,6 +416,8 @@ class AttendanceBaseMixin:
             "dept_filter": dept_filter,
             "status_filter": status_filter,
             "role_filter": role_filter,
+            # Status-based attendance board (rich client-side table)
+            "status_board_rows": build_status_board_rows(status_board_source),
         }
 
 
@@ -539,8 +559,10 @@ class TeamAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, Templat
         return self._redirect_with_date(on_date)
 
     def _handle_bulk_save(self, request, user, on_date):
-        """Apply check-in/out and status edits for every changed row in one save."""
-        clear_statuses = (AttendanceRecord.Status.ABSENT, AttendanceRecord.Status.LEAVE)
+        """Apply check-in/out, status and remarks edits for every changed row in one save."""
+        S = AttendanceRecord.Status
+        # Statuses that carry no working time (status-based marking).
+        clear_statuses = (S.ABSENT, S.LEAVE, S.HOLIDAY, S.WEEKEND_OFF)
         changed = 0
         errors = 0
         for uid in request.POST.getlist("uid"):
@@ -554,14 +576,15 @@ class TeamAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, Templat
             ci0 = (request.POST.get(f"checkin_orig_{uid}") or "").strip()
             co0 = (request.POST.get(f"checkout_orig_{uid}") or "").strip()
             st0 = (request.POST.get(f"status_orig_{uid}") or "").strip()
+            has_note = f"note_{uid}" in request.POST
 
             times_changed = ci != ci0 or co != co0
             status_changed = bool(st) and st != st0
-            if not times_changed and not status_changed:
+            if not times_changed and not status_changed and not has_note:
                 continue
 
             row_changed = False
-            # Absent/Leave clears any times — apply status only.
+            # Absent/Leave/Holiday/Weekend Off clear any times — apply status only.
             if status_changed and st in clear_statuses:
                 apply_team_attendance_action(user, target, on_date, "set_status", status=st)
                 row_changed = True
@@ -579,6 +602,20 @@ class TeamAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, Templat
                 if status_changed:
                     apply_team_attendance_action(user, target, on_date, "set_status", status=st)
                     row_changed = True
+
+            # ── Remarks (status-based board) ──
+            if has_note:
+                note_val = (request.POST.get(f"note_{uid}") or "").strip()[:255]
+                record = AttendanceRecord.objects.filter(user=target, date=on_date).first()
+                if record is None and st in S.values:
+                    record, _ = AttendanceRecord.objects.get_or_create(
+                        user=target, date=on_date, defaults={"status": st}
+                    )
+                if record is not None and record.note != note_val:
+                    record.note = note_val
+                    record.save(update_fields=["note", "updated_at"])
+                    row_changed = True
+
             if row_changed:
                 changed += 1
 

@@ -185,8 +185,8 @@ def build_charts(viewer: User, filters: PayrollFilters) -> dict:
 
     qs = filtered_payslips(viewer, filters)
     salary_buckets = {"0-30k": 0, "30-50k": 0, "50-80k": 0, "80k+": 0}
-    for slip in qs.only("net_salary"):
-        net = float(slip.net_salary)
+    for net_salary in qs.values_list("net_salary", flat=True):
+        net = float(net_salary)
         if net < 30000:
             salary_buckets["0-30k"] += 1
         elif net < 50000:

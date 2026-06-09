@@ -160,6 +160,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     ifsc_code = models.CharField(max_length=20, blank=True)
     pan_number = models.CharField(max_length=20, blank=True)
     aadhaar_number = models.CharField(max_length=20, blank=True)
+    # Statutory / payroll identifiers
+    pf_account_number = models.CharField(max_length=40, blank=True)
+    uan_number = models.CharField(max_length=20, blank=True)
+    esi_number = models.CharField(max_length=20, blank=True)
 
     internal_notes = models.TextField(blank=True)
 

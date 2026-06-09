@@ -32,25 +32,15 @@ SUPER_ADMIN_NAV_ORDER = [
     "Profile",
 ]
 
+# Org-Admin sidebar = core pages only. Everything else is reached from Settings.
 ADMIN_NAV_ORDER = [
     "Dashboard",
     "Staff management",
-    "My attendance",
     "Staff attendance",
     "Leave management",
-    "Work calendar",
     "Payroll",
-    "Organization tree",
-    "Team structure",
-    "Reporting matrix",           
-    "Shift management",    
-    "Onboarding",
-    "Offboarding",
-    "Organization settings",
-    "Grades & hierarchy",
-    "Work shifts",
     "Analytics",
-    "My profile",
+    "Organization settings",
 ]
 
 HR_NAV_ORDER = [
@@ -789,13 +779,8 @@ def is_dashboard_home_view(user: User, view_name: str) -> bool:
 
 
 def _admin_dashboard_url_name(user: User) -> str:
-    org = user.organization
-    if org and org.subscription_plan in (
-        Organization.SubscriptionPlan.PROFESSIONAL,
-        Organization.SubscriptionPlan.GROWTH,
-    ):
-        return "dashboard:professional_admin"
-    return "dashboard:starter_admin"
+    # One unified admin dashboard for every plan (Basic/Professional/Growth).
+    return "dashboard:professional_admin"
 
 
 def _sidebar_item_from_menu_row(row) -> SidebarItem:

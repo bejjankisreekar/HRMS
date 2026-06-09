@@ -17,10 +17,31 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.shortcuts import redirect, render
+from django.urls import Resolver404, include, path, re_path, resolve
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.views import LandingPageView
+
+
+def custom_page_not_found(request, exception=None):
+    """Render the branded 404 page for unmatched URLs in every environment.
+
+    Django only uses templates/404.html automatically when DEBUG=False, so this
+    catch-all makes the styled page show in local development too. Trailing-slash
+    redirects (APPEND_SLASH) are preserved so existing links keep working.
+    """
+    path_info = request.path_info
+    if getattr(settings, "APPEND_SLASH", True) and not path_info.endswith("/"):
+        try:
+            match = resolve(path_info + "/")
+        except Resolver404:
+            match = None
+        # Redirect only if the slashed path maps to a REAL view (not this catch-all).
+        if match is not None and match.func is not custom_page_not_found:
+            return redirect(path_info + "/")
+    return render(request, "404.html", status=404)
+
 
 urlpatterns = [
     path("", LandingPageView.as_view(), name="landing"),
@@ -38,3 +59,8 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Catch-all: any unmatched URL renders the branded 404 page (must stay last).
+urlpatterns += [
+    re_path(r"^.*$", custom_page_not_found),
+]

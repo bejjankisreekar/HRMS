@@ -56,6 +56,7 @@
           <button type="submit" class="pr-btn-ghost"><i data-lucide="banknote" class="h-4 w-4"></i> Mark Paid</button>
         </form>
         {% endif %}
+        <a href="{% url 'payroll:salary_structures' %}" class="pr-btn-ghost"><i data-lucide="wallet" class="h-4 w-4"></i> Salary Structures</a>
         <a href="?{{ filter_query }}&export=csv" class="pr-btn-ghost"><i data-lucide="download" class="h-4 w-4"></i> Export</a>
       </div>
       {% endif %}

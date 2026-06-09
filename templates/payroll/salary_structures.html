@@ -1,0 +1,196 @@
+{% extends "dashboard/_shell.html" %}
+{% load static humanize %}
+{% block title %}Salary Structures · Payroll{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:management' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{{ rows|json_script:"salary-rows" }}
+<div class="w-full space-y-5 pb-8" x-data="salaryStructures()" x-init="init()">
+
+  {# ── Hero ── #}
+  <header class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-800 via-violet-700 to-indigo-700 p-6 text-white shadow-xl shadow-violet-900/20 sm:p-7">
+    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_12%,rgba(255,255,255,.14),transparent_55%)]"></div>
+    <div class="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="wallet" class="h-7 w-7"></i></div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Employee Salary Structures</h1>
+          <p class="mt-1.5 text-sm text-violet-100/90">{{ organization.name }} · view and manage each employee's salary breakdown.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {# ── Summary cards ── #}
+  <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <p class="text-2xl font-extrabold text-slate-900 dark:text-white">{{ summary.count }}</p>
+      <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Employees</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <p class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">₹{{ summary.gross|floatformat:0|intcomma }}</p>
+      <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Total Gross / mo</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <p class="text-2xl font-extrabold text-rose-600 dark:text-rose-400">₹{{ summary.deductions|floatformat:0|intcomma }}</p>
+      <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Total Deductions / mo</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <p class="text-2xl font-extrabold text-violet-700 dark:text-violet-300">₹{{ summary.net|floatformat:0|intcomma }}</p>
+      <p class="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500">Total Net / mo</p>
+    </div>
+  </section>
+
+  {# ── Toolbar ── #}
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="relative flex flex-1 items-center" style="max-width:22rem">
+      <i data-lucide="search" class="pointer-events-none absolute left-2.5 h-4 w-4 text-slate-400"></i>
+      <input type="search" x-model="search" placeholder="Search by name, ID, department…"
+             class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20 dark:border-white/10 dark:bg-slate-900 dark:text-white">
+    </div>
+    <span class="ml-auto text-xs text-slate-500"><span x-text="filtered.length"></span> of {{ summary.count }}</span>
+  </div>
+
+  {# ── Table ── #}
+  <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
+    <table class="w-full text-left text-sm">
+      <thead class="sticky top-0 z-10 bg-slate-50 text-[0.65rem] uppercase tracking-wide text-slate-500 dark:bg-slate-800/80 dark:text-slate-400">
+        <tr>
+          <th class="px-4 py-3 font-semibold">Employee</th>
+          <th class="px-3 py-3 font-semibold">Emp ID</th>
+          <th class="px-3 py-3 font-semibold">Department</th>
+          <th class="px-3 py-3 font-semibold">Designation</th>
+          <th class="px-3 py-3 font-semibold">Type</th>
+          <th class="px-3 py-3 text-right font-semibold">Gross</th>
+          <th class="px-3 py-3 text-right font-semibold">Deductions</th>
+          <th class="px-3 py-3 text-right font-semibold">Net Salary</th>
+          <th class="px-3 py-3 font-semibold">Effective</th>
+          <th class="px-3 py-3 font-semibold">Status</th>
+          <th class="px-3 py-3 text-right font-semibold">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-white/5">
+        <template x-for="r in filtered" :key="r.uid">
+          <tr class="hover:bg-violet-50/50 dark:hover:bg-violet-500/5">
+            <td class="px-4 py-2.5">
+              <div class="flex items-center gap-2.5">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-xs font-bold text-white" x-text="initials(r.name)"></span>
+                <span class="font-semibold text-slate-900 dark:text-white" x-text="r.name"></span>
+              </div>
+            </td>
+            <td class="px-3 py-2.5 font-mono text-xs text-slate-600 dark:text-slate-300" x-text="r.emp_id"></td>
+            <td class="px-3 py-2.5 text-slate-600 dark:text-slate-300" x-text="r.department"></td>
+            <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400" x-text="r.designation"></td>
+            <td class="px-3 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300" x-text="r.salary_type"></span></td>
+            <td class="px-3 py-2.5 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400" x-text="fmt(r.gross)"></td>
+            <td class="px-3 py-2.5 text-right font-semibold tabular-nums text-rose-600 dark:text-rose-400" x-text="fmt(r.deductions)"></td>
+            <td class="px-3 py-2.5 text-right font-extrabold tabular-nums text-slate-900 dark:text-white" x-text="fmt(r.net)"></td>
+            <td class="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400" x-text="dateFmt(r.effective_from)"></td>
+            <td class="px-3 py-2.5">
+              <span x-show="r.is_active" class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Active</span>
+              <span x-show="!r.is_active" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-white/10">Inactive</span>
+            </td>
+            <td class="px-3 py-2.5">
+              <div class="flex items-center justify-end gap-1">
+                <button type="button" @click="openDrawer(r)" title="Quick view" class="rounded-lg p-1.5 text-violet-600 hover:bg-violet-100 dark:text-violet-300 dark:hover:bg-violet-500/15"><i data-lucide="eye" class="h-4 w-4"></i></button>
+                <a :href="r.edit_url" title="Open salary &amp; financials" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"><i data-lucide="pencil" class="h-4 w-4"></i></a>
+              </div>
+            </td>
+          </tr>
+        </template>
+        <template x-if="filtered.length === 0">
+          <tr><td colspan="11" class="px-4 py-12 text-center text-slate-500">No employees match your search.</td></tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Detail drawer ── #}
+  <div x-show="drawer" x-cloak class="fixed inset-0 z-50" @keydown.escape.window="drawer=null">
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="drawer=null"></div>
+    <div class="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-slate-900"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full">
+      <template x-if="drawer">
+        <div class="flex h-full flex-col">
+          <div class="flex items-center justify-between gap-3 border-b border-slate-200 p-5 dark:border-white/10">
+            <div class="flex items-center gap-3">
+              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-sm font-bold text-white" x-text="initials(drawer.name)"></span>
+              <div>
+                <p class="font-bold text-slate-900 dark:text-white" x-text="drawer.name"></p>
+                <p class="text-xs text-slate-500" x-text="drawer.designation + ' · ' + drawer.department"></p>
+              </div>
+            </div>
+            <button type="button" @click="drawer=null" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10"><i data-lucide="x" class="h-5 w-5"></i></button>
+          </div>
+
+          <div class="flex-1 space-y-4 overflow-y-auto p-5">
+            {# Earnings #}
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+              <p class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400"><i data-lucide="trending-up" class="h-3.5 w-3.5"></i> Earnings</p>
+              <template x-for="e in drawer.earnings" :key="e.label">
+                <div class="flex items-center justify-between py-1 text-sm"><span class="text-slate-600 dark:text-slate-300" x-text="e.label"></span><span class="font-semibold tabular-nums text-slate-900 dark:text-white" x-text="fmt(e.amount)"></span></div>
+              </template>
+              <div class="mt-2 flex items-center justify-between border-t border-emerald-200 pt-2 text-sm font-bold dark:border-emerald-500/20"><span>Total Earnings</span><span class="tabular-nums text-emerald-700 dark:text-emerald-400" x-text="fmt(drawer.gross)"></span></div>
+            </div>
+
+            {# Deductions #}
+            <div class="rounded-xl border border-rose-200 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/5">
+              <p class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400"><i data-lucide="trending-down" class="h-3.5 w-3.5"></i> Deductions</p>
+              <template x-for="d in drawer.deduction_lines" :key="d.label">
+                <div class="flex items-center justify-between py-1 text-sm"><span class="text-slate-600 dark:text-slate-300" x-text="d.label"></span><span class="font-semibold tabular-nums text-slate-900 dark:text-white" x-text="fmt(d.amount)"></span></div>
+              </template>
+              <div class="mt-2 flex items-center justify-between border-t border-rose-200 pt-2 text-sm font-bold dark:border-rose-500/20"><span>Total Deductions</span><span class="tabular-nums text-rose-700 dark:text-rose-400" x-text="fmt(drawer.deductions)"></span></div>
+            </div>
+
+            {# Net #}
+            <div class="rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 p-4 text-white shadow-lg shadow-violet-600/20">
+              <div class="flex items-center justify-between text-sm"><span class="opacity-80">Gross Salary</span><span class="tabular-nums" x-text="fmt(drawer.gross)"></span></div>
+              <div class="flex items-center justify-between text-sm"><span class="opacity-80">− Deductions</span><span class="tabular-nums" x-text="fmt(drawer.deductions)"></span></div>
+              <div class="mt-2 flex items-center justify-between border-t border-white/25 pt-2"><span class="font-semibold">Net Salary</span><span class="text-xl font-extrabold tabular-nums" x-text="fmt(drawer.net)"></span></div>
+            </div>
+
+            <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-white/5">
+              <span>Salary type: <strong x-text="drawer.salary_type"></strong></span>
+              <span>Effective: <strong x-text="dateFmt(drawer.effective_from)"></strong></span>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 p-4 dark:border-white/10">
+            <a :href="drawer.edit_url" class="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"><i data-lucide="pencil" class="h-4 w-4"></i> Edit salary</a>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<script>
+function salaryStructures() {
+  let rows = [];
+  try { rows = JSON.parse(document.getElementById('salary-rows').textContent) || []; } catch (e) {}
+  return {
+    rows, search: '', drawer: null,
+    init() { this.$nextTick(() => window.lucide && lucide.createIcons());
+             this.$watch('filtered', () => this.$nextTick(() => window.lucide && lucide.createIcons()));
+             this.$watch('drawer', () => this.$nextTick(() => window.lucide && lucide.createIcons())); },
+    get filtered() {
+      const q = this.search.trim().toLowerCase();
+      if (!q) return this.rows;
+      return this.rows.filter(r => (r.name + ' ' + r.emp_id + ' ' + r.department + ' ' + r.designation).toLowerCase().includes(q));
+    },
+    openDrawer(r) { this.drawer = r; },
+    fmt(v) { const n = Number(v) || 0; return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 }); },
+    dateFmt(s) { if (!s) return '—'; const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); },
+    initials(name) { return (name || '?').split(' ').filter(Boolean).map(p => p[0]).join('').slice(0, 2).toUpperCase(); },
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% load static %}
+{# ── Status-based attendance board (rich, client-reactive via Alpine) ── #}
+{{ status_board_rows|json_script:"att-sb-rows" }}
+
+<div class="att-sb"
+     x-data="statusBoard({
+       rowsEl: 'att-sb-rows',
+       saveUrl: '{% url 'dashboard:attendance_team' %}',
+       csrf: '{{ csrf_token }}',
+       date: '{{ selected_date|date:'Y-m-d' }}',
+       shift: '{{ selected_shift }}'
+     })"
+     x-init="init()">
+
+  {# ── Summary cards ── #}
+  <div class="att-sb-cards">
+    <div class="att-sb-card">
+      <span class="att-sb-card__icon att-sb-card__icon--slate"><i data-lucide="users" class="h-5 w-5"></i></span>
+      <div><p class="att-sb-card__num" x-text="summary.total"></p><p class="att-sb-card__lbl">Total Employees</p></div>
+    </div>
+    <div class="att-sb-card">
+      <span class="att-sb-card__icon att-sb-card__icon--green"><i data-lucide="user-check" class="h-5 w-5"></i></span>
+      <div><p class="att-sb-card__num text-emerald-600 dark:text-emerald-400" x-text="summary.PRESENT"></p><p class="att-sb-card__lbl">Present</p></div>
+    </div>
+    <div class="att-sb-card">
+      <span class="att-sb-card__icon att-sb-card__icon--red"><i data-lucide="user-x" class="h-5 w-5"></i></span>
+      <div><p class="att-sb-card__num text-rose-600 dark:text-rose-400" x-text="summary.ABSENT"></p><p class="att-sb-card__lbl">Absent</p></div>
+    </div>
+    <div class="att-sb-card">
+      <span class="att-sb-card__icon att-sb-card__icon--amber"><i data-lucide="palmtree" class="h-5 w-5"></i></span>
+      <div><p class="att-sb-card__num text-amber-600 dark:text-amber-400" x-text="summary.LEAVE"></p><p class="att-sb-card__lbl">Leave</p></div>
+    </div>
+    <div class="att-sb-card">
+      <span class="att-sb-card__icon att-sb-card__icon--blue"><i data-lucide="clock-3" class="h-5 w-5"></i></span>
+      <div><p class="att-sb-card__num text-sky-600 dark:text-sky-400" x-text="summary.HALF_DAY"></p><p class="att-sb-card__lbl">Half Day</p></div>
+    </div>
+  </div>
+
+  {# ── Toolbar: search + filters + save ── #}
+  <div class="att-sb-toolbar">
+    <div class="att-sb-search">
+      <i data-lucide="search" class="h-4 w-4"></i>
+      <input type="search" x-model="search" placeholder="Search by name or employee ID…">
+    </div>
+    {% if departments %}
+    <select x-model="deptFilter" class="att-sb-select">
+      <option value="all">All departments</option>
+      {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <select x-model="statusFilter" class="att-sb-select">
+      <option value="all">All statuses</option>
+      <template x-for="s in statuses.slice(1)" :key="s.value">
+        <option :value="s.value" x-text="s.label"></option>
+      </template>
+      <option value="">Not marked</option>
+    </select>
+
+    <div class="att-sb-toolbar__spacer"></div>
+
+    <span class="att-sb-unsaved" x-show="unsaved > 0" x-cloak>
+      <i data-lucide="circle-dot" class="h-3.5 w-3.5"></i>
+      <span x-text="unsaved + ' unsaved change' + (unsaved===1?'':'s')"></span>
+    </span>
+    <button type="button" class="att-sb-save" :disabled="unsaved===0" @click="save()">
+      <i data-lucide="save" class="h-4 w-4"></i> Save attendance
+    </button>
+  </div>
+
+  {# ── Bulk action bar (shows when rows selected) ── #}
+  <div class="att-sb-bulk" x-show="selectedCount > 0" x-cloak>
+    <span class="att-sb-bulk__count"><span x-text="selectedCount"></span> selected</span>
+    <span class="att-sb-bulk__lbl">Mark selected as:</span>
+    <select x-model="bulkValue" class="att-sb-select att-sb-select--sm">
+      <option value="">Choose status…</option>
+      <template x-for="s in bulkStatuses" :key="s.value">
+        <option :value="s.value" x-text="s.label"></option>
+      </template>
+    </select>
+    <button type="button" class="att-sb-bulk__apply" :disabled="!bulkValue" @click="applyBulk()">Apply</button>
+    <button type="button" class="att-sb-bulk__clear" @click="clearSelection()">Clear</button>
+  </div>
+
+  {# ── Table ── #}
+  <div class="att-sb-table-wrap">
+    <table class="att-sb-table">
+      <thead>
+        <tr>
+          <th class="att-sb-th att-sb-th--check">
+            <input type="checkbox" :checked="allPageSelected" @change="toggleAllPage($event.target.checked)" aria-label="Select all on page">
+          </th>
+          <th class="att-sb-th">Employee</th>
+          <th class="att-sb-th att-sb-th--id">Employee ID</th>
+          <th class="att-sb-th">Department</th>
+          <th class="att-sb-th">Designation</th>
+          <th class="att-sb-th att-sb-th--status">Attendance Status</th>
+          <th class="att-sb-th">Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="row in pageRows" :key="row.uid">
+          <tr class="att-sb-row" :class="{ 'att-sb-row--dirty': isModified(row), 'att-sb-row--sel': row.selected }">
+            <td class="att-sb-td att-sb-td--check">
+              <input type="checkbox" x-model="row.selected" :aria-label="'Select ' + row.name">
+            </td>
+            <td class="att-sb-td">
+              <div class="att-sb-emp">
+                <template x-if="row.avatar">
+                  <img :src="row.avatar" :alt="row.name" class="att-sb-emp__avatar">
+                </template>
+                <template x-if="!row.avatar">
+                  <span class="att-sb-emp__avatar att-sb-emp__avatar--initials" x-text="row.initials"></span>
+                </template>
+                <span class="att-sb-emp__text">
+                  <span class="att-sb-emp__name" x-text="row.name"></span>
+                  <span class="att-sb-emp__sub" x-text="row.email || row.desig || '—'"></span>
+                </span>
+              </div>
+            </td>
+            <td class="att-sb-td att-sb-td--id"><span class="att-sb-id" x-text="row.empId || '—'"></span></td>
+            <td class="att-sb-td"><span x-text="row.dept || '—'"></span></td>
+            <td class="att-sb-td att-sb-td--muted"><span x-text="row.desig || '—'"></span></td>
+            <td class="att-sb-td att-sb-td--status">
+              <select class="att-sb-status" :class="statusClass(row.status)" x-model="row.status">
+                <option value="">— Not marked —</option>
+                <option value="PRESENT">Present</option>
+                <option value="ABSENT">Absent</option>
+                <option value="LEAVE">Leave</option>
+                <option value="HALF_DAY">Half Day</option>
+                <option value="HOLIDAY">Holiday</option>
+                <option value="WEEKEND_OFF">Weekend Off</option>
+              </select>
+            </td>
+            <td class="att-sb-td att-sb-td--remark">
+              <input type="text" class="att-sb-remark" maxlength="255"
+                     x-model="row.note" placeholder="Add note…">
+            </td>
+          </tr>
+        </template>
+        <template x-if="filtered.length === 0">
+          <tr>
+            <td colspan="7" class="att-sb-empty">
+              <i data-lucide="users" class="mx-auto h-8 w-8 opacity-40"></i>
+              <p class="mt-2">No employees match your filters.</p>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Pagination ── #}
+  <div class="att-sb-foot" x-show="filtered.length > 0">
+    <span class="att-sb-foot__info">
+      Showing <span x-text="filtered.length ? ((page-1)*perPage + 1) : 0"></span>–<span x-text="Math.min(page*perPage, filtered.length)"></span>
+      of <span x-text="filtered.length"></span>
+    </span>
+    <div class="att-sb-pager" x-show="pageCount > 1">
+      <button type="button" @click="page = Math.max(1, page-1)" :disabled="page===1"><i data-lucide="chevron-left" class="h-4 w-4"></i></button>
+      <span x-text="'Page ' + page + ' / ' + pageCount"></span>
+      <button type="button" @click="page = Math.min(pageCount, page+1)" :disabled="page===pageCount"><i data-lucide="chevron-right" class="h-4 w-4"></i></button>
+    </div>
+  </div>
+</div>
+
+<script>
+function statusBoard(cfg) {
+  const STATUSES = [
+    { value: '',            label: '— Not marked —', cls: 'att-st--none' },
+    { value: 'PRESENT',     label: 'Present',        cls: 'att-st--present' },
+    { value: 'ABSENT',      label: 'Absent',         cls: 'att-st--absent' },
+    { value: 'LEAVE',       label: 'Leave',          cls: 'att-st--leave' },
+    { value: 'HALF_DAY',    label: 'Half Day',       cls: 'att-st--half' },
+    { value: 'HOLIDAY',     label: 'Holiday',        cls: 'att-st--holiday' },
+    { value: 'WEEKEND_OFF', label: 'Weekend Off',    cls: 'att-st--weekend' },
+  ];
+  const BULK = STATUSES.filter(s => ['PRESENT','ABSENT','LEAVE','HALF_DAY'].includes(s.value));
+  let raw = [];
+  try { raw = JSON.parse(document.getElementById(cfg.rowsEl).textContent) || []; } catch (e) {}
+
+  return {
+    statuses: STATUSES,
+    bulkStatuses: BULK,
+    saveUrl: cfg.saveUrl, csrf: cfg.csrf, date: cfg.date, shift: cfg.shift,
+    rows: raw.map(r => ({ ...r, origStatus: r.status, origNote: r.note, selected: false })),
+    search: '', deptFilter: 'all', statusFilter: 'all',
+    bulkValue: '', page: 1, perPage: 25, _saving: false,
+
+    init() {
+      this.$nextTick(() => window.lucide && lucide.createIcons());
+      this.$watch('pageRows', () => this.$nextTick(() => window.lucide && lucide.createIcons()));
+      window.addEventListener('beforeunload', (e) => {
+        if (this.unsaved > 0 && !this._saving) { e.preventDefault(); e.returnValue = ''; }
+      });
+    },
+
+    statusClass(v) { return (STATUSES.find(s => s.value === (v || '')) || STATUSES[0]).cls; },
+    isModified(r) { return r.status !== r.origStatus || (r.note || '') !== (r.origNote || ''); },
+
+    get filtered() {
+      const q = this.search.trim().toLowerCase();
+      return this.rows.filter(r => {
+        if (this.deptFilter !== 'all' && r.deptId !== this.deptFilter) return false;
+        if (this.statusFilter !== 'all' && (r.status || '') !== this.statusFilter) return false;
+        if (q && !(r.name.toLowerCase().includes(q) || (r.empId || '').toLowerCase().includes(q))) return false;
+        return true;
+      });
+    },
+    get pageCount() { return Math.max(1, Math.ceil(this.filtered.length / this.perPage)); },
+    get pageRows() {
+      if (this.page > this.pageCount) this.page = this.pageCount;
+      const s = (this.page - 1) * this.perPage;
+      return this.filtered.slice(s, s + this.perPage);
+    },
+    get summary() {
+      const c = { total: this.rows.length, PRESENT: 0, ABSENT: 0, LEAVE: 0, HALF_DAY: 0 };
+      this.rows.forEach(r => { if (c[r.status] !== undefined) c[r.status]++; });
+      return c;
+    },
+    get changedRows() { return this.rows.filter(r => this.isModified(r)); },
+    get unsaved() { return this.changedRows.length; },
+
+    get selectedCount() { return this.rows.filter(r => r.selected).length; },
+    get allPageSelected() { const p = this.pageRows; return p.length > 0 && p.every(r => r.selected); },
+    toggleAllPage(v) { this.pageRows.forEach(r => r.selected = v); },
+    clearSelection() { this.rows.forEach(r => r.selected = false); },
+
+    applyBulk() {
+      const sel = this.rows.filter(r => r.selected);
+      if (!sel.length || !this.bulkValue) return;
+      const label = (BULK.find(s => s.value === this.bulkValue) || {}).label || this.bulkValue;
+      if (!confirm('Mark ' + sel.length + ' selected employee' + (sel.length === 1 ? '' : 's') + ' as ' + label + '?')) return;
+      sel.forEach(r => { r.status = this.bulkValue; r.selected = false; });
+      this.bulkValue = '';
+    },
+
+    save() {
+      const changed = this.changedRows;
+      if (!changed.length) return;
+      const f = document.createElement('form');
+      f.method = 'post'; f.action = this.saveUrl;
+      const add = (n, v) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i); };
+      add('csrfmiddlewaretoken', this.csrf);
+      add('action', 'bulk_save');
+      add('date', this.date);
+      if (this.shift && this.shift !== 'all') add('shift', this.shift);
+      changed.forEach(r => { add('uid', r.uid); add('status_' + r.uid, r.status); add('note_' + r.uid, r.note || ''); });
+      this._saving = true;
+      document.body.appendChild(f);
+      f.submit();
+    },
+  };
+}
+</script>

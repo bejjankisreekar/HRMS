@@ -9,6 +9,10 @@
   <span class="attendance-badge attendance-badge--leave"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>{{ record.get_status_display }}</span>
   {% elif record.status == "WFH" %}
   <span class="attendance-badge attendance-badge--wfh"><span class="h-1.5 w-1.5 rounded-full bg-violet-500"></span>{{ record.get_status_display }}</span>
+  {% elif record.status == "HOLIDAY" %}
+  <span class="attendance-badge attendance-badge--wfh"><span class="h-1.5 w-1.5 rounded-full bg-purple-500"></span>{{ record.get_status_display }}</span>
+  {% elif record.status == "WEEKEND_OFF" %}
+  <span class="attendance-badge attendance-badge--none"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>{{ record.get_status_display }}</span>
   {% else %}
   <span class="attendance-badge attendance-badge--none">{{ record.get_status_display }}</span>
   {% endif %}

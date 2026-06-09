@@ -45,6 +45,30 @@
         </div>
       </a>
 
+      <a href="{% url 'dashboard:grades:hub' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="network" class="h-5 w-5"></i>
+        </div>
+        <h3>Grades &amp; hierarchy</h3>
+        <p>Define grades, designations, and the reporting hierarchy for your organization.</p>
+        <div class="settings-card-footer">
+          <span>Structure</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
+      <a href="{% url 'shifts:management' %}" class="settings-card">
+        <div class="settings-card-icon">
+          <i data-lucide="calendar-clock" class="h-5 w-5"></i>
+        </div>
+        <h3>Shift management</h3>
+        <p>Rotations, weekly off patterns, and advanced shift scheduling.</p>
+        <div class="settings-card-footer">
+          <span>Scheduling</span>
+          <span>Manage →</span>
+        </div>
+      </a>
+
       <a href="{% url 'dashboard:attendance_shifts' %}" class="settings-card">
         <div class="settings-card-icon">
           <i data-lucide="clock" class="h-5 w-5"></i>

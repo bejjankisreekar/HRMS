@@ -1,6 +1,6 @@
 <header class="pro-header">
   <div class="pro-header__row">    <div class="pro-header__title-block">
-      <span class="pro-badge">Professional Plan</span>
+      <span class="pro-badge">{{ organization.get_subscription_plan_display|default:"Basic" }} Plan</span>
       <h1 class="pro-header__title">{{ organization.name }}</h1>
       <p class="pro-header__sub">Organization administration · {{ today|date:"l, d M Y" }}</p>
     </div>

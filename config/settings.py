@@ -8,6 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config("DJANGO_SECRET_KEY", default="change-me-in-env")
 DEBUG = config("DJANGO_DEBUG", cast=bool, default=True)
+
+# Schema-per-tenant request routing. OFF until every org has been migrated with
+# `manage.py provision_tenant --all`. When True, each request resolves operational
+# tables in the tenant's schema (shared tables stay in public).
+TENANT_SCHEMA_ROUTING = config("TENANT_SCHEMA_ROUTING", cast=bool, default=False)
 ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", cast=Csv(), default="localhost,127.0.0.1")
 
 CSRF_TRUSTED_ORIGINS = config(
@@ -32,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
 
     # Third-party
     'rest_framework',

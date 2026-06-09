@@ -92,17 +92,44 @@ def tenant_schema_has_user_table(schema_name: str) -> bool:
         return cursor.fetchone() is not None
 
 
+# A representative tenant table — its presence means the schema is provisioned.
+_TENANT_MARKER_TABLE = "payroll_salarycomponent"
+
+
+@lru_cache(maxsize=256)
+def tenant_schema_is_provisioned(schema_name: str) -> bool:
+    """True when the tenant schema has its isolated operational tables cloned in."""
+    if not schema_name or not SCHEMA_RE.match(schema_name):
+        return False
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
+            [schema_name, _TENANT_MARKER_TABLE],
+        )
+        return cursor.fetchone() is not None
+
+
+def schema_routing_enabled() -> bool:
+    """Tenant request routing is opt-in (enable only after all orgs are migrated)."""
+    from django.conf import settings
+
+    return bool(getattr(settings, "TENANT_SCHEMA_ROUTING", False))
+
+
 def set_schema_search_path(schema_name: str | None) -> None:
     """
     Set search_path for the current DB connection.
-    Shared app tables live in public; tenant schemas are used only when they
-    contain isolated copies (e.g. accounts_user).
+
+    Shared tables (accounts_user, organizations_organization, subscriptions/plans,
+    super-admin) always resolve in `public`. When routing is enabled AND the tenant
+    schema is provisioned, operational tables resolve to the tenant schema first;
+    anything not cloned there falls through to `public`.
     """
-    if schema_name:
+    if schema_name and schema_routing_enabled():
         if not SCHEMA_RE.match(schema_name):
             raise TenantSchemaError("Invalid schema name.")
         with connection.cursor() as cursor:
-            if tenant_schema_has_user_table(schema_name):
+            if tenant_schema_is_provisioned(schema_name):
                 cursor.execute("SET search_path TO %s, public", [schema_name])
             else:
                 cursor.execute("SET search_path TO public")

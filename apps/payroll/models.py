@@ -159,6 +159,38 @@ class EmployeeSalary(models.Model):
         ordering = ["-effective_from"]
 
 
+class EmployeeSalaryComponent(models.Model):
+    """Per-employee, editable salary line — fixed amount or a percentage."""
+
+    class Mode(models.TextChoices):
+        FIXED = "FIXED", "Fixed amount"
+        PCT_CTC = "PCT_CTC", "% of CTC"
+        PCT_BASIC = "PCT_BASIC", "% of Basic"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    salary = models.ForeignKey(
+        EmployeeSalary, on_delete=models.CASCADE, related_name="components"
+    )
+    code = models.SlugField(max_length=40)
+    label = models.CharField(max_length=80)
+    kind = models.CharField(
+        max_length=12, choices=SalaryComponent.ComponentType.choices,
+        default=SalaryComponent.ComponentType.EARNING,
+    )
+    mode = models.CharField(max_length=12, choices=Mode.choices, default=Mode.FIXED)
+    value = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "label"]
+        constraints = [
+            models.UniqueConstraint(fields=["salary", "code"], name="unique_emp_component_code"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.label} ({self.mode})"
+
+
 class PayrollRun(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"

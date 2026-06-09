@@ -3,6 +3,7 @@
 {% block title %}{% if is_team_view %}Team attendance{% else %}My attendance{% endif %} · HRMS{% endblock %}
 {% block dashboard_extra_head %}
 <link rel="stylesheet" href="{% static_v 'attendance.css' %}">
+<link rel="stylesheet" href="{% static_v 'attendance-status-board.css' %}">
 {% endblock %}
 
 {% block extra_js %}
@@ -111,6 +112,10 @@
     </a>
     {% endif %}
   </div>
+
+  {% if is_status_based and can_mark_team %}
+  {% include "dashboard/_attendance_status_board.html" %}
+  {% else %}
 
   <!-- Summary stats -->
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -621,6 +626,7 @@
       {% endfor %}
     </div>
   </div>
+  {% endif %}{# /is_status_based board vs time-based tables #}
 
   {% else %}
   <!-- Employee self view -->

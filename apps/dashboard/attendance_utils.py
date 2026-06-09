@@ -532,7 +532,12 @@ def apply_team_attendance_action(
             return "Invalid status."
         record.status = status
         update_fields = ["status", "updated_at"]
-        if status in (AttendanceRecord.Status.ABSENT, AttendanceRecord.Status.LEAVE):
+        if status in (
+            AttendanceRecord.Status.ABSENT,
+            AttendanceRecord.Status.LEAVE,
+            AttendanceRecord.Status.HOLIDAY,
+            AttendanceRecord.Status.WEEKEND_OFF,
+        ):
             record.check_in = None
             record.check_out = None
             update_fields.extend(["check_in", "check_out"])
