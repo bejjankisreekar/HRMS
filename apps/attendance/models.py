@@ -105,6 +105,8 @@ class AttendanceRecord(models.Model):
         HALF_DAY = "HALF_DAY", "Half day"
         LEAVE = "LEAVE", "On leave"
         WFH = "WFH", "Work from home"
+        HOLIDAY = "HOLIDAY", "Holiday"
+        WEEKEND_OFF = "WEEKEND_OFF", "Weekend Off"
 
     class AttendanceSource(models.TextChoices):
         MANUAL = "MANUAL", "Manual"
@@ -141,6 +143,56 @@ class AttendanceRecord(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} · {self.date} · {self.status}"
+
+
+class BreakRecord(models.Model):
+    """Individual break session logged against an attendance record."""
+
+    class BreakType(models.TextChoices):
+        TEA      = "TEA",      "Tea break"
+        LUNCH    = "LUNCH",    "Lunch break"
+        PERSONAL = "PERSONAL", "Personal"
+        OTHER    = "OTHER",    "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    attendance_record = models.ForeignKey(
+        AttendanceRecord,
+        on_delete=models.CASCADE,
+        related_name="break_records",
+    )
+    break_type = models.CharField(
+        max_length=20,
+        choices=BreakType.choices,
+        default=BreakType.OTHER,
+    )
+    start_time  = models.DateTimeField()
+    end_time    = models.DateTimeField(null=True, blank=True)
+    note        = models.CharField(max_length=100, blank=True)
+    marked_by   = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="breaks_marked",
+    )
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["start_time"]
+
+    def __str__(self) -> str:
+        return f"{self.get_break_type_display()} · {self.attendance_record_id}"
+
+    @property
+    def duration_minutes(self) -> int | None:
+        if not self.end_time:
+            return None
+        delta = self.end_time - self.start_time
+        return max(0, int(delta.total_seconds() // 60))
+
+    @property
+    def is_ongoing(self) -> bool:
+        return self.end_time is None
 
 
 class AttendanceRegularizationRequest(models.Model):

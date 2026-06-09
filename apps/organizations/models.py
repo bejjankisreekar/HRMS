@@ -38,10 +38,9 @@ class Organization(models.Model):
         ENTERPRISE = "ENTERPRISE", "Enterprise"
 
     class SubscriptionPlan(models.TextChoices):
-        FREE = "FREE", "Free"
         BASIC = "BASIC", "Basic"
-        PREMIUM = "PREMIUM", "Premium"
-        ENTERPRISE = "ENTERPRISE", "Enterprise"
+        PROFESSIONAL = "PROFESSIONAL", "Professional"
+        GROWTH = "GROWTH", "Growth"
 
     class OnboardingStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
@@ -58,6 +57,10 @@ class Organization(models.Model):
         MANUAL = "MANUAL", "Manual"
         BIOMETRIC = "BIOMETRIC", "Biometric"
         HYBRID = "HYBRID", "Hybrid"
+
+    class AttendanceMode(models.TextChoices):
+        TIME_BASED = "TIME_BASED", "Time-Based"
+        STATUS_BASED = "STATUS_BASED", "Status-Based"
 
     class PayrollCycle(models.TextChoices):
         WEEKLY = "WEEKLY", "Weekly"
@@ -159,6 +162,15 @@ class Organization(models.Model):
         default=False,
         help_text="When enabled, HR users appear in the mark-attendance table and can edit their own times.",
     )
+    attendance_mode = models.CharField(
+        max_length=20,
+        choices=AttendanceMode.choices,
+        default=AttendanceMode.TIME_BASED,
+        help_text=(
+            "TIME_BASED: HR/Admin record check-in/out times (hours, late, overtime auto-calculated). "
+            "STATUS_BASED: attendance is marked with status values only (P/A/L/HD/H/WO), no time tracking."
+        ),
+    )
     weekend_policy = models.CharField(
         max_length=20,
         choices=WeekendPolicy.choices,
@@ -201,7 +213,7 @@ class Organization(models.Model):
     payroll_enabled = models.BooleanField(default=True)
 
     subscription_plan = models.CharField(
-        max_length=20, choices=SubscriptionPlan.choices, default=SubscriptionPlan.FREE, blank=True
+        max_length=20, choices=SubscriptionPlan.choices, default=SubscriptionPlan.BASIC, blank=True
     )
     trial_start_date = models.DateTimeField(blank=True, null=True)
     trial_end_date = models.DateTimeField(blank=True, null=True)

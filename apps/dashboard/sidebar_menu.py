@@ -39,7 +39,7 @@ ADMIN_NAV_ORDER = [
     "Staff attendance",
     "Leave management",
     "Work calendar",
-    "Payroll",    
+    "Payroll",
     "Organization tree",
     "Team structure",
     "Reporting matrix",           
@@ -399,14 +399,16 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
         "Analytics": _item(
             "Analytics",
             "bar-chart-3",
-            "attendance:reports",
+            "dashboard:analytics",
             (
+                "dashboard:analytics",
+                "dashboard:analytics_data",
                 "attendance:reports",
                 "attendance:reports_employee",
                 "dashboard:attendance_report",
             ),
             ar,
-            keywords=("analytics", "reports", "insights"),
+            keywords=("analytics", "reports", "insights", "charts", "graphs"),
         ),
         "Organization tree": _item(
             "Organization tree",
@@ -458,6 +460,14 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             "dashboard:attendance_team",
             ("dashboard:attendance_team",),
             hr,
+        ),
+        "Digital Register": _item(
+            "Digital Register",
+            "book-open",
+            "dashboard:digital_register",
+            ("dashboard:digital_register",),
+            hr,
+            keywords=("register", "muster", "attendance book", "ledger", "monthly"),
         ),
         "Leave management": _item(
             "Leave management",
@@ -549,8 +559,9 @@ def _hr_nav_catalog() -> dict[str, SidebarItem]:
         "Team analytics": _item(
             "Team analytics",
             "bar-chart-3",
-            "attendance:reports",
+            "dashboard:analytics",
             (
+                "dashboard:analytics",
                 "attendance:reports",
                 "attendance:reports_employee",
                 "dashboard:attendance_report",
@@ -600,6 +611,14 @@ def _hr_nav_catalog() -> dict[str, SidebarItem]:
             "dashboard:attendance_team",
             ("dashboard:attendance_team",),
             hr,
+        ),
+        "Digital Register": _item(
+            "Digital Register",
+            "book-open",
+            "dashboard:digital_register",
+            ("dashboard:digital_register",),
+            hr,
+            keywords=("register", "muster", "attendance book", "ledger", "monthly"),
         ),
         "Leave management": _item(
             "Leave management",
@@ -772,8 +791,8 @@ def is_dashboard_home_view(user: User, view_name: str) -> bool:
 def _admin_dashboard_url_name(user: User) -> str:
     org = user.organization
     if org and org.subscription_plan in (
-        Organization.SubscriptionPlan.PREMIUM,
-        Organization.SubscriptionPlan.ENTERPRISE,
+        Organization.SubscriptionPlan.PROFESSIONAL,
+        Organization.SubscriptionPlan.GROWTH,
     ):
         return "dashboard:professional_admin"
     return "dashboard:starter_admin"

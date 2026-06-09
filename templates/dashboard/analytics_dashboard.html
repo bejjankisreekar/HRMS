@@ -1,0 +1,259 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Analytics · {{ org.name }}{% endblock %}
+
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'analytics-dashboard.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{% static 'analytics-dashboard.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="an-page w-full pb-10">
+
+  <header class="an-hero">
+    <div class="an-hero__inner">
+      <div class="flex items-center gap-4">
+        <div class="an-hero__icon">
+          <i data-lucide="bar-chart-3" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="an-hero__eyebrow">Analytics</p>
+          <h1 class="an-hero__title">{{ org.name }}</h1>
+          <p class="an-hero__sub">Attendance, payroll and workforce insights</p>
+        </div>
+      </div>
+      <div class="an-hero__actions">
+        <a href="{% url 'attendance:reports' %}" class="an-hero__btn">
+          <i data-lucide="table-2" class="h-4 w-4"></i>Attendance report
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="an-tabs" aria-label="Analytics sections">
+    <button type="button" data-an-tab="attendance" class="an-tab an-tab--active">
+      <i data-lucide="calendar-check" class="h-4 w-4"></i>Attendance
+    </button>
+    <button type="button" data-an-tab="payroll" class="an-tab">
+      <i data-lucide="wallet" class="h-4 w-4"></i>Finance &amp; Payroll
+    </button>
+    <button type="button" data-an-tab="workforce" class="an-tab">
+      <i data-lucide="users" class="h-4 w-4"></i>Workforce
+    </button>
+  </nav>
+
+  <section data-an-section="attendance" class="an-section">
+    <div class="an-section-header">
+      <div>
+        <h2 class="an-section-title">Attendance analytics</h2>
+        <p class="an-section-sub">Daily check-in/out trends, status breakdown and department rates.</p>
+      </div>
+      <select id="an-att-days" class="an-select">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="60">Last 60 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+    </div>
+
+    <div class="an-grid an-grid--2-1">
+      <div class="an-card an-card--span2">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Daily attendance trend</h3>
+          <p class="an-card-sub">Stacked by status — Present, Absent, Half Day, Leave, WFH</p>
+        </div>
+        <div class="an-chart-wrap an-chart-wrap--tall">
+          <canvas id="an-att-trend"></canvas>
+        </div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Today's breakdown</h3>
+          <p class="an-card-sub">Status distribution for {{ today|date:"d M Y" }}</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-att-donut"></canvas>
+        </div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Average working hours</h3>
+          <p class="an-card-sub">Daily average across all present employees</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-att-hours"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="an-card an-card--mt">
+      <div class="an-card-head">
+        <h3 class="an-card-title">Department attendance rate</h3>
+        <p class="an-card-sub">Percentage of days present per department over the selected period</p>
+      </div>
+      <div class="an-chart-wrap">
+        <canvas id="an-att-dept"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section data-an-section="payroll" style="display:none" class="an-section">
+    <div class="an-section-header">
+      <div>
+        <h2 class="an-section-title">Finance &amp; Payroll analytics</h2>
+        <p class="an-section-sub">Monthly payroll totals, run statuses and payment tracking.</p>
+      </div>
+      <select id="an-pay-months" class="an-select">
+        <option value="6">Last 6 months</option>
+        <option value="12" selected>Last 12 months</option>
+        <option value="24">Last 24 months</option>
+      </select>
+    </div>
+
+    <div class="an-card">
+      <div class="an-card-head">
+        <h3 class="an-card-title">Monthly payroll — Gross / Net / Deductions</h3>
+        <p class="an-card-sub">Trend across payroll runs in the selected period</p>
+      </div>
+      <div class="an-chart-wrap an-chart-wrap--tall">
+        <canvas id="an-pay-trend"></canvas>
+      </div>
+    </div>
+
+    <div class="an-grid an-grid--3 an-card--mt">
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Employees paid per run</h3>
+          <p class="an-card-sub">Headcount included in each payroll cycle</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-pay-headcount"></canvas>
+        </div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Payroll run statuses</h3>
+          <p class="an-card-sub">Distribution of run states (Draft, Approved, Paid…)</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-pay-status"></canvas>
+        </div>
+      </div>
+
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Payment status <span id="an-pay-period" class="an-card-period"></span></h3>
+          <p class="an-card-sub">Payslip payment outcomes for the latest run</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-pay-payment"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-an-section="workforce" style="display:none" class="an-section">
+    <div class="an-section-header">
+      <div>
+        <h2 class="an-section-title">Workforce analytics</h2>
+        <p class="an-section-sub">Headcount, demographics, joiners and leave usage.</p>
+      </div>
+
+      <div class="an-kpi-row">
+        <div class="an-kpi">
+          <p class="an-kpi-label">Total</p>
+          <p class="an-kpi-value" id="an-wf-total">—</p>
+        </div>
+        <div class="an-kpi">
+          <p class="an-kpi-label">Active</p>
+          <p class="an-kpi-value an-kpi-value--green" id="an-wf-active">—</p>
+        </div>
+        <div class="an-kpi">
+          <p class="an-kpi-label">Inactive</p>
+          <p class="an-kpi-value an-kpi-value--red" id="an-wf-inactive">—</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="an-card">
+      <div class="an-card-head">
+        <h3 class="an-card-title">Department headcount</h3>
+        <p class="an-card-sub">Number of employees per department</p>
+      </div>
+      <div class="an-chart-wrap an-chart-wrap--tall">
+        <canvas id="an-wf-dept"></canvas>
+      </div>
+    </div>
+
+    <div class="an-grid an-grid--3 an-card--mt">
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Employment type</h3>
+          <p class="an-card-sub">Full-time, Part-time, Contract, Intern</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-wf-emptype"></canvas>
+        </div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Gender distribution</h3>
+          <p class="an-card-sub">Workforce gender breakdown</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-wf-gender"></canvas>
+        </div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Work mode</h3>
+          <p class="an-card-sub">Onsite / Remote / Hybrid split</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-wf-workmode"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="an-grid an-grid--2-1 an-card--mt">
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">New joiners (last 12 months)</h3>
+          <p class="an-card-sub">Monthly hiring trend</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-wf-joiners"></canvas>
+        </div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-head">
+          <h3 class="an-card-title">Employment status</h3>
+          <p class="an-card-sub">Active, Probation, Notice, Suspended…</p>
+        </div>
+        <div class="an-chart-wrap">
+          <canvas id="an-wf-empstatus"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="an-card an-card--mt">
+      <div class="an-card-head">
+        <h3 class="an-card-title">Leave usage by type (last 90 days)</h3>
+        <p class="an-card-sub">Approved and pending leave requests per leave type</p>
+      </div>
+      <div class="an-chart-wrap">
+        <canvas id="an-wf-leave"></canvas>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

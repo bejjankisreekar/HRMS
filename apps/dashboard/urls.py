@@ -23,7 +23,8 @@ from apps.orgchart.super_views import (
 from apps.subscriptions.org_feature_views import OrganizationFeatureControlView, OrganizationFeatureAPIView
 from apps.subscriptions.plan_matrix_views import LegacyFeatureControlRedirectView
 from apps.subscriptions.mixins import UpgradeRequiredView
-from .analytics_views import AttendanceReportLegacyRedirectView
+from .analytics_views import AttendanceReportLegacyRedirectView, AnalyticsDashboardView, AnalyticsDataView
+from .digital_register_views import DigitalRegisterView, DigitalRegisterDataView
 from .department_views import DepartmentManageView
 from .topnav_views import (
     GlobalSearchAPIView,
@@ -32,6 +33,7 @@ from .topnav_views import (
     NotificationReadAPIView,
 )
 from .views import (
+    AttendanceChartDataView,
     AttendanceCorrectionsView,
     AttendanceSettingsView,
     AttendanceShiftsView,
@@ -49,6 +51,7 @@ from .views import (
 )
 from .staff_views import (
     StaffBulkAPIView,
+    StaffAttendanceSheetView,
     StaffDeleteView,
     StaffDetailView,
     StaffExportView,
@@ -140,6 +143,7 @@ urlpatterns = [
     path("staff/export/", StaffExportView.as_view(), name="staff_export"),
     path("staff/api/bulk/", StaffBulkAPIView.as_view(), name="staff_api_bulk"),
     path("staff/<uuid:pk>/", StaffDetailView.as_view(), name="staff_detail"),
+    path("staff/<uuid:pk>/attendance/", StaffAttendanceSheetView.as_view(), name="staff_attendance_sheet"),
     path("staff/<uuid:pk>/edit/", StaffUpdateView.as_view(), name="staff_edit"),
     path("staff/<uuid:pk>/delete/", StaffDeleteView.as_view(), name="staff_delete"),
     path("departments/", DepartmentManageView.as_view(), name="departments"),
@@ -150,6 +154,11 @@ urlpatterns = [
     path("work-calendar/", WorkCalendarView.as_view(), name="work_calendar"),
     path("attendance/corrections/", AttendanceCorrectionsView.as_view(), name="attendance_corrections"),
     path("attendance/report/", AttendanceReportLegacyRedirectView.as_view(), name="attendance_report"),
+    path("analytics/", AnalyticsDashboardView.as_view(), name="analytics"),
+    path("analytics/data/", AnalyticsDataView.as_view(), name="analytics_data"),
+    path("attendance/register/", DigitalRegisterView.as_view(), name="digital_register"),
+    path("attendance/register/data/", DigitalRegisterDataView.as_view(), name="digital_register_data"),
     path("attendance/shifts/", AttendanceShiftsView.as_view(), name="attendance_shifts"),
+    path("attendance/chart-data/", AttendanceChartDataView.as_view(), name="attendance_chart_data"),
     path("org-tree/", include(("apps.orgchart.urls", "orgchart"))),
 ]

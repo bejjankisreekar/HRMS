@@ -19,6 +19,60 @@
     <p>Control how HR marks team attendance and who appears on the mark-attendance screen.</p>
   </div>
 
+  {# ── Attendance configuration (tracking method) ── #}
+  <section class="settings-panel">
+    <div class="settings-panel-header">
+      <h2 class="text-sm font-semibold">Attendance configuration</h2>
+    </div>
+    <div class="settings-panel-body">
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_mode">
+        <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Attendance tracking method</p>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="relative flex cursor-pointer">
+            <input type="radio" name="attendance_mode" value="TIME_BASED" class="peer sr-only"
+                   {% if organization.attendance_mode != 'STATUS_BASED' %}checked{% endif %}>
+            <span class="flex w-full flex-col gap-1.5 rounded-xl border-2 border-slate-200 p-4 transition peer-checked:border-violet-500 peer-checked:bg-violet-50 peer-checked:shadow-sm dark:border-white/10 dark:peer-checked:border-violet-400 dark:peer-checked:bg-violet-500/10">
+              <span class="flex items-center gap-2">
+                <i data-lucide="clock" class="h-5 w-5 text-violet-600 dark:text-violet-300"></i>
+                <span class="text-sm font-bold text-slate-900 dark:text-white">Time-Based Attendance</span>
+              </span>
+              <span class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                HR/Admin record <strong>Check-In</strong> &amp; <strong>Check-Out</strong> times. Working hours, late arrival, early departure, and overtime are calculated automatically.
+              </span>
+            </span>
+          </label>
+          <label class="relative flex cursor-pointer">
+            <input type="radio" name="attendance_mode" value="STATUS_BASED" class="peer sr-only"
+                   {% if organization.attendance_mode == 'STATUS_BASED' %}checked{% endif %}>
+            <span class="flex w-full flex-col gap-1.5 rounded-xl border-2 border-slate-200 p-4 transition peer-checked:border-violet-500 peer-checked:bg-violet-50 peer-checked:shadow-sm dark:border-white/10 dark:peer-checked:border-violet-400 dark:peer-checked:bg-violet-500/10">
+              <span class="flex items-center gap-2">
+                <i data-lucide="list-checks" class="h-5 w-5 text-violet-600 dark:text-violet-300"></i>
+                <span class="text-sm font-bold text-slate-900 dark:text-white">Status-Based Attendance</span>
+              </span>
+              <span class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                HR/Admin mark attendance using statuses only — Present, Absent, Leave, Half&nbsp;Day, Holiday, Weekend&nbsp;Off. No check-in/check-out or time tracking.
+              </span>
+            </span>
+          </label>
+        </div>
+        <div class="flex items-start gap-2.5 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+          <i data-lucide="alert-triangle" class="mt-0.5 h-4 w-4 shrink-0"></i>
+          <span>Changing the attendance method will affect how attendance is marked and displayed throughout the system. Existing attendance records remain unchanged.</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
+            Save settings
+          </button>
+          <a href="{% url 'dashboard:settings' %}" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </section>
+
   <section class="settings-panel">
     <div class="settings-panel-header">
       <h2 class="text-sm font-semibold">HR mark attendance</h2>

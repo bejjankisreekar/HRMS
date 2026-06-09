@@ -113,9 +113,9 @@ def _map_plan_to_org_field(slug: str) -> str:
     slug_map = {
         "basic": Organization.SubscriptionPlan.BASIC,
         "essential": Organization.SubscriptionPlan.BASIC,
-        "professional": Organization.SubscriptionPlan.PREMIUM,
-        "growth": Organization.SubscriptionPlan.PREMIUM,
-        "business": Organization.SubscriptionPlan.PREMIUM,
+        "professional": Organization.SubscriptionPlan.PROFESSIONAL,
+        "growth": Organization.SubscriptionPlan.GROWTH,
+        "business": Organization.SubscriptionPlan.GROWTH,
     }
     return slug_map.get(slug.lower(), Organization.SubscriptionPlan.BASIC)
 
@@ -123,9 +123,8 @@ def _map_plan_to_org_field(slug: str) -> str:
 def _org_field_to_plan_slug(subscription_plan: str) -> str:
     mapping = {
         Organization.SubscriptionPlan.BASIC: "basic",
-        Organization.SubscriptionPlan.PREMIUM: "professional",
-        Organization.SubscriptionPlan.ENTERPRISE: "growth",
-        Organization.SubscriptionPlan.FREE: "basic",
+        Organization.SubscriptionPlan.PROFESSIONAL: "professional",
+        Organization.SubscriptionPlan.GROWTH: "growth",
     }
     return mapping.get(subscription_plan, "basic")
 

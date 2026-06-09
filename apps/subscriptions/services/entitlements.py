@@ -26,9 +26,8 @@ def get_org_plan(org: Organization | None) -> Plan | None:
 def _org_plan_slug_fallback(org: Organization) -> str:
     mapping = {
         Organization.SubscriptionPlan.BASIC: "basic",
-        Organization.SubscriptionPlan.PREMIUM: "professional",
-        Organization.SubscriptionPlan.ENTERPRISE: "growth",
-        Organization.SubscriptionPlan.FREE: "basic",
+        Organization.SubscriptionPlan.PROFESSIONAL: "professional",
+        Organization.SubscriptionPlan.GROWTH: "growth",
     }
     return mapping.get(org.subscription_plan, "basic")
 

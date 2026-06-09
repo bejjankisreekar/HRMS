@@ -1,8 +1,8 @@
 {% extends "dashboard/_shell.html" %}
-{% load static %}
+{% load static tz static_extras %}
 {% block title %}{% if is_team_view %}Team attendance{% else %}My attendance{% endif %} · HRMS{% endblock %}
 {% block dashboard_extra_head %}
-<link rel="stylesheet" href="{% static 'attendance.css' %}">
+<link rel="stylesheet" href="{% static_v 'attendance.css' %}">
 {% endblock %}
 
 {% block extra_js %}
@@ -10,7 +10,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="attendance-page w-full space-y-6" {% if is_team_view %}x-data="{ search: '' }"{% endif %}>
+<div class="attendance-page w-full space-y-6"
+     {% if is_team_view %}x-data="{ search: '', editMode: false }"{% endif %}>
 
   <!-- Hero -->
   <div class="attendance-hero">
@@ -27,6 +28,7 @@
       </div>
 
       <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        {% if not is_team_view %}
         <div class="attendance-date-display">
           {% include "dashboard/_attendance_date_step.html" with direction="prev" %}
           <span class="attendance-date-display__label">
@@ -38,44 +40,33 @@
           </span>
           {% include "dashboard/_attendance_date_step.html" with direction="next" %}
         </div>
+        {% endif %}
 
         {% if is_team_view %}
-        <div class="flex flex-wrap items-center gap-2">
-          {% if show_my_attendance_link %}
-          <a href="{% url 'dashboard:attendance' %}"
-             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">My attendance</a>
-          {% endif %}
-          <a href="{% url 'attendance:reports' %}"
-             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Full report</a>
-          {% if can_review_corrections %}
-          <a href="{% url 'dashboard:attendance_corrections' %}"
-             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">
-            Corrections{% if pending_corrections_count %} ({{ pending_corrections_count }}){% endif %}
-          </a>
-          {% endif %}
-          {% if is_admin %}
-          <a href="{% url 'dashboard:attendance_shifts' %}"
-             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Shifts</a>
-          <a href="{% url 'dashboard:attendance_settings' %}"
-             class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Attendance settings</a>
-          {% endif %}
-        </div>
         <div class="attendance-date-bar">
           {% include "dashboard/_attendance_date_step.html" with direction="prev" nav_class="attendance-date-nav--bar" %}
-          <form method="get" action="{% url attendance_url_name|default:'dashboard:attendance_team' %}" class="attendance-date-bar__picker">
+          <form method="get" action="{% url attendance_url_name|default:'dashboard:attendance_team' %}" class="att-datepick">
             {% if selected_shift and selected_shift != "all" %}
             <input type="hidden" name="shift" value="{{ selected_shift }}">
             {% endif %}
-            <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" aria-label="Select date">
-            <button type="submit"
-                    class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500">
-              Apply
-            </button>
+            <label class="att-datepick__face">
+              <i data-lucide="calendar-days" class="att-datepick__cal"></i>
+              <span class="att-datepick__text">
+                <span class="att-datepick__day">{{ selected_date|date:"l" }}</span>
+                <span class="att-datepick__date">{{ selected_date|date:"d M Y" }}</span>
+              </span>
+              {% if selected_date == today %}
+              <span class="att-datepick__badge">Today</span>
+              {% endif %}
+              <i data-lucide="chevron-down" class="att-datepick__chev"></i>
+              <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}"
+                     class="att-datepick__input" aria-label="Select date"
+                     onclick="try{this.showPicker()}catch(e){}"
+                     onchange="this.form.submit()">
+            </label>
             {% if selected_date != today %}
             <a href="{% url attendance_url_name|default:'dashboard:attendance_team' %}{% if selected_shift and selected_shift != 'all' %}?shift={{ selected_shift }}{% endif %}"
-               class="rounded-lg px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">
-              Today
-            </a>
+               class="att-datepick__today">Today</a>
             {% endif %}
           </form>
           {% include "dashboard/_attendance_date_step.html" with direction="next" nav_class="attendance-date-nav--bar" %}
@@ -86,6 +77,41 @@
   </div>
 
   {% if is_team_view %}
+  <!-- Quick actions -->
+  <div class="att-quick-actions">
+    {% if show_my_attendance_link %}
+    <a href="{% url 'dashboard:attendance' %}" class="att-qa-card">
+      <span class="att-qa-card__icon att-qa-card__icon--violet"><i data-lucide="user-check" class="h-5 w-5"></i></span>
+      <span class="att-qa-card__text"><span class="att-qa-card__title">My attendance</span><span class="att-qa-card__sub">Personal record</span></span>
+    </a>
+    {% endif %}
+    <a href="{% url 'attendance:reports' %}" class="att-qa-card">
+      <span class="att-qa-card__icon att-qa-card__icon--sky"><i data-lucide="bar-chart-3" class="h-5 w-5"></i></span>
+      <span class="att-qa-card__text"><span class="att-qa-card__title">Full report</span><span class="att-qa-card__sub">Analytics &amp; export</span></span>
+    </a>
+    <a href="{% url 'dashboard:digital_register' %}" class="att-qa-card">
+      <span class="att-qa-card__icon att-qa-card__icon--indigo"><i data-lucide="book-open" class="h-5 w-5"></i></span>
+      <span class="att-qa-card__text"><span class="att-qa-card__title">Digital register</span><span class="att-qa-card__sub">Register-book view</span></span>
+    </a>
+    {% if can_review_corrections %}
+    <a href="{% url 'dashboard:attendance_corrections' %}" class="att-qa-card">
+      <span class="att-qa-card__icon att-qa-card__icon--amber"><i data-lucide="clipboard-check" class="h-5 w-5"></i></span>
+      <span class="att-qa-card__text"><span class="att-qa-card__title">Corrections</span><span class="att-qa-card__sub">Review requests</span></span>
+      {% if pending_corrections_count %}<span class="att-qa-card__badge">{{ pending_corrections_count }}</span>{% endif %}
+    </a>
+    {% endif %}
+    {% if is_admin %}
+    <a href="{% url 'dashboard:attendance_shifts' %}" class="att-qa-card">
+      <span class="att-qa-card__icon att-qa-card__icon--emerald"><i data-lucide="clock" class="h-5 w-5"></i></span>
+      <span class="att-qa-card__text"><span class="att-qa-card__title">Shifts</span><span class="att-qa-card__sub">Manage &amp; assign</span></span>
+    </a>
+    <a href="{% url 'dashboard:attendance_settings' %}" class="att-qa-card">
+      <span class="att-qa-card__icon att-qa-card__icon--slate"><i data-lucide="settings" class="h-5 w-5"></i></span>
+      <span class="att-qa-card__text"><span class="att-qa-card__title">Attendance settings</span><span class="att-qa-card__sub">Configure rules</span></span>
+    </a>
+    {% endif %}
+  </div>
+
   <!-- Summary stats -->
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
     <div class="attendance-stat">
@@ -156,33 +182,108 @@
     </div>
   </div>
 
+  {% if is_admin %}
+  <!-- Admin filter bar -->
+  <form method="get" action="{% url 'dashboard:attendance_team' %}"
+        class="att-filter-bar">
+    <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+    {% if selected_shift and selected_shift != "all" %}
+    <input type="hidden" name="shift" value="{{ selected_shift }}">
+    {% endif %}
+
+    <div class="att-filter-group">
+      <label class="att-filter-label" for="att-dept-filter">
+        <i data-lucide="building-2" class="h-3.5 w-3.5"></i>Department
+      </label>
+      <select id="att-dept-filter" name="dept" class="att-filter-select" onchange="this.form.submit()">
+        <option value="all" {% if dept_filter == "all" %}selected{% endif %}>All departments</option>
+        {% for dept in departments %}
+        <option value="{{ dept.id }}" {% if dept_filter == dept.id|stringformat:"s" %}selected{% endif %}>
+          {{ dept.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="att-filter-group">
+      <label class="att-filter-label" for="att-status-filter">
+        <i data-lucide="activity" class="h-3.5 w-3.5"></i>Status
+      </label>
+      <select id="att-status-filter" name="status" class="att-filter-select" onchange="this.form.submit()">
+        <option value="all"      {% if status_filter == "all" %}selected{% endif %}>All statuses</option>
+        <option value="PRESENT"  {% if status_filter == "PRESENT" %}selected{% endif %}>Present</option>
+        <option value="ABSENT"   {% if status_filter == "ABSENT" %}selected{% endif %}>Absent</option>
+        <option value="HALF_DAY" {% if status_filter == "HALF_DAY" %}selected{% endif %}>Half Day</option>
+        <option value="LEAVE"    {% if status_filter == "LEAVE" %}selected{% endif %}>Leave</option>
+        <option value="WFH"      {% if status_filter == "WFH" %}selected{% endif %}>WFH</option>
+        <option value="UNMARKED" {% if status_filter == "UNMARKED" %}selected{% endif %}>Unmarked</option>
+      </select>
+    </div>
+
+    <div class="att-filter-group">
+      <label class="att-filter-label" for="att-role-filter">
+        <i data-lucide="shield" class="h-3.5 w-3.5"></i>Role
+      </label>
+      <select id="att-role-filter" name="role" class="att-filter-select" onchange="this.form.submit()">
+        <option value="all"      {% if role_filter == "all" %}selected{% endif %}>All roles</option>
+        <option value="HR"       {% if role_filter == "HR" %}selected{% endif %}>HR</option>
+        <option value="EMPLOYEE" {% if role_filter == "EMPLOYEE" %}selected{% endif %}>Employees</option>
+      </select>
+    </div>
+
+    {% if dept_filter != "all" or status_filter != "all" or role_filter != "all" %}
+    <a href="{% url 'dashboard:attendance_team' %}?date={{ selected_date|date:'Y-m-d' }}"
+       class="att-filter-clear">
+      <i data-lucide="x" class="h-3.5 w-3.5"></i>Clear filters
+    </a>
+    {% endif %}
+
+    <div class="att-filter-results ml-auto">
+      <span class="att-filter-count">{{ team_rows|length }}</span>
+      <span class="att-filter-count-label">of {{ all_team_rows|length }} members</span>
+    </div>
+  </form>
+  {% endif %}
+
   <!-- Team table (desktop / tablet scroll) -->
   <div class="attendance-panel attendance-table-wrap hidden md:block">
+    {% if can_mark_team %}
+    <form id="att-bulk-desktop" method="post" action="{% url 'dashboard:attendance_team' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_save">
+      <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+      {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+    </form>
+    {% endif %}
     <div class="attendance-panel-head attendance-panel-head--mark">
-      {% include "dashboard/_attendance_mark_head.html" %}
+      {% include "dashboard/_attendance_mark_head.html" with bulk_form_id="att-bulk-desktop" %}
     </div>
 
     <table class="attendance-table attendance-mark-table">
       <colgroup>
         <col class="att-col att-col--employee">
-        <col class="att-col att-col--username">
+        <col class="att-col att-col--empid">
         <col class="att-col att-col--status">
+        {% if not is_status_based %}
         <col class="att-col att-col--login">
         <col class="att-col att-col--logout">
         <col class="att-col att-col--hours">
         <col class="att-col att-col--punctuality">
-        <col class="att-col att-col--actions">
+        {% if can_mark_team %}<col class="att-col att-col--breaks" x-show="editMode" x-cloak>{% endif %}
+        {% endif %}
       </colgroup>
       <thead>
         <tr>
           <th class="att-th att-th--employee">Employee</th>
-          <th class="att-th att-th--username">Username</th>
+          <th class="att-th att-th--empid">Employee ID</th>
           <th class="att-th att-th--status">Status</th>
-          <th class="att-th att-th--login">Login</th>
-          <th class="att-th att-th--logout">Logout</th>
-          <th class="att-th att-th--hours">Hours</th>
+          {% if not is_status_based %}
+          <th class="att-th att-th--login">Check-in</th>
+          <th class="att-th att-th--logout">Check-out</th>
+          <th class="att-th att-th--hours">Net Hours</th>
           <th class="att-th att-th--punctuality">Punctuality</th>
-          {% if can_mark_team %}<th class="att-th att-th--actions">Mark / edit</th>{% endif %}
+          {% if can_mark_team %}<th class="att-th att-th--breaks" x-show="editMode" x-cloak>Breaks</th>{% endif %}
+          {% endif %}
         </tr>
       </thead>
       <tbody>
@@ -192,79 +293,230 @@
             data-search="{{ member.choice_label|lower }} {{ member.employee_id|lower }} {{ member.username|lower }}"
             x-show="!search || $el.dataset.search.includes(search.toLowerCase())">
           <td class="att-cell att-cell--employee">
-            <div class="att-employee" title="{{ member.display_name }}">
+            {% if can_mark_team %}
+            <input type="hidden" name="uid" value="{{ member.pk }}" form="att-bulk-desktop">
+            <input type="hidden" name="checkin_orig_{{ member.pk }}" value="{{ row.check_in_hhmm }}" form="att-bulk-desktop">
+            <input type="hidden" name="checkout_orig_{{ member.pk }}" value="{{ row.check_out_hhmm }}" form="att-bulk-desktop">
+            <input type="hidden" name="status_orig_{{ member.pk }}" value="{% if record %}{{ record.status }}{% endif %}" form="att-bulk-desktop">
+            {% endif %}
+            <a href="{% url 'dashboard:staff_detail' member.pk %}"
+               class="att-employee att-employee--link"
+               title="View attendance details for {{ member.display_name }}">
               <span class="att-employee-icon" aria-hidden="true">👤</span>
               <span class="att-employee-name">{{ member.display_name }}</span>
-            </div>
+            </a>
           </td>
-          <td class="att-cell att-cell--username">
-            <span class="att-username" title="{{ member.username }}">{{ member.username }}</span>
+          <td class="att-cell att-cell--empid">
+            <span class="att-empid">{{ member.employee_id|default:"—" }}</span>
           </td>
-          <td class="att-cell att-cell--status">{% include "dashboard/_attendance_status_badge.html" with record=record %}</td>
+          <td class="att-cell att-cell--status">
+            {% if can_mark_team %}
+            <span x-show="!editMode">{% include "dashboard/_attendance_status_badge.html" with record=record %}</span>
+            <select name="status_{{ member.pk }}" form="att-bulk-desktop"
+                    class="attendance-status-select" aria-label="Status for {{ member.display_name }}"
+                    x-show="editMode" x-cloak>
+              {% if not record %}<option value="" selected>— Not marked —</option>{% endif %}
+              {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if record and record.status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            {% include "dashboard/_attendance_status_badge.html" with record=record %}
+            {% endif %}
+          </td>
+          {% if not is_status_based %}
           <td class="att-cell att-cell--login">
             {% if can_mark_team %}
-            <div class="att-punch att-punch--in">
-              <span class="att-punch-time">{{ row.login_time }}</span>
-              <span class="att-punch-sep" aria-hidden="true">|</span>
-              <form method="post" class="attendance-time-form">
-                {% csrf_token %}
-                <input type="hidden" name="user_id" value="{{ member.pk }}">
-                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-                {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
-                <input type="hidden" name="action" value="set_check_in">
-                <input type="time" name="check_in_time" value="{% if record and record.check_in %}{{ record.check_in|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--in attendance-time-input--compact" aria-label="Check-in time for {{ member.display_name }}">
-                <button type="submit" class="att-punch-badge att-punch-badge--in">IN</button>
-              </form>
+            <span class="att-qt-static att-qt-static--in" x-show="!editMode">{{ row.login_time }}</span>
+            <div class="att-qt-wrap" x-show="editMode" x-cloak>
+              <span class="att-qt-chip att-qt-chip--in">IN</span>
+              <input type="time" name="checkin_{{ member.pk }}" form="att-bulk-desktop"
+                     value="{{ row.check_in_hhmm }}"
+                     class="att-qt-input att-qt-input--in"
+                     aria-label="Check-in for {{ member.display_name }}">
             </div>
             {% else %}
-            <span class="att-hours">{{ row.login_time }}</span>
+            <span class="att-qt-static att-qt-static--in">{{ row.login_time }}</span>
             {% endif %}
           </td>
           <td class="att-cell att-cell--logout">
             {% if can_mark_team %}
-            <div class="att-punch att-punch--out">
-              <span class="att-punch-time">{{ row.logout_time }}</span>
-              <span class="att-punch-sep" aria-hidden="true">|</span>
-              <form method="post" class="attendance-time-form">
-                {% csrf_token %}
-                <input type="hidden" name="user_id" value="{{ member.pk }}">
-                <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-                {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
-                <input type="hidden" name="action" value="set_check_out">
-                <input type="time" name="check_out_time" value="{% if record and record.check_out %}{{ record.check_out|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--out attendance-time-input--compact" aria-label="Check-out time for {{ member.display_name }}">
-                <button type="submit" class="att-punch-badge att-punch-badge--out" {% if not record or not record.check_in %}disabled{% endif %}>OUT</button>
-              </form>
+            <span class="att-qt-static att-qt-static--out" x-show="!editMode">{{ row.logout_time }}</span>
+            <div class="att-qt-wrap" x-show="editMode" x-cloak>
+              <span class="att-qt-chip att-qt-chip--out">OUT</span>
+              <input type="time" name="checkout_{{ member.pk }}" form="att-bulk-desktop"
+                     value="{{ row.check_out_hhmm }}"
+                     class="att-qt-input att-qt-input--out"
+                     aria-label="Check-out for {{ member.display_name }}">
             </div>
             {% else %}
-            <span class="att-hours">{{ row.logout_time }}</span>
+            <span class="att-qt-static att-qt-static--out">{{ row.logout_time }}</span>
             {% endif %}
           </td>
           <td class="att-cell att-cell--hours">
-            <span class="att-hours">{{ row.working_hours }}</span>
+            <span class="att-hrs-val att-hrs-val--net att-net-hours">{{ row.net_hours }}</span>
           </td>
           <td class="att-cell att-cell--punctuality">{% include "dashboard/_attendance_late_badge.html" with record=record lateness=row.lateness %}</td>
           {% if can_mark_team %}
-          <td class="att-cell att-cell--actions">
-            <form method="post" class="att-mark-form">
-              {% csrf_token %}
-              <input type="hidden" name="user_id" value="{{ member.pk }}">
-              <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-              {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
-              <input type="hidden" name="action" value="set_status">
-              <select name="status" class="attendance-status-select" aria-label="Status for {{ member.display_name }}">
-                {% for val, label in status_choices %}
-                <option value="{{ val }}" {% if record and record.status == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-              <button type="submit" class="attendance-btn attendance-btn--set">Save</button>
-            </form>
+          <td class="att-cell att-cell--breaks" x-show="editMode" x-cloak>
+            <button type="button"
+                    class="att-brk-toggle{% if row.has_ongoing_break %} att-brk-toggle--live{% endif %}"
+                    onclick="attToggleBreaks('{{ member.pk }}')"
+                    aria-expanded="false"
+                    aria-controls="att-breaks-{{ member.pk }}"
+                    title="Manage breaks">
+              <i data-lucide="coffee" class="h-3.5 w-3.5 shrink-0"></i>
+              {% if row.breaks %}
+              <span class="att-brk-count">{{ row.breaks|length }}</span>
+              {% endif %}
+              {% if row.total_break_mins %}
+              <span class="att-brk-dur">{{ row.total_break_display }}</span>
+              {% else %}
+              <span class="att-brk-add">+ Add</span>
+              {% endif %}
+            </button>
           </td>
           {% endif %}
+          {% endif %}{# /not is_status_based #}
         </tr>
+
+        {% if can_mark_team and not is_status_based %}
+        <tr id="att-breaks-{{ member.pk }}" class="att-brkpanel-row" style="display:none">
+          <td colspan="8" class="att-brkpanel-cell">
+            <div class="att-brkpanel">
+
+              <div class="att-brkpanel-header">
+                <div class="att-brkpanel-header__left">
+                  <i data-lucide="coffee" class="h-4 w-4 text-amber-500"></i>
+                  <span class="att-brkpanel-header__name">{{ member.display_name }}</span>
+                  {% if row.total_break_mins %}
+                  <span class="att-brkpanel-total">{{ row.total_break_display }} total break</span>
+                  {% endif %}
+                </div>
+                <button type="button" class="att-brkpanel-close" onclick="attToggleBreaks('{{ member.pk }}')">
+                  <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+              </div>
+
+              {% if row.breaks %}
+              <div class="att-brkpanel-table">
+                <div class="att-brkpanel-thead">
+                  <span class="att-brkpanel-th att-brkpanel-th--type">Type</span>
+                  <span class="att-brkpanel-th att-brkpanel-th--time">From</span>
+                  <span class="att-brkpanel-th att-brkpanel-th--time">To</span>
+                  <span class="att-brkpanel-th att-brkpanel-th--dur">Duration</span>
+                  <span class="att-brkpanel-th att-brkpanel-th--note">Note</span>
+                  <span class="att-brkpanel-th att-brkpanel-th--actions">Actions</span>
+                </div>
+
+                {% for brk in row.breaks %}
+                <div class="att-brkpanel-row-wrap" id="att-brk-wrap-{{ brk.pk }}">
+
+                  <div class="att-brkpanel-brow" id="att-brk-display-{{ brk.pk }}">
+                    <span class="att-brkpanel-td att-brkpanel-td--type">
+                      <span class="att-brk-chip att-brk-chip--{{ brk.break_type|lower }}">
+                        {% if brk.break_type == "TEA" %}☕{% elif brk.break_type == "LUNCH" %}🍽{% elif brk.break_type == "PERSONAL" %}👤{% else %}⏱{% endif %}
+                        {{ brk.get_break_type_display }}
+                      </span>
+                    </span>
+                    <span class="att-brkpanel-td att-brkpanel-td--time">{{ brk.start_time|localtime|time:"H:i" }}</span>
+                    <span class="att-brkpanel-td att-brkpanel-td--time">
+                      {% if brk.end_time %}{{ brk.end_time|localtime|time:"H:i" }}{% else %}<span class="att-brk-live"><span class="att-brk-dot"></span>Ongoing</span>{% endif %}
+                    </span>
+                    <span class="att-brkpanel-td att-brkpanel-td--dur">
+                      {% if brk.duration_minutes %}<span class="att-brk-dur-pill">{{ brk.duration_minutes }}m</span>{% else %}&mdash;{% endif %}
+                    </span>
+                    <span class="att-brkpanel-td att-brkpanel-td--note">{{ brk.note|default:"—" }}</span>
+                    <span class="att-brkpanel-td att-brkpanel-td--actions">
+                      <button type="button" class="att-brkpanel-edit-btn" onclick="attBreakEdit('{{ brk.pk }}', true)" title="Edit">
+                        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                      </button>
+                      <form method="post" class="att-brk-del-frm">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_break">
+                        <input type="hidden" name="user_id" value="{{ member.pk }}">
+                        <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                        <input type="hidden" name="break_id" value="{{ brk.pk }}">
+                        <button type="submit" class="att-brkpanel-del-btn" title="Delete"
+                                onclick="return confirm('Delete this break?')">
+                          <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                        </button>
+                      </form>
+                    </span>
+                  </div>
+
+                  <form method="post" class="att-brkpanel-edit-form" id="att-brk-edit-{{ brk.pk }}" style="display:none">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="edit_break">
+                    <input type="hidden" name="user_id" value="{{ member.pk }}">
+                    <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="break_id" value="{{ brk.pk }}">
+                    <div class="att-brkpanel-editrow">
+                      <select name="break_type" class="att-brk-select">
+                        <option value="TEA" {% if brk.break_type == "TEA" %}selected{% endif %}>☕ Tea break</option>
+                        <option value="LUNCH" {% if brk.break_type == "LUNCH" %}selected{% endif %}>🍽 Lunch break</option>
+                        <option value="PERSONAL" {% if brk.break_type == "PERSONAL" %}selected{% endif %}>👤 Personal</option>
+                        <option value="OTHER" {% if brk.break_type == "OTHER" %}selected{% endif %}>⏱ Other</option>
+                      </select>
+                      <input type="time" name="break_start" value="{{ brk.start_time|localtime|time:'H:i' }}" class="att-brk-timein" required>
+                      <input type="time" name="break_end" value="{% if brk.end_time %}{{ brk.end_time|localtime|time:'H:i' }}{% endif %}" class="att-brk-timein">
+                      <input type="text" name="break_note" value="{{ brk.note }}" class="att-brk-notein" placeholder="Note" maxlength="100">
+                      <button type="submit" class="att-brk-save-btn">Save</button>
+                      <button type="button" class="att-brk-cancel-btn" onclick="attBreakEdit('{{ brk.pk }}', false)">Cancel</button>
+                    </div>
+                  </form>
+
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="att-brkpanel-empty">
+                <i data-lucide="coffee" class="h-6 w-6 text-slate-300"></i>
+                <p>No breaks recorded yet for {{ selected_date|date:"d M Y" }}.</p>
+              </div>
+              {% endif %}
+
+              <div class="att-brkpanel-addsec">
+                <p class="att-brkpanel-addlabel">
+                  <i data-lucide="plus-circle" class="h-3.5 w-3.5"></i>Add break
+                </p>
+                <form method="post" class="att-brkpanel-addform">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_break">
+                  <input type="hidden" name="user_id" value="{{ member.pk }}">
+                  <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+                  <div class="att-brkpanel-addrow">
+                    <select name="break_type" class="att-brk-select">
+                      <option value="TEA">☕ Tea break</option>
+                      <option value="LUNCH">🍽 Lunch break</option>
+                      <option value="PERSONAL">👤 Personal</option>
+                      <option value="OTHER">⏱ Other</option>
+                    </select>
+                    <div class="att-brk-timefield">
+                      <label class="att-brk-timelabel">From</label>
+                      <input type="time" name="break_start" value="{% now 'H:i' %}" class="att-brk-timein" required>
+                    </div>
+                    <div class="att-brk-timefield">
+                      <label class="att-brk-timelabel">To <span class="att-brk-timelabel--opt">(optional)</span></label>
+                      <input type="time" name="break_end" class="att-brk-timein">
+                    </div>
+                    <input type="text" name="break_note" class="att-brk-notein" placeholder="Note (optional)" maxlength="100">
+                    <button type="submit" class="att-brk-addbtn">
+                      <i data-lucide="plus" class="h-3.5 w-3.5"></i>Add
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+
         {% endwith %}
         {% empty %}
         <tr>
-          <td colspan="{% if can_mark_team %}8{% else %}7{% endif %}" class="att-empty-cell">
+          <td colspan="{% if is_status_based %}3{% elif can_mark_team %}8{% else %}7{% endif %}" class="att-empty-cell">
             <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600">
               <i data-lucide="users" class="h-7 w-7"></i>
             </div>
@@ -283,8 +535,16 @@
 
   <!-- Mobile card layout -->
   <div class="attendance-panel md:hidden">
+    {% if can_mark_team %}
+    <form id="att-bulk-mobile" method="post" action="{% url 'dashboard:attendance_team' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_save">
+      <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+      {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
+    </form>
+    {% endif %}
     <div class="attendance-panel-head attendance-panel-head--mark">
-      {% include "dashboard/_attendance_mark_head.html" %}
+      {% include "dashboard/_attendance_mark_head.html" with bulk_form_id="att-bulk-mobile" %}
     </div>
     <div class="att-mark-cards">
       {% for row in team_rows %}
@@ -292,59 +552,68 @@
       <article class="att-mark-card"
                data-search="{{ member.choice_label|lower }} {{ member.employee_id|lower }} {{ member.username|lower }}"
                x-show="!search || $el.dataset.search.includes(search.toLowerCase())">
+        {% if can_mark_team %}
+        <input type="hidden" name="uid" value="{{ member.pk }}" form="att-bulk-mobile">
+        <input type="hidden" name="checkin_orig_{{ member.pk }}" value="{{ row.check_in_hhmm }}" form="att-bulk-mobile">
+        <input type="hidden" name="checkout_orig_{{ member.pk }}" value="{{ row.check_out_hhmm }}" form="att-bulk-mobile">
+        <input type="hidden" name="status_orig_{{ member.pk }}" value="{% if record %}{{ record.status }}{% endif %}" form="att-bulk-mobile">
+        {% endif %}
         <header class="att-mark-card__head">
           <div class="att-mark-card__identity">
-            <div class="att-employee" title="{{ member.display_name }}">
+            <a href="{% url 'dashboard:staff_detail' member.pk %}"
+               class="att-employee att-employee--link"
+               title="View attendance details for {{ member.display_name }}">
               <span class="att-employee-icon" aria-hidden="true">👤</span>
               <span class="att-employee-name">{{ member.display_name }}</span>
-            </div>
-            <span class="att-username att-username--card">{{ member.username }}</span>
+            </a>
+            <span class="att-empid att-empid--card">ID: {{ member.employee_id|default:"—" }}</span>
           </div>
-          {% include "dashboard/_attendance_status_badge.html" with record=record %}
+          <span x-show="!editMode">{% include "dashboard/_attendance_status_badge.html" with record=record %}</span>
         </header>
+        {% if not is_status_based %}
         <dl class="att-mark-card__meta">
-          <div><dt>Hours</dt><dd class="att-hours">{{ row.working_hours }}</dd></div>
+          <div><dt>Net Hours</dt><dd class="att-hours" style="color:#7c3aed">{{ row.net_hours }}</dd></div>
           <div><dt>Punctuality</dt><dd>{% include "dashboard/_attendance_late_badge.html" with record=record lateness=row.lateness %}</dd></div>
         </dl>
-        <div class="att-mark-card__punches">
-          <div class="att-punch att-punch--in">
-            <span class="att-punch-time">{{ row.login_time }}</span>
-            <form method="post" class="attendance-time-form">
-              {% csrf_token %}
-              <input type="hidden" name="user_id" value="{{ member.pk }}">
-              <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-              {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
-              <input type="hidden" name="action" value="set_check_in">
-              <input type="time" name="check_in_time" value="{% if record and record.check_in %}{{ record.check_in|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--in">
-              <button type="submit" class="att-punch-badge att-punch-badge--in">IN</button>
-            </form>
+        {% endif %}
+
+        {% if can_mark_team %}
+        {% if not is_status_based %}
+        <div x-show="!editMode" class="att-mark-card__view">
+          <div class="att-mark-card__viewrow"><span class="att-mark-card__viewlbl">Check-in</span><span class="att-qt-static att-qt-static--in">{{ row.login_time }}</span></div>
+          <div class="att-mark-card__viewrow"><span class="att-mark-card__viewlbl">Check-out</span><span class="att-qt-static att-qt-static--out">{{ row.logout_time }}</span></div>
+        </div>
+        {% endif %}
+        <div x-show="editMode" x-cloak>
+          {% if not is_status_based %}
+          <div class="att-mark-card__punches">
+            <div class="att-qt-wrap" style="flex:1">
+              <span class="att-qt-chip att-qt-chip--in">IN</span>
+              <input type="time" name="checkin_{{ member.pk }}" form="att-bulk-mobile"
+                     value="{{ row.check_in_hhmm }}" class="att-qt-input att-qt-input--in" style="width:100%">
+            </div>
+            <div class="att-qt-wrap" style="flex:1">
+              <span class="att-qt-chip att-qt-chip--out">OUT</span>
+              <input type="time" name="checkout_{{ member.pk }}" form="att-bulk-mobile"
+                     value="{{ row.check_out_hhmm }}" class="att-qt-input att-qt-input--out" style="width:100%">
+            </div>
           </div>
-          <div class="att-punch att-punch--out">
-            <span class="att-punch-time">{{ row.logout_time }}</span>
-            <form method="post" class="attendance-time-form">
-              {% csrf_token %}
-              <input type="hidden" name="user_id" value="{{ member.pk }}">
-              <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-              {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
-              <input type="hidden" name="action" value="set_check_out">
-              <input type="time" name="check_out_time" value="{% if record and record.check_out %}{{ record.check_out|time:'H:i' }}{% else %}{% now 'H:i' %}{% endif %}" class="attendance-time-input attendance-time-input--out">
-              <button type="submit" class="att-punch-badge att-punch-badge--out" {% if not record or not record.check_in %}disabled{% endif %}>OUT</button>
-            </form>
+          {% endif %}
+          <div class="att-mark-card__actions">
+            <select name="status_{{ member.pk }}" form="att-bulk-mobile" class="attendance-status-select" style="flex:1">
+              {% if not record %}<option value="" selected>— Not marked —</option>{% endif %}
+              {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if record and record.status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
-        <form method="post" class="att-mark-form att-mark-card__actions">
-          {% csrf_token %}
-          <input type="hidden" name="user_id" value="{{ member.pk }}">
-          <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-          {% if selected_shift and selected_shift != "all" %}<input type="hidden" name="shift" value="{{ selected_shift }}">{% endif %}
-          <input type="hidden" name="action" value="set_status">
-          <select name="status" class="attendance-status-select">
-            {% for val, label in status_choices %}
-            <option value="{{ val }}" {% if record and record.status == val %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="attendance-btn attendance-btn--set">Save</button>
-        </form>
+        {% elif not is_status_based %}
+        <div class="att-mark-card__view">
+          <div class="att-mark-card__viewrow"><span class="att-mark-card__viewlbl">Check-in</span><span class="att-qt-static att-qt-static--in">{{ row.login_time }}</span></div>
+          <div class="att-mark-card__viewrow"><span class="att-mark-card__viewlbl">Check-out</span><span class="att-qt-static att-qt-static--out">{{ row.logout_time }}</span></div>
+        </div>
+        {% endif %}
       </article>
       {% endwith %}
       {% empty %}
@@ -410,9 +679,16 @@
 
       {% if my_row.is_marked %}
       <div class="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-center text-xs font-medium text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-        Your attendance for this day is on record{% if today_record.check_in %} — login, logout, and hours are shown below{% endif %}.
+        Your attendance for this day is on record{% if today_record.check_in and not is_status_based %} — login, logout, and hours are shown below{% endif %}.
       </div>
+      {% if is_status_based %}
+      <div class="flex items-center justify-center gap-2 py-3">
+        <span class="text-sm text-slate-500">Status:</span>
+        {% include "dashboard/_attendance_status_badge.html" with record=today_record %}
+      </div>
+      {% else %}
       {% include "dashboard/_attendance_day_summary.html" with row=my_row %}
+      {% endif %}
       {% else %}
       <p class="mb-4 text-center text-sm text-slate-500">No attendance marked yet for this day. Contact HR if you believe this is incorrect, or submit a correction request below.</p>
       {% endif %}
@@ -441,6 +717,7 @@
           <p class="font-medium text-slate-900 dark:text-white">{{ h.record.date|date:"l" }}</p>
           {% include "dashboard/_attendance_status_badge.html" with record=h.record %}
         </div>
+        {% if not is_status_based %}
         <div class="hidden gap-3 text-right sm:flex sm:items-center">
           <div>
             <p class="text-[10px] uppercase text-slate-400">Login</p>
@@ -456,6 +733,7 @@
           </div>
           <div>{% include "dashboard/_attendance_late_badge.html" with record=h.record lateness=h.lateness %}</div>
         </div>
+        {% endif %}
       </div>
       {% empty %}
       <div class="px-5 py-14 text-center text-slate-500">
@@ -518,4 +796,23 @@
 {% if is_team_view %}
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 {% endif %}
+<script>
+function attToggleBreaks(memberId) {
+  var row = document.getElementById('att-breaks-' + memberId);
+  if (!row) return;
+  var open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : '';
+  var btn = document.querySelector('[aria-controls="att-breaks-' + memberId + '"]');
+  if (btn) btn.setAttribute('aria-expanded', String(!open));
+  if (!open && window.lucide) window.lucide.createIcons({ nodes: [row] });
+}
+function attBreakEdit(breakId, show) {
+  var display = document.getElementById('att-brk-display-' + breakId);
+  var editForm = document.getElementById('att-brk-edit-' + breakId);
+  if (!display || !editForm) return;
+  display.style.display = show ? 'none' : '';
+  editForm.style.display = show ? '' : 'none';
+  if (show && window.lucide) window.lucide.createIcons({ nodes: [editForm] });
+}
+</script>
 {% endblock %}

@@ -34,8 +34,23 @@
     </div>
     {% endif %}
   </div>
-  <div class="att-mark-head__search relative w-full sm:max-w-xs">
-    <i data-lucide="search" class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
-    <input type="search" x-model="search" placeholder="Search by name…" class="attendance-search w-full">
+  <div class="att-mark-head__searchcol w-full">
+    <div class="att-mark-head__search relative w-full">
+      <i data-lucide="search" class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+      <input type="search" x-model="search" placeholder="Search by name…" class="attendance-search w-full">
+    </div>
+    {% if can_mark_team and bulk_form_id %}
+    <div class="att-mark-toolbar">
+      <button type="button" class="att-edit-btn" x-show="!editMode" @click="editMode = true" title="Edit attendance">
+        <i data-lucide="pencil" class="h-4 w-4"></i><span>Edit</span>
+      </button>
+      <div class="att-edit-actions" x-show="editMode" x-cloak>
+        <button type="button" class="att-cancel-btn" @click="editMode = false">Cancel</button>
+        <button type="submit" form="{{ bulk_form_id }}" class="att-saveall-btn">
+          <i data-lucide="check" class="h-4 w-4"></i><span>Save all</span>
+        </button>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>

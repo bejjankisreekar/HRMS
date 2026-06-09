@@ -107,19 +107,144 @@ def get_staff_profile_context(staff: User) -> dict:
     today = timezone.localdate()
     month_start = today.replace(day=1)
     attendance = AttendanceRecord.objects.filter(user=staff, date__gte=month_start)
+    total_marked = attendance.count()
     present = attendance.filter(status=AttendanceRecord.Status.PRESENT).count()
+    attendance_pct = round((present / total_marked) * 100) if total_marked else 0
     leaves = LeaveRequest.objects.filter(user=staff).order_by("-created_at")[:8]
     direct_reports = User.objects.filter(reporting_manager=staff, is_active=True).count()
     audit = StaffAuditLog.objects.filter(target_user=staff).select_related("actor")[:12]
     return {
         "attendance_month": {
             "present": present,
-            "total_days": attendance.count(),
+            "total_days": total_marked,
+            "pct": attendance_pct,
+            "month_label": today.strftime("%B %Y"),
         },
+        "attendance_pct": attendance_pct,
         "recent_leaves": leaves,
         "direct_reports_count": direct_reports,
         "audit_logs": audit,
         "role_label": role_display_for(staff.role),
+    }
+
+
+def get_staff_attendance_detail(staff: User) -> dict:
+    """Full attendance breakdown for the staff profile page — this-month stats,
+    total break time, and a recent day-by-day attendance log."""
+    from apps.dashboard.attendance_utils import (
+        compute_net_hours,
+        compute_working_hours,
+        format_time_display,
+        format_total_minutes,
+    )
+
+    today = timezone.localdate()
+    month_start = today.replace(day=1)
+    S = AttendanceRecord.Status
+
+    month_qs = AttendanceRecord.objects.filter(user=staff, date__gte=month_start)
+    total_marked = month_qs.count()
+    present = month_qs.filter(status=S.PRESENT).count()
+    absent = month_qs.filter(status=S.ABSENT).count()
+    leave = month_qs.filter(status=S.LEAVE).count()
+    half_day = month_qs.filter(status=S.HALF_DAY).count()
+    attendance_pct = round((present / total_marked) * 100) if total_marked else 0
+    total_break_mins = sum(r.break_minutes or 0 for r in month_qs)
+
+    recent = list(
+        AttendanceRecord.objects.filter(user=staff).order_by("-date")[:3]
+    )
+    recent_rows = [
+        {
+            "record": r,
+            "date": r.date,
+            "check_in": format_time_display(r.check_in) if r.check_in else "—",
+            "check_out": format_time_display(r.check_out) if r.check_out else "—",
+            "hours": compute_working_hours(r),
+            "net_hours": compute_net_hours(r, r.break_minutes or 0),
+            "break_display": format_total_minutes(r.break_minutes) if r.break_minutes else "—",
+        }
+        for r in recent
+    ]
+
+    return {
+        "att_detail": {
+            "month_label": today.strftime("%B %Y"),
+            "pct": attendance_pct,
+            "present": present,
+            "absent": absent,
+            "leave": leave,
+            "half_day": half_day,
+            "total_marked": total_marked,
+            "total_break": format_total_minutes(total_break_mins) if total_break_mins else "0m",
+            "recent_rows": recent_rows,
+        }
+    }
+
+
+def get_staff_attendance_sheet(staff: User, start, end) -> dict:
+    """Detailed, filterable attendance sheet for one employee over a date range."""
+    from apps.dashboard.attendance_utils import (
+        compute_net_hours,
+        compute_working_hours,
+        format_time_display,
+        format_total_minutes,
+    )
+
+    S = AttendanceRecord.Status
+    qs = (
+        AttendanceRecord.objects.filter(user=staff, date__gte=start, date__lte=end)
+        .order_by("-date")
+    )
+    records = list(qs)
+
+    counts = {"present": 0, "absent": 0, "leave": 0, "half_day": 0, "wfh": 0}
+    total_break_mins = 0
+    total_net_mins = 0
+    rows = []
+    for r in records:
+        if r.status == S.PRESENT:
+            counts["present"] += 1
+        elif r.status == S.ABSENT:
+            counts["absent"] += 1
+        elif r.status == S.LEAVE:
+            counts["leave"] += 1
+        elif r.status == S.HALF_DAY:
+            counts["half_day"] += 1
+        elif r.status == S.WFH:
+            counts["wfh"] += 1
+
+        total_break_mins += r.break_minutes or 0
+        if r.check_in and r.check_out and r.check_out > r.check_in:
+            gross = int((r.check_out - r.check_in).total_seconds() // 60)
+            total_net_mins += max(0, gross - (r.break_minutes or 0))
+
+        rows.append(
+            {
+                "record": r,
+                "date": r.date,
+                "check_in": format_time_display(r.check_in) if r.check_in else "—",
+                "check_out": format_time_display(r.check_out) if r.check_out else "—",
+                "hours": compute_working_hours(r),
+                "net_hours": compute_net_hours(r, r.break_minutes or 0),
+                "break_display": format_total_minutes(r.break_minutes) if r.break_minutes else "—",
+            }
+        )
+
+    total_marked = len(records)
+    attendance_pct = round((counts["present"] / total_marked) * 100) if total_marked else 0
+
+    return {
+        "sheet": {
+            "start": start,
+            "end": end,
+            "rows": rows,
+            "total_marked": total_marked,
+            "pct": attendance_pct,
+            "total_break": format_total_minutes(total_break_mins) if total_break_mins else "0m",
+            "total_net": format_total_minutes(total_net_mins) if total_net_mins else "0m",
+            **counts,
+        }
     }
 
 

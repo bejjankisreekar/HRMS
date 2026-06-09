@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.accounts.hierarchy import attendance_team_for
 from apps.accounts.models import User
-from apps.attendance.models import AttendanceRecord, WorkShift
+from apps.attendance.models import AttendanceRecord, BreakRecord, WorkShift
 from apps.organizations.models import Organization
 
 
@@ -57,6 +57,7 @@ def get_effective_shift(user: User) -> WorkShift | None:
 
 
 def compute_working_hours(record: AttendanceRecord | None) -> str:
+    """Raw elapsed time (check_out − check_in), no break deduction."""
     if not record or not record.check_in or not record.check_out:
         return "—"
     delta = record.check_out - record.check_in
@@ -64,6 +65,24 @@ def compute_working_hours(record: AttendanceRecord | None) -> str:
         return "—"
     total_mins = int(delta.total_seconds() // 60)
     hours, mins = divmod(total_mins, 60)
+    if hours and mins:
+        return f"{hours}h {mins}m"
+    if hours:
+        return f"{hours}h"
+    return f"{mins}m"
+
+
+def compute_net_hours(record: AttendanceRecord | None, break_minutes: int = 0) -> str:
+    """Net working time = raw elapsed − break minutes."""
+    if not record or not record.check_in or not record.check_out:
+        return "—"
+    delta = record.check_out - record.check_in
+    if delta.total_seconds() < 0:
+        return "—"
+    net_mins = max(0, int(delta.total_seconds() // 60) - break_minutes)
+    if net_mins == 0:
+        return "0m"
+    hours, mins = divmod(net_mins, 60)
     if hours and mins:
         return f"{hours}h {mins}m"
     if hours:
@@ -134,22 +153,47 @@ def shift_timing_info(shift: WorkShift | None) -> dict:
     }
 
 
-def enrich_attendance_row(member: User, record: AttendanceRecord | None, on_date) -> dict:
+def enrich_attendance_row(
+    member: User,
+    record: AttendanceRecord | None,
+    on_date,
+    breaks: list | None = None,
+) -> dict:
     shift = get_effective_shift(member)
     lateness = analyze_lateness(record, shift, on_date)
     timing = shift_timing_info(shift)
-    login_time = format_time_display(record.check_in) if record and record.check_in else "—"
+    login_time  = format_time_display(record.check_in)  if record and record.check_in  else "—"
     logout_time = format_time_display(record.check_out) if record and record.check_out else "—"
+
+    # Break summary
+    break_list = breaks or []
+    total_break_mins = sum(b.duration_minutes or 0 for b in break_list)
+    has_ongoing = any(b.is_ongoing for b in break_list)
+
+    actual_hours = compute_working_hours(record)
+    net_hours    = compute_net_hours(record, total_break_mins)
+
     return {
         "member": member,
         "record": record,
         "shift": shift,
         "shift_timing": timing,
-        "working_hours": compute_working_hours(record),
+        "working_hours": actual_hours,   # kept for backward compat
+        "actual_hours": actual_hours,
+        "net_hours": net_hours,
         "login_time": login_time,
         "logout_time": logout_time,
         "lateness": lateness,
         "is_marked": bool(record and (record.check_in or record.check_out or record.status)),
+        "breaks": break_list,
+        "total_break_mins": total_break_mins,
+        "total_break_display": format_total_minutes(total_break_mins) if total_break_mins else "—",
+        "has_ongoing_break": has_ongoing,
+        # pre-formatted time values for quick time pickers
+        "check_in_hhmm":  (timezone.localtime(record.check_in).strftime("%H:%M")
+                           if record and record.check_in else ""),
+        "check_out_hhmm": (timezone.localtime(record.check_out).strftime("%H:%M")
+                           if record and record.check_out else ""),
     }
 
 
@@ -178,6 +222,20 @@ def attendance_mark_team_for(user: User):
     return qs
 
 
+def _load_breaks_for_records(records: dict) -> dict:
+    """Batch-load BreakRecord objects for a dict of {user_id: AttendanceRecord}.
+    Returns {attendance_record_id: [BreakRecord, ...]}."""
+    record_ids = [r.pk for r in records.values()]
+    if not record_ids:
+        return {}
+    breaks_map: dict = {}
+    for brk in BreakRecord.objects.filter(
+        attendance_record_id__in=record_ids
+    ).select_related("marked_by"):
+        breaks_map.setdefault(brk.attendance_record_id, []).append(brk)
+    return breaks_map
+
+
 def get_visible_attendance_rows(viewer: User, on_date):
     """Read-only team rows for managers (direct reportees)."""
     from apps.accounts.hierarchy import attendance_visible_team_for
@@ -192,7 +250,16 @@ def get_visible_attendance_rows(viewer: User, on_date):
         r.user_id: r
         for r in AttendanceRecord.objects.filter(user__in=team, date=on_date)
     }
-    return [enrich_attendance_row(m, records.get(m.pk), on_date) for m in team]
+    breaks_map = _load_breaks_for_records(records)
+    return [
+        enrich_attendance_row(
+            m,
+            records.get(m.pk),
+            on_date,
+            breaks=breaks_map.get(records[m.pk].pk, []) if m.pk in records else [],
+        )
+        for m in team
+    ]
 
 
 def get_team_attendance_rows(manager: User, on_date):
@@ -206,7 +273,16 @@ def get_team_attendance_rows(manager: User, on_date):
         r.user_id: r
         for r in AttendanceRecord.objects.filter(user__in=team, date=on_date)
     }
-    return [enrich_attendance_row(m, records.get(m.pk), on_date) for m in team]
+    breaks_map = _load_breaks_for_records(records)
+    return [
+        enrich_attendance_row(
+            m,
+            records.get(m.pk),
+            on_date,
+            breaks=breaks_map.get(records[m.pk].pk, []) if m.pk in records else [],
+        )
+        for m in team
+    ]
 
 
 def build_shift_attendance_filters(team_rows: list) -> list[dict]:
@@ -464,6 +540,108 @@ def apply_team_attendance_action(
         return f"Marked {target.choice_label} as {record.get_status_display()}."
 
     return "Invalid action."
+
+
+def _sync_break_minutes(record: AttendanceRecord) -> None:
+    """Recalculate and save break_minutes on the AttendanceRecord from BreakRecord rows."""
+    total = sum(
+        b.duration_minutes or 0
+        for b in BreakRecord.objects.filter(attendance_record=record)
+        if b.duration_minutes is not None
+    )
+    if record.break_minutes != total:
+        record.break_minutes = total
+        record.save(update_fields=["break_minutes", "updated_at"])
+
+
+def apply_break_action(
+    manager: User,
+    target: User,
+    on_date,
+    action: str,
+    break_type: str = "OTHER",
+    break_start: str | None = None,
+    break_end: str | None = None,
+    break_note: str = "",
+    break_id: str | None = None,
+    end_time_str: str | None = None,
+) -> str:
+    """Add, end or delete a BreakRecord for a team member."""
+
+    if action == "add_break":
+        record = AttendanceRecord.objects.filter(user=target, date=on_date).first()
+        if not record:
+            return f"Mark attendance for {target.choice_label} first before logging a break."
+        if break_type not in BreakRecord.BreakType.values:
+            break_type = BreakRecord.BreakType.OTHER
+        start_dt = combine_date_and_time(on_date, break_start) if break_start else timezone.now()
+        end_dt = combine_date_and_time(on_date, break_end) if break_end else None
+        if end_dt and end_dt <= start_dt:
+            return "Break end time must be after start time."
+        BreakRecord.objects.create(
+            attendance_record=record,
+            break_type=break_type,
+            start_time=start_dt,
+            end_time=end_dt,
+            note=break_note,
+            marked_by=manager,
+        )
+        _sync_break_minutes(record)
+        label = BreakRecord.BreakType(break_type).label
+        return f"{label} added for {target.choice_label}."
+
+    if action in ("end_break", "edit_break", "delete_break"):
+        if not break_id:
+            return "Break ID missing."
+        try:
+            brk = BreakRecord.objects.select_related("attendance_record").get(
+                pk=break_id,
+                attendance_record__user=target,
+                attendance_record__date=on_date,
+            )
+        except BreakRecord.DoesNotExist:
+            return "Break not found."
+
+        if action == "delete_break":
+            record = brk.attendance_record
+            brk.delete()
+            _sync_break_minutes(record)
+            return f"Break removed for {target.choice_label}."
+
+        if action == "end_break":
+            if brk.end_time:
+                return "Break already ended."
+            end_dt = combine_date_and_time(on_date, end_time_str) if end_time_str else timezone.now()
+            if end_dt <= brk.start_time:
+                return "End time must be after start time."
+            brk.end_time = end_dt
+            brk.save(update_fields=["end_time"])
+            _sync_break_minutes(brk.attendance_record)
+            return f"Break ended for {target.choice_label}."
+
+        if action == "edit_break":
+            update_fields: list[str] = []
+            if break_type and break_type in BreakRecord.BreakType.values:
+                brk.break_type = break_type
+                update_fields.append("break_type")
+            if break_start:
+                start_dt = combine_date_and_time(on_date, break_start)
+                brk.start_time = start_dt
+                update_fields.append("start_time")
+            if break_end:
+                end_dt = combine_date_and_time(on_date, break_end)
+                if end_dt <= brk.start_time:
+                    return "End time must be after start time."
+                brk.end_time = end_dt
+                update_fields.append("end_time")
+            brk.note = break_note
+            update_fields.append("note")
+            if update_fields:
+                brk.save(update_fields=update_fields)
+                _sync_break_minutes(brk.attendance_record)
+            return f"Break updated for {target.choice_label}."
+
+    return "Invalid break action."
 
 
 def get_shift_assignment_roster(organization: Organization) -> list[dict]:

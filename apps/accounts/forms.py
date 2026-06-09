@@ -153,7 +153,7 @@ class OrganizationSignupForm(forms.Form):
     subscription_plan = forms.ChoiceField(
         choices=Organization.SubscriptionPlan.choices,
         required=False,
-        initial=Organization.SubscriptionPlan.FREE,
+        initial=Organization.SubscriptionPlan.BASIC,
     )
 
     how_did_you_hear_about_us = forms.ChoiceField(
@@ -279,7 +279,7 @@ class OrganizationSignupForm(forms.Form):
             "biometric_enabled": bool(self.cleaned_data.get("biometric_enabled")),
             "leave_management_enabled": bool(self.cleaned_data.get("leave_management_enabled", True)),
             "payroll_enabled": bool(self.cleaned_data.get("payroll_enabled", True)),
-            "subscription_plan": self._val("subscription_plan") or Organization.SubscriptionPlan.FREE,
+            "subscription_plan": self._val("subscription_plan") or Organization.SubscriptionPlan.BASIC,
             "trial_start_date": now,
             "subscription_status": Organization.SubscriptionStatus.TRIAL,
             "onboarding_status": Organization.OnboardingStatus.COMPLETED,

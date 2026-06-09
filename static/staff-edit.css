@@ -1,109 +1,334 @@
-/* Staff edit workspace — form controls & tab chrome */
+/* Staff create / edit — form controls, tabs, layout */
 
-.se-input,
-.se-input[type="date"],
-.se-input[type="file"],
-select.se-input,
-textarea.se-input {
-  display: block;
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(226 232 240);
-  background: #fff;
-  padding: 0.625rem 0.875rem;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  color: #0f172a;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
+/* Tab panel show / hide */
+[data-tab-panel] { display: none; }
+[data-tab-panel].se-tab-active { display: block; }
 
-html.dark .se-input,
-html.dark select.se-input,
-html.dark textarea.se-input {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgb(15 23 42);
-  color: #f1f5f9;
-}
-
-.se-input:focus {
-  outline: none;
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
-}
-
-.se-input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
-  accent-color: #7c3aed;
-}
-
-.se-field label,
-.se-field .se-label {
-  display: block;
-  margin-bottom: 0.375rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #475569;
-}
-
-html.dark .se-field label,
-html.dark .se-field .se-label {
-  color: #cbd5e1;
-}
-
-.se-error {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #dc2626;
-}
-
-.se-hint {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
+/* Tab scroll container */
 .se-tab-scroll {
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
+  gap: 0.5rem !important;
 }
 
+/* Tab button — default */
 .se-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
   flex-shrink: 0;
+  border: none;
+  border-radius: 0.625rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+.se-tab-btn:hover {
+  background: #f8fafc;
+  color: #334155;
+}
+html.dark .se-tab-btn {
+  color: #94a3b8;
+}
+html.dark .se-tab-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #cbd5e1;
 }
 
+/* Tab button — active */
+.se-tab-btn--active {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.35);
+  border-bottom-color: #7c3aed;
+}
+html.dark .se-tab-btn--active {
+  box-shadow: 0 2px 12px rgba(124,58,237,0.5);
+}
+
+/* Form field wrapper */
+.se-field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Label */
+.se-label,
+.se-field > label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.4;
+  letter-spacing: 0.3px;
+}
+html.dark .se-label,
+html.dark .se-field > label {
+  color: #cbd5e1;
+}
+.se-label--req::after {
+  content: " *";
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+/* Input / select / textarea */
+.se-input {
+  display: block;
+  width: 100%;
+  min-height: 2.6875rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #0f172a;
+  background: #fff;
+  border: 1.5px solid #d4d8e0;
+  border-radius: 0.625rem;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+}
+html.dark .se-input {
+  color: #f1f5f9;
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.se-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124,58,237,0.12), 0 1px 2px rgba(124,58,237,0.1);
+}
+html.dark .se-input:focus {
+  box-shadow: 0 0 0 4px rgba(124,58,237,0.2), 0 1px 2px rgba(0,0,0,0.3);
+}
+.se-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+html.dark .se-input::placeholder { color: #475569; }
+.se-input:disabled, .se-input[readonly] {
+  opacity: 0.6;
+  background: #f8fafc;
+  cursor: not-allowed;
+}
+
+/* Select */
+select.se-input {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+html.dark select.se-input option {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+/* Textarea */
+textarea.se-input {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+/* Checkbox */
+.se-input[type="checkbox"] {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  min-height: unset;
+  padding: 0;
+  border-radius: 0.25rem;
+  accent-color: #7c3aed;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-appearance: auto;
+  appearance: auto;
+}
+
+/* File input */
+input[type="file"].se-input {
+  padding: 0.375rem 0.5rem;
+  min-height: unset;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+/* Hint */
+.se-hint {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.5;
+  font-weight: 400;
+}
+html.dark .se-hint { color: #94a3b8; }
+
+/* Error */
+.se-error {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.se-error::before {
+  content: "⚠";
+  font-size: 0.6rem;
+}
+html.dark .se-error { color: #ff6b6b; }
+
+/* Role card */
+.se-role-card:has(input:checked) {
+  border-color: #7c3aed;
+  background: rgba(124,58,237,0.04);
+}
+html.dark .se-role-card:has(input:checked) {
+  border-color: #a78bfa;
+  background: rgba(124,58,237,0.12);
+}
+
+/* Section card */
+.se-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s ease;
+}
+.se-card:hover {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+html.dark .se-card {
+  background: rgb(15,23,42);
+  border-color: rgba(255,255,255,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+html.dark .se-card:hover {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Section divider inside card */
+.se-section-head {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+html.dark .se-section-head {
+  border-color: rgba(255,255,255,0.06);
+}
+
+/* Stat tile */
+.se-stat {
+  border-radius: 0.75rem;
+  border: 1px solid #f1f5f9;
+  background: #f8fafc;
+  padding: 0.875rem 1rem;
+  text-align: center;
+}
+html.dark .se-stat {
+  border-color: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.03);
+}
+
+/* Doc tile */
+.se-doc-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.875rem;
+  border: 2px dashed #e2e8f0;
+  padding: 1.75rem 1rem;
+  text-align: center;
+  cursor: default;
+  transition: border-color 0.15s, background 0.15s;
+}
+.se-doc-tile:hover {
+  border-color: #c4b5fd;
+  background: rgba(124,58,237,0.03);
+}
+html.dark .se-doc-tile { border-color: rgba(255,255,255,0.1); }
+
+/* Hierarchy line */
 .se-hierarchy-line {
   position: relative;
   padding-left: 1.25rem;
 }
-
 .se-hierarchy-line::before {
   content: "";
   position: absolute;
-  left: 0.35rem;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgb(226 232 240);
+  left: 0.375rem;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 1.5px;
+  background: #e2e8f0;
+  border-radius: 1px;
+}
+html.dark .se-hierarchy-line::before { background: rgba(255,255,255,0.1); }
+
+/* Sticky tab bar */
+.se-tab-bar {
+  position: sticky;
+  top: 72px;
+  z-index: 20;
+  margin-bottom: 1rem;
 }
 
-html.dark .se-hierarchy-line::before {
-  background: rgba(255, 255, 255, 0.1);
-}
-
+/* Sticky save bar */
 .se-save-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255,255,255,0.96);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  padding: 0.75rem 1rem;
 }
-
+html.dark .se-save-bar {
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(2,6,23,0.96);
+}
 @media (min-width: 1024px) {
-  body.sidebar-collapsed .se-save-bar {
-    padding-left: var(--hrms-sidebar-collapsed, 90px);
-  }
+  .se-save-bar { left: var(--hrms-sidebar-width, 280px); }
+  body.sidebar-collapsed .se-save-bar { left: var(--hrms-sidebar-collapsed, 90px); }
 }
 
-[x-cloak] {
-  display: none !important;
+/* Inline toggle row (checkbox label) */
+.se-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #f1f5f9;
+  background: #f8fafc;
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+}
+html.dark .se-toggle-row {
+  border-color: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
 }

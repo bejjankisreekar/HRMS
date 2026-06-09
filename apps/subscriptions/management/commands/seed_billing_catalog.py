@@ -99,6 +99,13 @@ class Command(BaseCommand):
             retired.is_active = False
             retired.save(update_fields=["is_active", "updated_at"])
             self.stdout.write(self.style.WARNING("Retired plan: Enterprise (migrated subscriptions to Growth)."))
-        Organization.objects.filter(subscription_plan=Organization.SubscriptionPlan.ENTERPRISE).update(
-            subscription_plan=Organization.SubscriptionPlan.PREMIUM
+        # Remap any legacy plan values to the current Basic / Professional / Growth set.
+        Organization.objects.filter(subscription_plan="ENTERPRISE").update(
+            subscription_plan=Organization.SubscriptionPlan.GROWTH
         )
+        Organization.objects.filter(subscription_plan="PREMIUM").update(
+            subscription_plan=Organization.SubscriptionPlan.PROFESSIONAL
+        )
+        Organization.objects.filter(subscription_plan__in=["FREE", "STARTER", ""]).exclude(
+            subscription_plan__in=[c[0] for c in Organization.SubscriptionPlan.choices]
+        ).update(subscription_plan=Organization.SubscriptionPlan.BASIC)

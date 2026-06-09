@@ -1,453 +1,676 @@
 {% extends "dashboard/_shell.html" %}
 {% load static %}
-{% block title %}Add team member · Staff{% endblock %}
+{% block title %}Add team member · {{ organization.name }}{% endblock %}
+
 {% block dashboard_extra_head %}
 <link rel="stylesheet" href="{% static 'platform-forms.css' %}">
 <link rel="stylesheet" href="{% static 'staff-edit.css' %}">
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 <script src="{% static 'staff-edit.js' %}" defer></script>
 {% endblock %}
 
 {% block page_back %}
 <div class="hrms-page-back">
   {% url 'dashboard:staff_list' as staff_list_url %}
-  {% include "dashboard/_back_button.html" with back_url=staff_list_url back_label="Back" %}
+  {% include "dashboard/_back_button.html" with back_url=staff_list_url back_label="Back to staff" %}
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="hrms-page-fluid w-full pb-24"
-     x-data="{
-       tab: 'personal',
-       showPwd: false,
-       role: '{{ form.role.value|default:'EMPLOYEE' }}',
-       previewName: '{{ form.first_name.value|default:'' }} {{ form.last_name.value|default:'' }}'.trim() || 'New team member',
-       previewInitial: '{{ form.first_name.value|default:'N'|slice:':1'|upper }}',
-       managerLabel: '',
-       init() {
-         window.addEventListener('se-set-tab', e => { this.tab = e.detail; });
-         const mgr = document.getElementById('id_reporting_manager');
-         if (mgr) {
-           this.managerLabel = mgr.options[mgr.selectedIndex]?.text?.trim() || '';
-           mgr.addEventListener('change', () => {
-             this.managerLabel = mgr.options[mgr.selectedIndex]?.text?.trim() || '';
-           });
-         }
-         ['id_first_name', 'id_last_name'].forEach((id) => {
-           document.getElementById(id)?.addEventListener('input', () => this.updatePreview());
-         });
-       },
-       updatePreview() {
-         const fn = document.getElementById('id_first_name')?.value?.trim() || '';
-         const ln = document.getElementById('id_last_name')?.value?.trim() || '';
-         this.previewName = (fn + ' ' + ln).trim() || 'New team member';
-         this.previewInitial = (fn || ln || 'N').charAt(0).toUpperCase();
-       }
-     }">
+<div class="hrms-page-fluid w-full pb-32" data-se-root>
 
-  {# ── Header card ── #}
-  <header class="relative mb-5 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/90 dark:shadow-black/20">
-    <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-sky-500/5"></div>
-    <div class="relative p-5 sm:p-6">
-      <div class="flex min-w-0 flex-1 gap-4 sm:gap-5">
-          <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-xl font-extrabold text-white shadow-lg shadow-violet-500/30 sm:h-20 sm:w-20">
-            <span x-text="previewInitial">N</span>
-          </div>
-          <div class="min-w-0">
-            <p class="text-xs font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">New hire · {{ organization.name }}</p>
-            <h1 class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-2xl" x-text="previewName">New team member</h1>
-            <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              Complete profile, access, and job structure before publishing to the directory
-            </p>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">Draft</span>
-              <span class="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300" x-show="role === 'HR'" x-cloak>HR portal</span>
-              <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300" x-show="role === 'EMPLOYEE'" x-cloak>Employee portal</span>
-            </div>
-          </div>
+  <header class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
+    <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-xl font-black text-white shadow shadow-violet-400/30 sm:h-16 sm:w-16">
+        <span data-preview="initial">N</span>
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="text-xs font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+          New hire &middot; {{ organization.name }}
+        </p>
+        <h1 class="mt-0.5 truncate text-lg font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-xl"
+            data-preview="name">New team member</h1>
+        <div class="mt-1.5 flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+            <svg class="h-1.5 w-1.5 fill-amber-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3"/></svg>Draft
+          </span>
+          <span data-role-badge="HR" style="display:none"
+                class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">HR portal</span>
+          <span data-role-badge="EMPLOYEE"
+                class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">Employee portal</span>
+          <span class="text-xs text-slate-400">Created by {{ creator_name }}</span>
         </div>
+      </div>
+      <div class="flex shrink-0 items-center gap-2">
+        <a href="{% url 'dashboard:staff_list' %}"
+           class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5">
+          Cancel
+        </a>
+        <button type="submit" form="staff-create-form"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow shadow-violet-500/30 hover:bg-violet-700 active:scale-95 transition-transform">
+          <i data-lucide="user-plus" class="h-4 w-4"></i>
+          Create employee
+        </button>
       </div>
     </div>
   </header>
 
-  <form id="staff-create-form" method="post" enctype="multipart/form-data" class="grid gap-5 xl:grid-cols-12 xl:gap-6">
-    {% csrf_token %}
+  <nav class="se-tab-bar se-tab-scroll flex overflow-x-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-slate-900"
+       aria-label="Form sections">
+    <button type="button" data-tab-btn="personal" class="se-tab-btn se-tab-btn--active" aria-selected="true">
+      <i data-lucide="user" class="h-3.5 w-3.5 shrink-0"></i><span>Personal</span>
+    </button>
+    <button type="button" data-tab-btn="employment" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="badge-check" class="h-3.5 w-3.5 shrink-0"></i><span>Employment</span>
+    </button>
+    <button type="button" data-tab-btn="organization" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="building-2" class="h-3.5 w-3.5 shrink-0"></i><span>Organization</span>
+    </button>
+    <button type="button" data-tab-btn="payroll" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="wallet" class="h-3.5 w-3.5 shrink-0"></i><span>Payroll</span>
+    </button>
+    <button type="button" data-tab-btn="attendance" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="calendar-check" class="h-3.5 w-3.5 shrink-0"></i><span>Attendance</span>
+    </button>
+    <button type="button" data-tab-btn="documents" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="folder-open" class="h-3.5 w-3.5 shrink-0"></i><span>Documents</span>
+    </button>
+    <button type="button" data-tab-btn="permissions" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="shield" class="h-3.5 w-3.5 shrink-0"></i><span>Access</span>
+    </button>
+    <button type="button" data-tab-btn="emergency" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="heart-pulse" class="h-3.5 w-3.5 shrink-0"></i><span>Emergency</span>
+    </button>
+    <button type="button" data-tab-btn="notes" class="se-tab-btn" aria-selected="false">
+      <i data-lucide="notebook-pen" class="h-3.5 w-3.5 shrink-0"></i><span>Notes</span>
+    </button>
+  </nav>
 
-    {% if form.non_field_errors %}
-    <div class="xl:col-span-12 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-      {{ form.non_field_errors }}
-    </div>
-    {% endif %}
+  <div class="grid grid-cols-1 gap-6 xl:grid-cols-12 xl:gap-8">
 
-    <div class="space-y-4 xl:col-span-9">
+    <div class="xl:col-span-9">
 
-      {# Tab bar #}
-      <nav class="se-tab-scroll flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-white/10 dark:bg-slate-900">
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'personal' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'personal'"><i data-lucide="user" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Personal</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'employment' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'employment'"><i data-lucide="badge-check" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Employment</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'organization' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'organization'"><i data-lucide="building-2" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Organization</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'payroll' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'payroll'"><i data-lucide="wallet" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Payroll</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'attendance' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'attendance'"><i data-lucide="calendar-check" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Attendance</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'documents' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'documents'"><i data-lucide="folder-open" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Documents</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'permissions' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'permissions'"><i data-lucide="shield" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Access</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'emergency' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'emergency'"><i data-lucide="heart-pulse" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Emergency</span></button>
-        <button type="button" class="se-tab-btn inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold sm:text-sm" :class="tab === 'history' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5'" @click="tab = 'history'"><i data-lucide="history" class="h-3.5 w-3.5"></i><span class="whitespace-nowrap">Notes</span></button>
-      </nav>
+      <form id="staff-create-form" method="post" enctype="multipart/form-data" class="space-y-5">
+        {% csrf_token %}
 
-      {# Tab: Personal #}
-      <section x-show="tab === 'personal'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-1 text-base font-bold text-slate-900 dark:text-white">Personal information</h2>
-        <p class="mb-5 text-sm text-slate-500">Identity, demographics, and primary contact details.</p>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="se-field sm:col-span-2 lg:col-span-3">
-            <label class="se-label" for="id_profile_picture">Profile photo</label>
-            {{ form.profile_picture }}
-            <p class="se-hint">PNG or JPG · optional</p>
-          </div>
-          <div class="se-field">
-            <label class="se-label" for="id_first_name">First name</label>
-            {{ form.first_name }}
-          </div>
-          <div class="se-field">
-            <label class="se-label" for="id_last_name">Last name</label>
-            {{ form.last_name }}
-          </div>
-          <div class="se-field"><label class="se-label" for="id_gender">Gender</label>{{ form.gender }}</div>
-          <div class="se-field"><label class="se-label" for="id_date_of_birth">Date of birth</label>{{ form.date_of_birth }}</div>
-          <div class="se-field"><label class="se-label" for="id_marital_status">Marital status</label>{{ form.marital_status }}</div>
-          <div class="se-field"><label class="se-label" for="id_nationality">Nationality</label>{{ form.nationality }}</div>
-          <div class="se-field"><label class="se-label" for="id_blood_group">Blood group</label>{{ form.blood_group }}</div>
-          <div class="se-field"><label class="se-label" for="id_phone">Mobile phone</label>{{ form.phone }}</div>
-          <div class="se-field"><label class="se-label" for="id_alternate_phone">Alternate phone</label>{{ form.alternate_phone }}</div>
-          <div class="se-field sm:col-span-2"><label class="se-label" for="id_personal_email">Personal email</label>{{ form.personal_email }}</div>
+        {% if form.non_field_errors %}
+        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+          {{ form.non_field_errors }}
         </div>
-      </section>
+        {% endif %}
 
-      {# Tab: Employment #}
-      <section x-show="tab === 'employment'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-1 text-base font-bold text-slate-900 dark:text-white">Employment information</h2>
-        <p class="mb-5 text-sm text-slate-500">Employee ID, joining details, and account activation.</p>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="se-field">
-            <label class="se-label" for="id_employee_id">Employee ID</label>
-            {{ form.employee_id }}
-            <p class="se-hint">Unique within {{ organization.name }}</p>
-            {% if form.employee_id.errors %}<p class="se-error">{{ form.employee_id.errors.0 }}</p>{% endif %}
+        <section data-tab-panel="personal" class="se-card se-tab-active">
+          <div class="se-section-head mb-6">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Personal information</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Identity, demographics and contact details.</p>
           </div>
-          <div class="se-field"><label class="se-label" for="id_date_of_joining">Joining date</label>{{ form.date_of_joining }}</div>
-          <div class="se-field"><label class="se-label" for="id_employment_type">Employment type</label>{{ form.employment_type }}</div>
-          <div class="se-field flex items-end pb-2">
-            <label class="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {{ form.is_active }} Active account on creation
+
+          <div class="mb-6 flex items-start gap-4 rounded-xl border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-white/3">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 dark:from-violet-900/40 dark:to-indigo-900/40">
+              <i data-lucide="camera" class="h-5 w-5 text-violet-500"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <label class="se-label" for="id_profile_picture">Profile photo</label>
+              {{ form.profile_picture }}
+              <p class="se-hint">PNG or JPG, max 5 MB &middot; optional</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div class="se-field">
+              <label class="se-label" for="id_first_name">First name</label>
+              {{ form.first_name }}
+              {% if form.first_name.errors %}<p class="se-error">{{ form.first_name.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_last_name">Last name</label>
+              {{ form.last_name }}
+              {% if form.last_name.errors %}<p class="se-error">{{ form.last_name.errors.0 }}</p>{% endif %}
+            </div>
+          </div>
+
+          <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="se-field">
+              <label class="se-label" for="id_gender">Gender</label>
+              {{ form.gender }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_date_of_birth">Date of birth</label>
+              {{ form.date_of_birth }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_marital_status">Marital status</label>
+              {{ form.marital_status }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_nationality">Nationality</label>
+              {{ form.nationality }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_blood_group">Blood group</label>
+              {{ form.blood_group }}
+            </div>
+          </div>
+
+          <div class="mt-7 border-t border-slate-100 pt-7 dark:border-white/6">
+            <h3 class="mb-5 text-sm font-bold text-slate-800 dark:text-slate-200">Contact details</h3>
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="se-field">
+                <label class="se-label" for="id_phone">Mobile phone</label>
+                {{ form.phone }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_alternate_phone">Alternate phone</label>
+                {{ form.alternate_phone }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_personal_email">Personal email</label>
+                {{ form.personal_email }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section data-tab-panel="employment" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Employment information</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Employee ID, joining date, contract type and account status.</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="se-field">
+              <label class="se-label" for="id_employee_id">Employee ID</label>
+              {{ form.employee_id }}
+              <p class="se-hint">Unique within {{ organization.name }}</p>
+              {% if form.employee_id.errors %}<p class="se-error">{{ form.employee_id.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_date_of_joining">Date of joining</label>
+              {{ form.date_of_joining }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_employment_type">Employment type</label>
+              {{ form.employment_type }}
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="se-toggle-row">
+              {{ form.is_active }}
+              <div>
+                <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">Activate account on creation</p>
+                <p class="text-xs text-slate-500">If unchecked, the employee cannot log in until manually activated.</p>
+              </div>
             </label>
           </div>
-        </div>
-        <div class="mt-6 border-t border-slate-100 pt-5 dark:border-white/10">
-          <h3 class="mb-3 text-sm font-bold text-slate-900 dark:text-white">Employment timeline</h3>
-          <ul class="space-y-2">
-            <li class="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-white/5">
-              <i data-lucide="calendar-plus" class="h-4 w-4 text-violet-600"></i>
-              <span class="font-semibold text-slate-900 dark:text-white">Profile created</span>
-              <span class="ml-auto text-slate-500">Today</span>
-            </li>
-            <li class="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 px-3 py-2 text-sm dark:border-white/10">
-              <i data-lucide="calendar" class="h-4 w-4 text-slate-400"></i>
-              <span class="text-slate-500">Joining date — set above to appear here</span>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      {# Tab: Organization #}
-      <section x-show="tab === 'organization'" x-cloak class="space-y-4">
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-          <h2 class="mb-5 text-base font-bold text-slate-900 dark:text-white">Organization & hierarchy</h2>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div class="se-field">
-              <label class="se-label" for="id_department">{{ dept_label|default:"Department" }}</label>
-              {{ form.department }}
-              {% if not is_hr_creator %}<p class="se-hint"><a href="{% url 'dashboard:departments' %}" class="text-violet-600">Manage {{ dept_label_plural|default:"departments"|lower }}</a></p>{% endif %}
+          <div class="mt-5 border-t border-slate-100 pt-5 dark:border-white/6">
+            <h3 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Employment timeline</h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm dark:bg-white/4">
+                <i data-lucide="calendar-plus" class="h-4 w-4 shrink-0 text-violet-500"></i>
+                <span class="font-semibold text-slate-800 dark:text-slate-200">Profile created</span>
+                <span class="ml-auto text-xs text-slate-400">Today</span>
+              </div>
+              <div class="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-sm dark:border-white/10">
+                <i data-lucide="calendar" class="h-4 w-4 shrink-0 text-slate-300"></i>
+                <span class="text-slate-400">Joining date appears here once set</span>
+              </div>
             </div>
-            <div class="se-field"><label class="se-label" for="id_job_grade">Grade</label>{{ form.job_grade }}</div>
-            <div class="se-field"><label class="se-label" for="id_org_designation">Designation (catalog)</label>{{ form.org_designation }}</div>
-            <div class="se-field"><label class="se-label" for="id_designation">Designation (text)</label>{{ form.designation }}</div>
-            <div class="se-field">
-              <label class="se-label" for="id_reporting_manager">Reporting manager</label>
-              {{ form.reporting_manager }}
-              {% if form.reporting_manager.errors %}<p class="se-error">{{ form.reporting_manager.errors.0 }}</p>{% endif %}
+          </div>
+        </section>
+
+        <section data-tab-panel="organization" class="space-y-4">
+          <div class="se-card">
+            <div class="se-section-head">
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">Organization &amp; hierarchy</h2>
+              <p class="mt-0.5 text-sm text-slate-500">Department, grade, designation and reporting structure.</p>
             </div>
-            <div class="se-field"><label class="se-label" for="id_business_unit">Business unit</label>{{ form.business_unit }}</div>
-            <div class="se-field"><label class="se-label" for="id_work_location">Work location / branch</label>{{ form.work_location }}</div>
-            <div class="se-field"><label class="se-label" for="id_work_mode">Work mode</label>{{ form.work_mode }}</div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="se-field">
+                <label class="se-label" for="id_department">{{ dept_label|default:"Department" }}</label>
+                {{ form.department }}
+                {% if not is_hr_creator %}
+                <p class="se-hint">
+                  <a href="{% url 'dashboard:departments' %}" class="text-violet-600 hover:underline dark:text-violet-400">
+                    Manage {{ dept_label_plural|default:"departments"|lower }}
+                  </a>
+                </p>
+                {% endif %}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_job_grade">Job grade</label>
+                {{ form.job_grade }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_org_designation">Designation (catalog)</label>
+                {{ form.org_designation }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_designation">Designation (custom)</label>
+                {{ form.designation }}
+                <p class="se-hint">Overrides catalog if filled</p>
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_business_unit">Business unit</label>
+                {{ form.business_unit }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_work_location">Work location</label>
+                {{ form.work_location }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_work_mode">Work mode</label>
+                {{ form.work_mode }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_reporting_manager">Reporting manager</label>
+                {{ form.reporting_manager }}
+                {% if form.reporting_manager.errors %}<p class="se-error">{{ form.reporting_manager.errors.0 }}</p>{% endif %}
+              </div>
+              {% if is_hr_creator %}
+              <div class="se-field">
+                <label class="se-label se-label--req" for="id_assigned_hr">Assigned HR</label>
+                {{ form.assigned_hr }}
+                {% if form.assigned_hr.errors %}<p class="se-error">{{ form.assigned_hr.errors.0 }}</p>{% endif %}
+              </div>
+              {% else %}
+              <div class="se-field" data-role-show="EMPLOYEE">
+                <label class="se-label se-label--req" for="id_assigned_hr">Assigned HR</label>
+                {{ form.assigned_hr }}
+                {% if form.assigned_hr.errors %}<p class="se-error">{{ form.assigned_hr.errors.0 }}</p>{% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="se-card">
+            <h3 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Reporting hierarchy</h3>
+            <div class="se-hierarchy-line space-y-2">
+              <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm dark:bg-white/4">
+                <i data-lucide="building-2" class="h-4 w-4 shrink-0 text-violet-500"></i>
+                <span class="font-semibold text-slate-800 dark:text-slate-200">{{ org_admin_name }}</span>
+                <span class="ml-auto text-xs text-slate-400">Admin</span>
+              </div>
+              <div data-manager-row style="display:none"
+                   class="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm dark:bg-white/4">
+                <i data-lucide="user" class="h-4 w-4 shrink-0 text-violet-500"></i>
+                <span class="font-semibold text-slate-800 dark:text-slate-200" data-preview="manager"></span>
+                <span class="ml-auto text-xs text-slate-400">Manager</span>
+              </div>
+              <div class="flex items-center gap-3 rounded-lg border-2 border-violet-200 bg-violet-50 px-3 py-2.5 text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
+                <i data-lucide="user-plus" class="h-4 w-4 shrink-0 text-violet-600"></i>
+                <span class="font-bold text-violet-800 dark:text-violet-200" data-preview="name">New team member</span>
+                <span class="ml-auto text-xs text-violet-500">New hire</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section data-tab-panel="payroll" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Salary &amp; payroll</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Bank account and tax identifiers. Salary components are configured after creation.</p>
+          </div>
+
+          <div class="mb-5 grid grid-cols-3 gap-3">
+            <div class="se-stat">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Basic salary</p>
+              <p class="mt-0.5 text-sm font-medium text-slate-400">After creation</p>
+            </div>
+            <div class="se-stat">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Allowances</p>
+              <p class="mt-0.5 text-sm font-medium text-slate-400">Payroll module</p>
+            </div>
+            <div class="se-stat">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Deductions</p>
+              <p class="mt-0.5 text-sm font-medium text-slate-400">Payroll module</p>
+            </div>
+          </div>
+
+          <h3 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Bank details</h3>
+          <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="se-field">
+              <label class="se-label" for="id_bank_name">Bank name</label>
+              {{ form.bank_name }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_bank_account_holder">Account holder</label>
+              {{ form.bank_account_holder }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_bank_account_number">Account number</label>
+              {{ form.bank_account_number }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_ifsc_code">IFSC code</label>
+              {{ form.ifsc_code }}
+            </div>
+          </div>
+
+          <div class="border-t border-slate-100 pt-4 dark:border-white/6">
+            <h3 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Tax identifiers</h3>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div class="se-field">
+                <label class="se-label" for="id_pan_number">PAN number</label>
+                {{ form.pan_number }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_aadhaar_number">Aadhaar number</label>
+                {{ form.aadhaar_number }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section data-tab-panel="attendance" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Attendance &amp; shift</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Work shift assignment. Analytics are available after the employee is active.</p>
+          </div>
+
+          <div class="mb-5 grid grid-cols-3 gap-3">
+            <div class="se-stat">
+              <p class="text-2xl font-black text-slate-200 dark:text-slate-700">&#8212;</p>
+              <p class="mt-0.5 text-xs font-semibold text-slate-400">Attendance %</p>
+            </div>
+            <div class="se-stat">
+              <p class="text-2xl font-black text-slate-200 dark:text-slate-700">&#8212;</p>
+              <p class="mt-0.5 text-xs font-semibold text-slate-400">Late arrivals</p>
+            </div>
+            <div class="se-stat">
+              <p class="text-2xl font-black text-slate-200 dark:text-slate-700">&#8212;</p>
+              <p class="mt-0.5 text-xs font-semibold text-slate-400">Leave balance</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="se-field">
+              <label class="se-label" for="id_work_shift">Work shift</label>
+              {{ form.work_shift }}
+              <p class="se-hint">Leave empty to use the organization default</p>
+            </div>
+          </div>
+        </section>
+
+        <section data-tab-panel="documents" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Documents</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Document vault — upload is available after the employee profile is created.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div class="se-doc-tile">
+              <i data-lucide="file-up" class="h-7 w-7 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Aadhaar card</p>
+              <p class="text-xs text-slate-400">After creation</p>
+            </div>
+            <div class="se-doc-tile">
+              <i data-lucide="file-up" class="h-7 w-7 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">PAN card</p>
+              <p class="text-xs text-slate-400">After creation</p>
+            </div>
+            <div class="se-doc-tile">
+              <i data-lucide="file-up" class="h-7 w-7 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Passport</p>
+              <p class="text-xs text-slate-400">After creation</p>
+            </div>
+            <div class="se-doc-tile">
+              <i data-lucide="file-up" class="h-7 w-7 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Resume / CV</p>
+              <p class="text-xs text-slate-400">After creation</p>
+            </div>
+            <div class="se-doc-tile">
+              <i data-lucide="file-up" class="h-7 w-7 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Offer letter</p>
+              <p class="text-xs text-slate-400">After creation</p>
+            </div>
+            <div class="se-doc-tile">
+              <i data-lucide="file-up" class="h-7 w-7 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Contract</p>
+              <p class="text-xs text-slate-400">After creation</p>
+            </div>
+          </div>
+        </section>
+
+        <section data-tab-panel="permissions" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Account access &amp; permissions</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Portal role and login credentials. Organization Admin is not assignable here.</p>
+          </div>
+
+          <div class="mb-5">
+            <span class="se-label se-label--req">Portal role</span>
             {% if is_hr_creator %}
-            <div class="se-field">
-              <label class="se-label" for="id_assigned_hr">Assigned HR *</label>
-              {{ form.assigned_hr }}
-              {% if form.assigned_hr.errors %}<p class="se-error">{{ form.assigned_hr.errors.0 }}</p>{% endif %}
+            <input type="hidden" name="role" value="EMPLOYEE">
+            <div class="mt-2 flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm dark:border-sky-500/30 dark:bg-sky-500/10">
+              <i data-lucide="info" class="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400"></i>
+              <p class="font-semibold text-sky-800 dark:text-sky-200">HR accounts can only create Employee accounts.</p>
             </div>
             {% else %}
-            <div class="se-field" x-show="role === 'EMPLOYEE'" x-cloak>
-              <label class="se-label" for="id_assigned_hr">Assigned HR *</label>
-              {{ form.assigned_hr }}
-              {% if form.assigned_hr.errors %}<p class="se-error">{{ form.assigned_hr.errors.0 }}</p>{% endif %}
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label class="se-role-card flex cursor-pointer items-start gap-3 rounded-xl border-2 border-slate-200 p-4 transition hover:border-violet-300 dark:border-white/10">
+                <input type="radio" name="role" value="HR" class="mt-0.5 accent-violet-600"
+                       {% if form.role.value == "HR" %}checked{% endif %}>
+                <div>
+                  <p class="font-bold text-slate-900 dark:text-white">HR manager</p>
+                  <p class="mt-0.5 text-xs text-slate-500">Manage employees, attendance &amp; payroll</p>
+                </div>
+              </label>
+              <label class="se-role-card flex cursor-pointer items-start gap-3 rounded-xl border-2 border-slate-200 p-4 transition hover:border-violet-300 dark:border-white/10">
+                <input type="radio" name="role" value="EMPLOYEE" class="mt-0.5 accent-violet-600"
+                       {% if form.role.value != "HR" %}checked{% endif %}>
+                <div>
+                  <p class="font-bold text-slate-900 dark:text-white">Employee</p>
+                  <p class="mt-0.5 text-xs text-slate-500">Self-service access — profile, payslips &amp; leave</p>
+                </div>
+              </label>
             </div>
             {% endif %}
+            {% if form.role.errors %}<p class="se-error mt-2">{{ form.role.errors.0 }}</p>{% endif %}
           </div>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-          <h3 class="mb-4 text-sm font-bold text-slate-900 dark:text-white">Reporting hierarchy preview</h3>
-          <div class="se-hierarchy-line space-y-2 pl-4">
-            <div class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-white/5">
-              <i data-lucide="building-2" class="h-4 w-4 text-violet-600"></i>
-              <span class="font-semibold text-slate-900 dark:text-white">{{ org_admin_name }}</span>
-              <span class="text-slate-500">Organization Admin</span>
-            </div>
-            <template x-if="managerLabel">
-              <div class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-white/5">
-                <i data-lucide="user" class="h-4 w-4 text-violet-600"></i>
-                <span class="font-semibold text-slate-900 dark:text-white" x-text="managerLabel"></span>
-                <span class="text-slate-500">Reporting manager</span>
+
+          <div class="border-t border-slate-100 pt-5 dark:border-white/6">
+            <h3 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Login credentials</h3>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div class="se-field">
+                <label class="se-label se-label--req" for="id_username">Username</label>
+                {{ form.username }}
+                <p class="se-hint">Letters, numbers, hyphens and underscores only</p>
+                {% if form.username.errors %}<p class="se-error">{{ form.username.errors.0 }}</p>{% endif %}
               </div>
-            </template>
-            <div class="flex items-center gap-2 rounded-lg border-2 border-violet-200 bg-violet-50 px-3 py-2 text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
-              <i data-lucide="user-plus" class="h-4 w-4 text-violet-600"></i>
-              <span class="font-bold text-violet-800 dark:text-violet-200" x-text="previewName">New team member</span>
-              <span class="text-violet-600">(new hire)</span>
+              <div class="se-field">
+                <label class="se-label se-label--req" for="id_email">Work email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<p class="se-error">{{ form.email.errors.0 }}</p>{% endif %}
+              </div>
+            </div>
+            <div class="se-field mt-4">
+              <label class="se-label se-label--req" for="id_password">Password</label>
+              <div class="relative">
+                <input id="id_password" name="password" type="password" required
+                       class="se-input w-full pr-16"
+                       placeholder="Minimum 8 characters"
+                       autocomplete="new-password">
+                <button type="button" data-pwd-toggle
+                        class="absolute right-3 top-1/2 -translate-y-1/2 rounded px-2 py-0.5 text-xs font-bold text-violet-600 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-500/10">
+                  Show
+                </button>
+              </div>
+              {% if form.password.errors %}<p class="se-error">{{ form.password.errors.0 }}</p>{% endif %}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {# Tab: Payroll #}
-      <section x-show="tab === 'payroll'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-1 text-base font-bold text-slate-900 dark:text-white">Salary & payroll</h2>
-        <p class="mb-5 text-sm text-slate-500">Bank and tax identifiers — salary components can be configured after creation.</p>
-        <div class="mb-5 grid gap-3 sm:grid-cols-3">
-          <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Basic salary</p>
-            <p class="mt-1 text-sm font-semibold text-slate-400">Set after creation</p>
+        <section data-tab-panel="emergency" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Emergency contacts &amp; address</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Next of kin and residential address.</p>
           </div>
-          <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Allowances</p>
-            <p class="mt-1 text-sm font-semibold text-slate-400">Payroll module</p>
-          </div>
-          <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Deductions</p>
-            <p class="mt-1 text-sm font-semibold text-slate-400">Payroll module</p>
-          </div>
-        </div>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="se-field"><label class="se-label" for="id_bank_name">Bank name</label>{{ form.bank_name }}</div>
-          <div class="se-field"><label class="se-label" for="id_bank_account_holder">Account holder</label>{{ form.bank_account_holder }}</div>
-          <div class="se-field"><label class="se-label" for="id_bank_account_number">Account number</label>{{ form.bank_account_number }}</div>
-          <div class="se-field"><label class="se-label" for="id_ifsc_code">IFSC code</label>{{ form.ifsc_code }}</div>
-          <div class="se-field"><label class="se-label" for="id_pan_number">PAN</label>{{ form.pan_number }}</div>
-          <div class="se-field"><label class="se-label" for="id_aadhaar_number">Aadhaar</label>{{ form.aadhaar_number }}</div>
-        </div>
-      </section>
 
-      {# Tab: Attendance #}
-      <section x-show="tab === 'attendance'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-1 text-base font-bold text-slate-900 dark:text-white">Attendance & shift</h2>
-        <p class="mb-5 text-sm text-slate-500">Shift assignment and work location — analytics available after the employee is active.</p>
-        <div class="mb-5 grid gap-3 sm:grid-cols-3">
-          <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-white/5 dark:bg-white/5">
-            <p class="text-2xl font-extrabold text-slate-300 dark:text-slate-600">—</p>
-            <p class="text-xs font-semibold text-slate-500">Attendance %</p>
-          </div>
-          <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-white/5 dark:bg-white/5">
-            <p class="text-2xl font-extrabold text-slate-300 dark:text-slate-600">—</p>
-            <p class="text-xs font-semibold text-slate-500">Late arrivals</p>
-          </div>
-          <div class="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-white/5 dark:bg-white/5">
-            <p class="text-2xl font-extrabold text-slate-300 dark:text-slate-600">—</p>
-            <p class="text-xs font-semibold text-slate-500">Leave balance</p>
-          </div>
-        </div>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="se-field"><label class="se-label" for="id_work_shift">Work shift</label>{{ form.work_shift }}<p class="se-hint">Leave empty for organization default</p></div>
-        </div>
-      </section>
-
-      {# Tab: Documents #}
-      <section x-show="tab === 'documents'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-1 text-base font-bold text-slate-900 dark:text-white">Documents</h2>
-        <p class="mb-5 text-sm text-slate-500">Document vault with drag-and-drop upload — available after employee is created.</p>
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-8 text-center dark:border-white/10">
-            <i data-lucide="file-up" class="h-8 w-8 text-slate-400"></i>
-            <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Aadhaar</p>
-            <p class="mt-1 text-xs text-slate-400">After creation</p>
-          </div>
-          <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-8 text-center dark:border-white/10">
-            <i data-lucide="file-up" class="h-8 w-8 text-slate-400"></i>
-            <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">PAN</p>
-            <p class="mt-1 text-xs text-slate-400">After creation</p>
-          </div>
-          <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-8 text-center dark:border-white/10">
-            <i data-lucide="file-up" class="h-8 w-8 text-slate-400"></i>
-            <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Passport</p>
-            <p class="mt-1 text-xs text-slate-400">After creation</p>
-          </div>
-          <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-8 text-center dark:border-white/10">
-            <i data-lucide="file-up" class="h-8 w-8 text-slate-400"></i>
-            <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Resume</p>
-            <p class="mt-1 text-xs text-slate-400">After creation</p>
-          </div>
-          <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-8 text-center dark:border-white/10">
-            <i data-lucide="file-up" class="h-8 w-8 text-slate-400"></i>
-            <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Offer letter</p>
-            <p class="mt-1 text-xs text-slate-400">After creation</p>
-          </div>
-          <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-8 text-center dark:border-white/10">
-            <i data-lucide="file-up" class="h-8 w-8 text-slate-400"></i>
-            <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Contract</p>
-            <p class="mt-1 text-xs text-slate-400">After creation</p>
-          </div>
-        </div>
-      </section>
-
-      {# Tab: Permissions #}
-      <section x-show="tab === 'permissions'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-1 text-base font-bold text-slate-900 dark:text-white">Permissions & access</h2>
-        <p class="mb-5 text-sm text-slate-500">Authentication role — HR or Employee only. Organization Admin is not assignable here.</p>
-
-        <div class="mb-5">
-          <span class="se-label">Portal role *</span>
-          {% if is_hr_creator %}
-          <input type="hidden" name="role" value="EMPLOYEE">
-          <div class="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
-            Employee — HR can only create employee accounts
-          </div>
-          {% else %}
-          <div class="mt-2 grid gap-3 sm:grid-cols-2">
-            <label class="flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition"
-                   :class="role === 'HR' ? 'border-violet-500 bg-violet-50 dark:border-violet-400 dark:bg-violet-500/10' : 'border-slate-200 hover:border-violet-300 dark:border-white/10'">
-              <input type="radio" name="role" value="HR" x-model="role" class="mt-1 accent-violet-600">
-              <div>
-                <p class="font-bold text-slate-900 dark:text-white">HR</p>
-                <p class="text-xs text-slate-500">HR portal — manage employees & attendance</p>
-              </div>
-            </label>
-            <label class="flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition"
-                   :class="role === 'EMPLOYEE' ? 'border-violet-500 bg-violet-50 dark:border-violet-400 dark:bg-violet-500/10' : 'border-slate-200 hover:border-violet-300 dark:border-white/10'">
-              <input type="radio" name="role" value="EMPLOYEE" x-model="role" class="mt-1 accent-violet-600">
-              <div>
-                <p class="font-bold text-slate-900 dark:text-white">Employee</p>
-                <p class="text-xs text-slate-500">Employee portal — self-service access</p>
-              </div>
-            </label>
-          </div>
-          {% endif %}
-          {% if form.role.errors %}<p class="se-error">{{ form.role.errors.0 }}</p>{% endif %}
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="se-field"><label class="se-label" for="id_username">Username *</label>{{ form.username }}{% if form.username.errors %}<p class="se-error">{{ form.username.errors.0 }}</p>{% endif %}</div>
-          <div class="se-field"><label class="se-label" for="id_email">Work email *</label>{{ form.email }}{% if form.email.errors %}<p class="se-error">{{ form.email.errors.0 }}</p>{% endif %}</div>
-          <div class="se-field sm:col-span-2 lg:col-span-3">
-            <label class="se-label" for="id_password">Password *</label>
-            <div class="relative">
-              <input id="id_password" name="password" :type="showPwd ? 'text' : 'password'" required
-                     class="se-input w-full pr-16" placeholder="Minimum 8 characters" autocomplete="new-password">
-              <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-violet-600"
-                      @click="showPwd = !showPwd" x-text="showPwd ? 'Hide' : 'Show'"></button>
+          <h3 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Emergency contact</h3>
+          <div class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="se-field">
+              <label class="se-label" for="id_emergency_contact_name">Contact name</label>
+              {{ form.emergency_contact_name }}
             </div>
-            {% if form.password.errors %}<p class="se-error">{{ form.password.errors.0 }}</p>{% endif %}
+            <div class="se-field">
+              <label class="se-label" for="id_emergency_contact_relation">Relationship</label>
+              {{ form.emergency_contact_relation }}
+            </div>
+            <div class="se-field">
+              <label class="se-label" for="id_emergency_contact_phone">Phone number</label>
+              {{ form.emergency_contact_phone }}
+            </div>
           </div>
-        </div>
-      </section>
 
-      {# Tab: Emergency #}
-      <section x-show="tab === 'emergency'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-5 text-base font-bold text-slate-900 dark:text-white">Emergency contacts</h2>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="se-field"><label class="se-label" for="id_emergency_contact_name">Contact name</label>{{ form.emergency_contact_name }}</div>
-          <div class="se-field"><label class="se-label" for="id_emergency_contact_relation">Relationship</label>{{ form.emergency_contact_relation }}</div>
-          <div class="se-field"><label class="se-label" for="id_emergency_contact_phone">Phone number</label>{{ form.emergency_contact_phone }}</div>
-        </div>
-        <h3 class="mb-3 mt-6 text-sm font-bold text-slate-900 dark:text-white">Address</h3>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="se-field sm:col-span-2 lg:col-span-3"><label class="se-label" for="id_address_line">Street address</label>{{ form.address_line }}</div>
-          <div class="se-field"><label class="se-label" for="id_city">City</label>{{ form.city }}</div>
-          <div class="se-field"><label class="se-label" for="id_state">State</label>{{ form.state }}</div>
-          <div class="se-field"><label class="se-label" for="id_country">Country</label>{{ form.country }}</div>
-          <div class="se-field"><label class="se-label" for="id_postal_code">Postal code</label>{{ form.postal_code }}</div>
-        </div>
-      </section>
+          <div class="border-t border-slate-100 pt-5 dark:border-white/6">
+            <h3 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Residential address</h3>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="se-field sm:col-span-2 lg:col-span-3">
+                <label class="se-label" for="id_address_line">Street address</label>
+                {{ form.address_line }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_city">City</label>
+                {{ form.city }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_state">State / Province</label>
+                {{ form.state }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_country">Country</label>
+                {{ form.country }}
+              </div>
+              <div class="se-field">
+                <label class="se-label" for="id_postal_code">Postal code</label>
+                {{ form.postal_code }}
+              </div>
+            </div>
+          </div>
+        </section>
 
-      {# Tab: Notes #}
-      <section x-show="tab === 'history'" x-cloak class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-6">
-        <h2 class="mb-5 text-base font-bold text-slate-900 dark:text-white">Notes & activity history</h2>
-        <div class="se-field mb-6">
-          <label class="se-label" for="id_internal_notes">Internal HR notes</label>
-          {{ form.internal_notes }}
-          <p class="se-hint">Visible only to HR and organization admins</p>
-        </div>
-        <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center dark:border-white/10 dark:bg-white/5">
-          <i data-lucide="history" class="mx-auto h-8 w-8 text-slate-400"></i>
-          <p class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Activity timeline starts after creation</p>
-          <p class="mt-1 text-xs text-slate-500">Profile updates, department changes, and login activity will appear here</p>
-        </div>
-      </section>
+        <section data-tab-panel="notes" class="se-card">
+          <div class="se-section-head">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Internal notes</h2>
+            <p class="mt-0.5 text-sm text-slate-500">Private notes visible only to HR and organization admins.</p>
+          </div>
+          <div class="se-field mb-5">
+            <label class="se-label" for="id_internal_notes">HR notes</label>
+            {{ form.internal_notes }}
+            <p class="se-hint">Not visible to the employee</p>
+          </div>
+          <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center dark:border-white/10 dark:bg-white/3">
+            <i data-lucide="history" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600"></i>
+            <p class="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">Activity timeline starts after creation</p>
+            <p class="mt-0.5 text-xs text-slate-400">Profile edits, department changes and login events will appear here</p>
+          </div>
+        </section>
+
+      </form>
     </div>
 
-    {# ── Sticky sidebar ── #}
     <aside class="xl:col-span-3">
-      <div class="sticky top-20 space-y-4">
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-5">
-          <h3 class="mb-4 text-sm font-bold text-slate-900 dark:text-white">Profile summary</h3>
-          <dl class="space-y-3 text-sm">
-            <div class="flex items-center justify-between gap-3">
+      <div class="sticky top-24 space-y-4">
+
+        <div class="se-card">
+          <h3 class="mb-3 text-sm font-bold text-slate-800 dark:text-slate-200">Employee summary</h3>
+          <dl class="space-y-2.5 text-sm">
+            <div class="flex items-center justify-between gap-2">
               <dt class="text-slate-500">Status</dt>
-              <dd><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">Draft</span></dd>
+              <dd>
+                <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                  <svg class="h-1.5 w-1.5 fill-amber-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3"/></svg>Draft
+                </span>
+              </dd>
             </div>
-            <div class="flex items-center justify-between gap-3">
-              <dt class="text-slate-500">Portal role</dt>
-              <dd class="font-bold text-slate-900 dark:text-white" x-text="role === 'HR' ? 'HR' : 'Employee'">Employee</dd>
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-slate-500">Role</dt>
+              <dd class="font-semibold text-slate-800 dark:text-slate-200" data-role-label>Employee</dd>
             </div>
-            <div class="flex items-center justify-between gap-3">
-              <dt class="text-slate-500">Attendance</dt>
-              <dd class="font-bold text-slate-400">—</dd>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <dt class="text-slate-500">Leave balance</dt>
-              <dd class="font-bold text-slate-400">—</dd>
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <dt class="text-slate-500">Grade</dt>
-              <dd class="font-bold text-slate-400">Set in Organization tab</dd>
-            </div>
-            <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center justify-between gap-2">
               <dt class="text-slate-500">Manager</dt>
-              <dd class="truncate font-bold text-slate-900 dark:text-white" x-text="managerLabel || '—'">—</dd>
+              <dd class="max-w-28 truncate text-right font-semibold text-slate-800 dark:text-slate-200" data-preview="manager">&#8212;</dd>
             </div>
-            <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-slate-500">Attendance</dt>
+              <dd class="font-semibold text-slate-300 dark:text-slate-600">&#8212;</dd>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-slate-500">Leave balance</dt>
+              <dd class="font-semibold text-slate-300 dark:text-slate-600">&#8212;</dd>
+            </div>
+            <div class="flex items-center justify-between gap-2">
               <dt class="text-slate-500">Created by</dt>
-              <dd class="truncate font-bold text-slate-900 dark:text-white">{{ creator_name }}</dd>
+              <dd class="max-w-28 truncate text-right font-semibold text-slate-800 dark:text-slate-200">{{ creator_name }}</dd>
             </div>
           </dl>
         </div>
-        <div class="rounded-2xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/30 dark:bg-violet-500/10">
-          <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">Getting started</p>
-          <p class="mt-1 text-sm text-violet-900 dark:text-violet-100">Fill each tab, then click <strong>Create employee</strong>. You can edit the full profile after creation.</p>
+
+        <div class="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/25 dark:bg-violet-500/10">
+          <div class="flex items-start gap-2.5">
+            <i data-lucide="lightbulb" class="mt-0.5 h-4 w-4 shrink-0 text-violet-500"></i>
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300">Tip</p>
+              <p class="mt-1 text-xs text-violet-800 dark:text-violet-200">
+                Complete the <strong>Access</strong> tab first &mdash; username, email and password are required. Everything else can be filled after creation.
+              </p>
+            </div>
+          </div>
         </div>
+
+        <div class="se-card !p-3">
+          <p class="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">Quick jump</p>
+          <div class="space-y-0.5">
+            <button type="button" data-se-tab-jump="personal"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5">
+              <i data-lucide="user" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>Personal
+            </button>
+            <button type="button" data-se-tab-jump="employment"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5">
+              <i data-lucide="badge-check" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>Employment
+            </button>
+            <button type="button" data-se-tab-jump="organization"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5">
+              <i data-lucide="building-2" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>Organization
+            </button>
+            <button type="button" data-se-tab-jump="payroll"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5">
+              <i data-lucide="wallet" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>Payroll
+            </button>
+            <button type="button" data-se-tab-jump="permissions"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5">
+              <i data-lucide="shield" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>Access
+            </button>
+            <button type="button" data-se-tab-jump="emergency"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5">
+              <i data-lucide="heart-pulse" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>Emergency
+            </button>
+          </div>
+        </div>
+
       </div>
     </aside>
-  </form>
 
-  {# Sticky save bar #}
-  <div class="se-save-bar fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/90 lg:left-[var(--hrms-sidebar-width,280px)]">
-    <div class="mx-auto flex max-w-none items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <span id="se-save-status" class="hidden text-sm font-semibold text-amber-600">Unsaved changes</span>
-        <a href="{% url 'dashboard:staff_list' %}" class="text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400">Cancel</a>
-      </div>
+  </div>
+
+  <div class="se-save-bar">
+    <div class="flex items-center justify-between gap-4">
+      <span id="se-save-status"
+            class="hidden rounded-full bg-amber-100 px-3 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+        Unsaved draft
+      </span>
+      <a href="{% url 'dashboard:staff_list' %}"
+         class="text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400">
+        Cancel
+      </a>
       <button type="submit" form="staff-create-form"
-              class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-500/30 hover:bg-violet-700">
-        <i data-lucide="user-plus" class="h-4 w-4"></i> Create employee
+              class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-violet-500/25 hover:bg-violet-700 active:scale-95 transition-transform">
+        <i data-lucide="user-plus" class="h-4 w-4 shrink-0"></i>
+        Create employee
       </button>
     </div>
   </div>
+
 </div>
 {% endblock %}

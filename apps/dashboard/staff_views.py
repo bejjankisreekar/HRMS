@@ -25,6 +25,8 @@ from apps.dashboard.staff_services import (
     bulk_action,
     can_manage_staff,
     export_staff_csv,
+    get_staff_attendance_detail,
+    get_staff_attendance_sheet,
     get_staff_edit_context,
     get_staff_kpis,
     get_staff_profile_context,
@@ -129,8 +131,58 @@ class StaffDetailView(AdminOrHRRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         staff = self.object
         ctx.update(get_staff_profile_context(staff))
+        ctx.update(get_staff_attendance_detail(staff))
         ctx["can_edit"] = can_manage_staff(self.request.user, staff)
         ctx["role_label"] = role_display_for(staff.role)
+        return ctx
+
+
+class StaffAttendanceSheetView(AdminOrHRRequiredMixin, DetailView):
+    """Detailed, filterable attendance sheet for a single employee."""
+
+    model = User
+    template_name = "dashboard/staff_attendance_sheet.html"
+    context_object_name = "staff_member"
+    pk_url_kwarg = "pk"
+
+    def get_queryset(self):
+        return staff_queryset_for(self.request.user)
+
+    def _parse_date(self, value, default):
+        import datetime
+
+        try:
+            return datetime.date.fromisoformat(value)
+        except (TypeError, ValueError):
+            return default
+
+    def get_context_data(self, **kwargs):
+        import datetime
+
+        from django.utils import timezone
+
+        ctx = super().get_context_data(**kwargs)
+        staff = self.object
+
+        today = timezone.localdate()
+        month_start = today.replace(day=1)
+        start = self._parse_date(self.request.GET.get("from"), month_start)
+        end = self._parse_date(self.request.GET.get("to"), today)
+        if end < start:
+            start, end = end, start
+
+        # Quick-preset month ranges for the filter UI
+        first_this = today.replace(day=1)
+        last_month_end = first_this - datetime.timedelta(days=1)
+        last_month_start = last_month_end.replace(day=1)
+
+        ctx.update(get_staff_attendance_sheet(staff, start, end))
+        ctx["role_label"] = role_display_for(staff.role)
+        ctx["range_from"] = start
+        ctx["range_to"] = end
+        ctx["preset_this_month"] = {"from": first_this, "to": today}
+        ctx["preset_last_month"] = {"from": last_month_start, "to": last_month_end}
+        ctx["preset_last_30"] = {"from": today - datetime.timedelta(days=29), "to": today}
         return ctx
 
 

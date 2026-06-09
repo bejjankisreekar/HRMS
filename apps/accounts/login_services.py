@@ -21,8 +21,8 @@ def resolve_post_login_url(user: User, portal_id: str) -> str:
             return reverse("dashboard:superadmin")
         org = user.organization
         if org and org.subscription_plan in (
-            Organization.SubscriptionPlan.PREMIUM,
-            Organization.SubscriptionPlan.ENTERPRISE,
+            Organization.SubscriptionPlan.PROFESSIONAL,
+            Organization.SubscriptionPlan.GROWTH,
         ):
             return reverse("dashboard:professional_admin")
         return reverse("dashboard:starter_admin")

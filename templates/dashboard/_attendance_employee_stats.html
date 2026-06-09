@@ -1,9 +1,10 @@
-<div class="grid gap-4 sm:grid-cols-3">
+<div class="grid gap-4 {% if is_status_based %}sm:grid-cols-1{% else %}sm:grid-cols-3{% endif %}">
   <div class="attendance-stat border-emerald-200 dark:border-emerald-500/30">
     <p class="text-xs font-medium text-slate-500">Attendance rate</p>
     <p class="mt-1 text-3xl font-bold text-emerald-600">{{ employee_stats.attendance_rate }}%</p>
     <p class="mt-1 text-xs text-slate-500">{{ employee_stats.present }} present of {{ employee_stats.total_days }} days</p>
   </div>
+  {% if not is_status_based %}
   <div class="attendance-stat border-indigo-200 dark:border-indigo-500/30">
     <p class="text-xs font-medium text-slate-500">Punctuality</p>
     <p class="mt-1 text-3xl font-bold text-indigo-600">{{ employee_stats.punctuality_rate }}%</p>
@@ -14,6 +15,7 @@
     <p class="mt-1 text-3xl font-bold text-amber-600">{{ employee_stats.late_rate }}%</p>
     <p class="mt-1 text-xs text-slate-500">{{ employee_stats.late }} late marks in period</p>
   </div>
+  {% endif %}
 </div>
 
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -25,14 +27,17 @@
     <p class="text-xs font-medium text-slate-500">Absent</p>
     <p class="mt-1 text-2xl font-bold text-rose-600">{{ employee_stats.absent }}</p>
   </div>
+  {% if not is_status_based %}
   <div class="attendance-stat">
     <p class="text-xs font-medium text-slate-500">Late</p>
     <p class="mt-1 text-2xl font-bold text-amber-600">{{ employee_stats.late }}</p>
   </div>
+  {% endif %}
   <div class="attendance-stat">
     <p class="text-xs font-medium text-slate-500">On leave</p>
     <p class="mt-1 text-2xl font-bold text-sky-600">{{ employee_stats.leave }}</p>
   </div>
+  {% if not is_status_based %}
   <div class="attendance-stat">
     <p class="text-xs font-medium text-slate-500">Working hours</p>
     <p class="mt-1 text-2xl font-bold text-indigo-600">{{ employee_stats.working_hours }}</p>
@@ -41,6 +46,7 @@
     <p class="text-xs font-medium text-slate-500">Overtime</p>
     <p class="mt-1 text-2xl font-bold text-violet-600">{{ employee_stats.overtime }}</p>
   </div>
+  {% endif %}
 </div>
 <p class="text-xs text-slate-500">
   Summary for

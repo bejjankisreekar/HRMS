@@ -31,6 +31,7 @@ from apps.attendance.services import pending_corrections_for
 from .attendance_forms import AssignShiftForm, WorkShiftForm, _staff_for_shift_assign
 from .attendance_utils import (
     analyze_lateness,
+    apply_break_action,
     apply_team_attendance_action,
     combine_date_and_time,
     compute_working_hours,
@@ -76,8 +77,8 @@ class DashboardRedirectView(LoginRequiredMixin, View):
         if user.role == User.Role.ADMIN:
             org = user.organization
             if org and org.subscription_plan in (
-                Organization.SubscriptionPlan.PREMIUM,
-                Organization.SubscriptionPlan.ENTERPRISE,
+                Organization.SubscriptionPlan.PROFESSIONAL,
+                Organization.SubscriptionPlan.GROWTH,
             ):
                 return redirect("dashboard:professional_admin")
             return redirect("dashboard:starter_admin")
@@ -151,6 +152,7 @@ class SettingsView(OrganizationRequiredMixin, TemplateView):
         org = user.organization
         context["organization"] = org
         context["is_admin"] = user.role == User.Role.ADMIN
+        context["is_hr"] = user.role == User.Role.HR
         if org:
             context["dept_label"] = org.department_label
             context["dept_label_plural"] = org.department_label_plural
@@ -257,6 +259,10 @@ class AttendanceBaseMixin:
         return redirect(url)
 
     def _base_context(self, user, on_date):
+        from apps.organizations.models import Organization
+
+        org = user.organization
+        attendance_mode = getattr(org, "attendance_mode", "") or Organization.AttendanceMode.TIME_BASED
         return {
             "selected_date": on_date,
             "prev_date": on_date - timedelta(days=1),
@@ -271,6 +277,8 @@ class AttendanceBaseMixin:
                 else 0
             ),
             "month_label": on_date.strftime("%B %Y"),
+            "attendance_mode": attendance_mode,
+            "is_status_based": attendance_mode == Organization.AttendanceMode.STATUS_BASED,
         }
 
     def _self_attendance_context(self, user, on_date):
@@ -315,23 +323,62 @@ class AttendanceBaseMixin:
         return ctx
 
     def _team_attendance_context(self, user, on_date):
+        from apps.organizations.models import Department
+
         can_mark = can_manage_team_attendance(user)
         if can_mark:
             all_team_rows = get_team_attendance_rows(user, on_date)
         else:
             all_team_rows = get_visible_attendance_rows(user, on_date)
+
+        # ── Shift filter ──
         selected_shift = self.request.GET.get("shift", "all")
         shift_filters = build_shift_attendance_filters(all_team_rows)
         team_rows = filter_team_rows_by_shift(all_team_rows, selected_shift)
+
+        # ── Department filter (admin only — HR sees only their assigned employees) ──
+        dept_filter = self.request.GET.get("dept", "all")
+        departments = []
+        if user.role == User.Role.ADMIN:
+            departments = list(
+                Department.objects.filter(organization=user.organization, is_active=True)
+                .order_by("sort_order", "name")
+                .values("id", "name")
+            )
+            if dept_filter != "all":
+                team_rows = [
+                    r for r in team_rows
+                    if str(getattr(r["member"].department_id, "hex", r["member"].department_id) or "")
+                    == dept_filter
+                    or str(r["member"].department_id or "") == dept_filter
+                ]
+
+        # ── Status filter ──
+        status_filter = self.request.GET.get("status", "all")
+        if status_filter != "all":
+            if status_filter == "UNMARKED":
+                team_rows = [r for r in team_rows if not r.get("is_marked")]
+            else:
+                team_rows = [
+                    r for r in team_rows
+                    if r.get("record") and r["record"].status == status_filter
+                ]
+
+        # ── Role filter (admin: show HR-only, Employee-only, or all) ──
+        role_filter = self.request.GET.get("role", "all")
+        if role_filter != "all" and user.role == User.Role.ADMIN:
+            team_rows = [r for r in team_rows if r["member"].role == role_filter]
+
         if user.role == User.Role.ADMIN:
             page_title = "Staff attendance"
-            page_subtitle = "Mark attendance for all HR and employees"
+            page_subtitle = "Mark and manage attendance for all HR and employees"
         elif user.role == User.Role.HR:
             page_title = "Staff attendance"
             page_subtitle = "Mark attendance for employees assigned to you"
         else:
             page_title = "Team attendance"
             page_subtitle = "View attendance for your direct reportees"
+
         return {
             "is_team_view": True,
             "can_mark_team": can_mark,
@@ -345,14 +392,33 @@ class AttendanceBaseMixin:
             "page_subtitle": page_subtitle,
             "is_admin": user.role == User.Role.ADMIN,
             "team_total_hours": format_total_minutes(sum_team_working_minutes(team_rows)),
-            "show_my_attendance_link": user.role in (User.Role.ADMIN, User.Role.HR),
+            "show_my_attendance_link": False,
+            # Filter context
+            "departments": departments,
+            "dept_filter": dept_filter,
+            "status_filter": status_filter,
+            "role_filter": role_filter,
         }
 
 
 class MyAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, TemplateView):
-    """Personal attendance: check-in/out, analytics, correction requests."""
+    """Personal attendance: check-in/out, analytics, correction requests.
+
+    Org Admins do not have personal attendance records — they are redirected to
+    the full team attendance view instead.
+    """
 
     redirect_url_name = "dashboard:attendance"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role == User.Role.ADMIN:
+            # Preserve date param so the team view opens on the same date
+            qs = request.GET.urlencode()
+            url = reverse("dashboard:attendance_team")
+            if qs:
+                url = f"{url}?{qs}"
+            return redirect(url)
+        return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -403,6 +469,10 @@ class TeamAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, Templat
     redirect_url_name = "dashboard:attendance_team"
 
     def dispatch(self, request, *args, **kwargs):
+        # Let OrganizationRequiredMixin handle anonymous users (redirect to login)
+        # before touching role-dependent helpers, which AnonymousUser lacks.
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
         user = request.user
         if not can_manage_team_attendance(user) and not has_direct_reports(user):
             return redirect("dashboard:attendance")
@@ -417,11 +487,37 @@ class TeamAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, Templat
             messages.error(request, "You can view team attendance only.")
             return self._redirect_with_date(on_date)
 
+        # ── Bulk save (edit-mode "Save all") ───────────────────────
+        if action == "bulk_save":
+            return self._handle_bulk_save(request, user, on_date)
+
         if request.POST.get("user_id"):
             target = resolve_attendance_target(user, request.POST.get("user_id"))
             if not target:
                 messages.error(request, "Invalid team member.")
                 return self._redirect_with_date(on_date)
+
+            # ── Break actions ──────────────────────────────────────
+            if action in ("add_break", "end_break", "edit_break", "delete_break"):
+                msg = apply_break_action(
+                    manager=user,
+                    target=target,
+                    on_date=on_date,
+                    action=action,
+                    break_type=request.POST.get("break_type", "OTHER"),
+                    break_start=request.POST.get("break_start"),
+                    break_end=request.POST.get("break_end"),
+                    break_note=request.POST.get("break_note", ""),
+                    break_id=request.POST.get("break_id"),
+                    end_time_str=request.POST.get("end_time"),
+                )
+                if any(x in msg.lower() for x in ("invalid", "first", "after", "missing", "not found")):
+                    messages.error(request, msg)
+                else:
+                    messages.success(request, msg)
+                return self._redirect_with_date(on_date)
+
+            # ── Attendance actions ─────────────────────────────────
             msg = apply_team_attendance_action(
                 user,
                 target,
@@ -440,6 +536,58 @@ class TeamAttendanceView(AttendanceBaseMixin, OrganizationRequiredMixin, Templat
             return self._redirect_with_date(on_date)
 
         messages.error(request, "Invalid action.")
+        return self._redirect_with_date(on_date)
+
+    def _handle_bulk_save(self, request, user, on_date):
+        """Apply check-in/out and status edits for every changed row in one save."""
+        clear_statuses = (AttendanceRecord.Status.ABSENT, AttendanceRecord.Status.LEAVE)
+        changed = 0
+        errors = 0
+        for uid in request.POST.getlist("uid"):
+            target = resolve_attendance_target(user, uid)
+            if not target:
+                continue
+
+            ci = (request.POST.get(f"checkin_{uid}") or "").strip()
+            co = (request.POST.get(f"checkout_{uid}") or "").strip()
+            st = (request.POST.get(f"status_{uid}") or "").strip()
+            ci0 = (request.POST.get(f"checkin_orig_{uid}") or "").strip()
+            co0 = (request.POST.get(f"checkout_orig_{uid}") or "").strip()
+            st0 = (request.POST.get(f"status_orig_{uid}") or "").strip()
+
+            times_changed = ci != ci0 or co != co0
+            status_changed = bool(st) and st != st0
+            if not times_changed and not status_changed:
+                continue
+
+            row_changed = False
+            # Absent/Leave clears any times — apply status only.
+            if status_changed and st in clear_statuses:
+                apply_team_attendance_action(user, target, on_date, "set_status", status=st)
+                row_changed = True
+            else:
+                if times_changed and (ci or co):
+                    msg = apply_team_attendance_action(
+                        user, target, on_date, "set_times",
+                        check_in_time=ci or None,
+                        check_out_time=co or None,
+                    )
+                    if any(x in msg.lower() for x in ("after", "first", "enter")):
+                        errors += 1
+                    else:
+                        row_changed = True
+                if status_changed:
+                    apply_team_attendance_action(user, target, on_date, "set_status", status=st)
+                    row_changed = True
+            if row_changed:
+                changed += 1
+
+        if changed:
+            messages.success(request, f"Saved attendance for {changed} member{'s' if changed != 1 else ''}.")
+        if errors:
+            messages.error(request, f"{errors} row{'s' if errors != 1 else ''} skipped — check-out must be after check-in.")
+        if not changed and not errors:
+            messages.info(request, "No changes to save.")
         return self._redirect_with_date(on_date)
 
     def get_context_data(self, **kwargs):
@@ -461,7 +609,9 @@ class AttendanceCorrectionsView(OrganizationRequiredMixin, TemplateView):
     template_name = "dashboard/attendance_corrections.html"
 
     def dispatch(self, request, *args, **kwargs):
-        if not can_review_attendance_corrections(request.user):
+        # Let OrganizationRequiredMixin handle anonymous users (redirect to login)
+        # before touching role-dependent helpers, which AnonymousUser lacks.
+        if request.user.is_authenticated and not can_review_attendance_corrections(request.user):
             messages.error(request, "You do not have access to attendance corrections.")
             return redirect("dashboard:attendance")
         return super().dispatch(request, *args, **kwargs)
@@ -514,7 +664,22 @@ class AttendanceSettingsView(AdminRequiredMixin, TemplateView):
     template_name = "dashboard/attendance_settings.html"
 
     def post(self, request, *args, **kwargs):
+        from apps.organizations.models import Organization
+
         org = request.user.organization
+
+        if request.POST.get("action") == "save_mode":
+            mode = request.POST.get("attendance_mode")
+            if mode not in Organization.AttendanceMode.values:
+                mode = Organization.AttendanceMode.TIME_BASED
+            org.attendance_mode = mode
+            org.save(update_fields=["attendance_mode", "updated_at"])
+            messages.success(
+                request,
+                f"Saved. Attendance tracking method is now {org.get_attendance_mode_display()}.",
+            )
+            return redirect("dashboard:attendance_settings")
+
         org.hr_self_in_mark_attendance = request.POST.get("hr_self_in_mark_attendance") == "on"
         org.save(update_fields=["hr_self_in_mark_attendance", "updated_at"])
         label = "shown" if org.hr_self_in_mark_attendance else "hidden"
@@ -691,6 +856,153 @@ class AttendanceShiftsView(AdminRequiredMixin, TemplateView):
         context["assignment_roster"] = get_shift_assignment_roster(org)
         context["default_shift"] = WorkShift.objects.filter(organization=org, is_default=True).first()
         return context
+
+
+class AttendanceChartDataView(OrganizationRequiredMixin, View):
+    """JSON endpoint for attendance chart data. Supports team and individual views."""
+
+    def get(self, request, *args, **kwargs):
+        from django.http import JsonResponse
+        from datetime import date as date_cls
+        from collections import defaultdict
+
+        user = request.user
+        chart_type = request.GET.get("type", "team_trend")
+        date_str = request.GET.get("date", timezone.localdate().isoformat())
+        try:
+            on_date = date_cls.fromisoformat(date_str)
+        except ValueError:
+            on_date = timezone.localdate()
+
+        days = min(int(request.GET.get("days", "30") or "30"), 90)
+
+        is_admin_or_hr = user.role in (User.Role.ADMIN, User.Role.HR)
+
+        if chart_type == "team_day":
+            if not is_admin_or_hr:
+                return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse(self._team_day(user, on_date))
+
+        if chart_type == "team_trend":
+            if not is_admin_or_hr:
+                return JsonResponse({"error": "Forbidden"}, status=403)
+            return JsonResponse(self._team_trend(user, on_date, days))
+
+        if chart_type == "employee":
+            user_id = request.GET.get("user_id")
+            if user_id and is_admin_or_hr:
+                target = User.objects.filter(pk=user_id, organization=user.organization).first()
+                if not target:
+                    return JsonResponse({"error": "Not found"}, status=404)
+            else:
+                target = user
+            return JsonResponse(self._employee(target, on_date, days))
+
+        return JsonResponse({"error": "Invalid type"}, status=400)
+
+    def _get_org_employees(self, user):
+        if user.role == User.Role.ADMIN:
+            return User.objects.filter(
+                organization=user.organization,
+                role__in=[User.Role.HR, User.Role.EMPLOYEE],
+                is_active=True,
+            )
+        return User.objects.filter(
+            organization=user.organization,
+            assigned_hr=user,
+            is_active=True,
+        )
+
+    def _team_day(self, user, on_date):
+        employees = self._get_org_employees(user)
+        total = employees.count()
+        records = AttendanceRecord.objects.filter(user__in=employees, date=on_date)
+        counts = {"PRESENT": 0, "ABSENT": 0, "HALF_DAY": 0, "LEAVE": 0, "WFH": 0}
+        for rec in records:
+            if rec.status in counts:
+                counts[rec.status] += 1
+        marked = sum(counts.values())
+        return {
+            "type": "team_day",
+            "date": on_date.isoformat(),
+            "labels": ["Present", "Absent", "Half Day", "Leave", "WFH", "Unmarked"],
+            "values": [
+                counts["PRESENT"], counts["ABSENT"], counts["HALF_DAY"],
+                counts["LEAVE"], counts["WFH"], max(0, total - marked),
+            ],
+            "total": total,
+        }
+
+    def _team_trend(self, user, on_date, days):
+        from collections import defaultdict
+        employees = self._get_org_employees(user)
+        start = on_date - timedelta(days=days - 1)
+        records = AttendanceRecord.objects.filter(
+            user__in=employees, date__gte=start, date__lte=on_date
+        ).values("date", "status")
+        by_date = defaultdict(lambda: defaultdict(int))
+        for r in records:
+            by_date[r["date"]][r["status"]] += 1
+        labels, present, absent, half_day, leave, wfh = [], [], [], [], [], []
+        for i in range(days):
+            d = start + timedelta(days=i)
+            c = by_date.get(d, {})
+            labels.append(d.strftime("%d %b"))
+            present.append(c.get("PRESENT", 0))
+            absent.append(c.get("ABSENT", 0))
+            half_day.append(c.get("HALF_DAY", 0))
+            leave.append(c.get("LEAVE", 0))
+            wfh.append(c.get("WFH", 0))
+        return {
+            "type": "team_trend",
+            "labels": labels,
+            "present": present,
+            "absent": absent,
+            "half_day": half_day,
+            "leave": leave,
+            "wfh": wfh,
+        }
+
+    def _employee(self, target, on_date, days):
+        from django.utils import timezone as tz
+        start = on_date - timedelta(days=days - 1)
+        records = {
+            r.date: r
+            for r in AttendanceRecord.objects.filter(
+                user=target, date__gte=start, date__lte=on_date
+            )
+        }
+        labels, hours, check_ins, check_outs, statuses = [], [], [], [], []
+        for i in range(days):
+            d = start + timedelta(days=i)
+            rec = records.get(d)
+            labels.append(d.strftime("%d %b"))
+            if rec:
+                ci = tz.localtime(rec.check_in) if rec.check_in else None
+                co = tz.localtime(rec.check_out) if rec.check_out else None
+                if ci and co:
+                    mins = max(0, int((co - ci).total_seconds() // 60) - (rec.break_minutes or 0))
+                    hours.append(round(mins / 60, 2))
+                else:
+                    hours.append(0)
+                check_ins.append(ci.strftime("%H:%M") if ci else None)
+                check_outs.append(co.strftime("%H:%M") if co else None)
+                statuses.append(rec.status)
+            else:
+                hours.append(None)
+                check_ins.append(None)
+                check_outs.append(None)
+                statuses.append(None)
+        return {
+            "type": "employee",
+            "user_id": str(target.pk),
+            "name": target.display_name,
+            "labels": labels,
+            "hours": hours,
+            "check_ins": check_ins,
+            "check_outs": check_outs,
+            "statuses": statuses,
+        }
 
 
 class AttendanceReportView(AdminOrHRRequiredMixin, TemplateView):

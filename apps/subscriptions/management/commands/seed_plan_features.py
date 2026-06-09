@@ -70,10 +70,15 @@ class Command(BaseCommand):
             if not plan:
                 self.stdout.write(self.style.WARNING(f"  Plan '{slug}' not found — run seed_billing_catalog first."))
                 continue
+            # Growth is the top tier: it always gets EVERY active feature.
+            if slug == "growth":
+                keys = list(
+                    FeatureDefinition.objects.filter(is_active=True).values_list("key", flat=True)
+                )
             plan.feature_flags = {k: True for k in keys}
             plan.save(update_fields=["feature_flags", "updated_at"])
             for key in keys:
-                feat = feature_objs.get(key)
+                feat = feature_objs.get(key) or FeatureDefinition.objects.filter(key=key).first()
                 if not feat:
                     continue
                 PlanFeature.objects.update_or_create(
