@@ -9,13 +9,20 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.accounts.hierarchy import attendance_team_for
+from apps.accounts.hierarchy import attendance_team_for, has_direct_reports
 from apps.accounts.models import User
+from apps.accounts.role_labels import STAFF_SELF_SERVICE_ROLES
 from apps.organizations.models import Organization
 
 from .approval_policy import build_approval_chain_steps
 from .models import Holiday, LeaveApproval, LeaveBalance, LeaveRequest, LeaveType
-from .notifications import dismiss_leave_notifications, notify_leave_next_approver, notify_leave_submitted
+from .notifications import (
+    dismiss_leave_notifications,
+    notify_leave_cancelled,
+    notify_leave_decision,
+    notify_leave_next_approver,
+    notify_leave_submitted,
+)
 
 # code, name, color, annual_days, carry_forward, gender, is_paid
 DEFAULT_LEAVE_TYPES = [
@@ -77,10 +84,57 @@ def ensure_org_leave_setup(organization: Organization) -> None:
     staff = User.objects.filter(
         organization=organization,
         is_active=True,
-        role__in=[User.Role.HR, User.Role.EMPLOYEE],
+        role__in=STAFF_SELF_SERVICE_ROLES,
     )
     for member in staff:
         ensure_balances_for_user(member)
+
+
+def manager_team_leave_requests(manager: User, status: str | None = None):
+    """All leave requests submitted by a manager's direct reports (history view).
+
+    Scoped to the manager's organization and their direct reports only — a
+    manager never sees leave outside their reporting hierarchy.
+    """
+    org = manager.organization
+    if not org:
+        return LeaveRequest.objects.none()
+    qs = (
+        LeaveRequest.objects.filter(
+            user__organization=org,
+            user__reporting_manager=manager,
+        )
+        .select_related("user", "leave_type")
+        .order_by("-applied_at")
+    )
+    if status:
+        qs = qs.filter(status=status)
+    return qs
+
+
+def manager_pending_leave_requests(manager: User):
+    """Pending leave requests from direct reports awaiting THIS manager's action.
+
+    Respects the org approval configuration: a request only appears when the
+    approval chain has a pending step assigned to this manager (i.e. the org has
+    ``leave_approval_require_manager`` enabled and this user is the report's
+    reporting manager).
+    """
+    org = manager.organization
+    if not org:
+        return LeaveRequest.objects.none()
+    return (
+        LeaveRequest.objects.filter(
+            status=LeaveRequest.Status.PENDING,
+            user__organization=org,
+            user__reporting_manager=manager,
+            approvals__approver=manager,
+            approvals__status=LeaveApproval.StepStatus.PENDING,
+        )
+        .select_related("user", "leave_type")
+        .distinct()
+        .order_by("-applied_at")
+    )
 
 
 def leave_team_for(user: User):
@@ -89,10 +143,20 @@ def leave_team_for(user: User):
         return User.objects.filter(
             organization=user.organization,
             is_active=True,
-            role__in=[User.Role.HR, User.Role.EMPLOYEE],
+            role__in=STAFF_SELF_SERVICE_ROLES,
         ).select_related("department", "reporting_manager")
     if user.role == User.Role.HR:
         return attendance_team_for(user).select_related("department", "reporting_manager")
+    if has_direct_reports(user):
+        # Direct reports + self: powers the team calendar, team report tab,
+        # and filter options for team leads — never the full org.
+        from django.db.models import Q
+
+        return User.objects.filter(
+            Q(reporting_manager=user) | Q(pk=user.pk),
+            organization=user.organization,
+            is_active=True,
+        ).select_related("department", "reporting_manager")
     return User.objects.filter(pk=user.pk).select_related("department", "reporting_manager")
 
 
@@ -154,11 +218,8 @@ def ensure_balances_for_user(user: User, year: int | None = None) -> None:
     if not user.organization_id:
         return
     for lt in LeaveType.objects.filter(organization=user.organization, is_active=True):
-        if lt.gender_eligibility != LeaveType.GenderEligibility.ALL:
-            if lt.gender_eligibility == LeaveType.GenderEligibility.MALE and user.gender != User.Gender.MALE:
-                continue
-            if lt.gender_eligibility == LeaveType.GenderEligibility.FEMALE and user.gender != User.Gender.FEMALE:
-                continue
+        if not lt.is_applicable_to(user):
+            continue
         LeaveBalance.objects.get_or_create(
             user=user,
             leave_type=lt,
@@ -173,7 +234,7 @@ def sync_org_staff_balances(organization: Organization, leave_type: LeaveType | 
     staff = User.objects.filter(
         organization=organization,
         is_active=True,
-        role__in=[User.Role.HR, User.Role.EMPLOYEE],
+        role__in=STAFF_SELF_SERVICE_ROLES,
     )
     types = [leave_type] if leave_type else LeaveType.objects.filter(organization=organization, is_active=True)
     for member in staff:
@@ -213,6 +274,28 @@ def has_overlapping_leave(user: User, start: date, end: date, exclude_pk=None) -
     return qs.exists()
 
 
+def _fallback_approver(user: User) -> User | None:
+    """HR (assigned, else any active), else an org admin — used when the
+    configured chain resolves nobody and auto-approval is disabled."""
+    org = user.organization
+    if user.assigned_hr_id and user.assigned_hr.is_active and user.assigned_hr_id != user.pk:
+        return user.assigned_hr
+    hr = (
+        User.objects.filter(organization=org, role=User.Role.HR, is_active=True)
+        .exclude(pk=user.pk)
+        .order_by("date_joined")
+        .first()
+    )
+    if hr:
+        return hr
+    return (
+        User.objects.filter(organization=org, role=User.Role.ADMIN, is_active=True)
+        .exclude(pk=user.pk)
+        .order_by("date_joined")
+        .first()
+    )
+
+
 def create_approval_chain(leave_request: LeaveRequest) -> None:
     user = leave_request.user
     LeaveApproval.objects.filter(leave_request=leave_request).delete()
@@ -228,6 +311,18 @@ def create_approval_chain(leave_request: LeaveRequest) -> None:
         )
 
     if not chain:
+        org = user.organization
+        if org and not org.leave_auto_approve_without_manager:
+            fallback = _fallback_approver(user)
+            if fallback:
+                LeaveApproval.objects.create(
+                    leave_request=leave_request,
+                    step=1,
+                    step_label="HR approval" if fallback.role == User.Role.HR else "Admin approval",
+                    approver=fallback,
+                    status=LeaveApproval.StepStatus.PENDING,
+                )
+                return
         LeaveApproval.objects.create(
             leave_request=leave_request,
             step=1,
@@ -269,6 +364,10 @@ def submit_leave_request(
         return None, "End date must be on or after start date."
     if has_overlapping_leave(user, start_date, end_date):
         return None, "Leave dates overlap with an existing request."
+    if not leave_type.is_applicable_to(user):
+        return None, f"{leave_type.name} is not available for your profile."
+    if leave_type.requires_attachment and not attachment and not as_draft:
+        return None, f"{leave_type.name} requires a supporting document."
 
     total = calculate_leave_days(
         start_date,
@@ -335,6 +434,7 @@ def approve_leave(leave_request: LeaveRequest, approver: User, comment: str = ""
     if not pending:
         dismiss_leave_notifications(leave_request)
         _finalize_approval(leave_request, approver, comment)
+        notify_leave_decision(leave_request, approved=True, actor=approver)
         return "Leave approved."
     notify_leave_next_approver(leave_request)
     return "Approved at your step. Awaiting next approver."
@@ -355,6 +455,7 @@ def reject_leave(leave_request: LeaveRequest, approver: User, comment: str = "")
         comment=comment,
     )
     dismiss_leave_notifications(leave_request)
+    notify_leave_decision(leave_request, approved=False, actor=approver)
     return "Leave rejected."
 
 
@@ -368,7 +469,10 @@ def cancel_leave(leave_request: LeaveRequest, user: User) -> str:
         bal = get_balance(leave_request.user, leave_request.leave_type)
         bal.used = max(Decimal("0"), bal.used - leave_request.total_days)
         bal.save(update_fields=["used"])
+    was_pending = leave_request.status == LeaveRequest.Status.PENDING
     leave_request.status = LeaveRequest.Status.CANCELLED
     leave_request.save(update_fields=["status", "updated_at"])
     dismiss_leave_notifications(leave_request)
+    if was_pending:
+        notify_leave_cancelled(leave_request)
     return "Leave cancelled."

@@ -61,14 +61,18 @@
     var empBadge    = root.querySelector("[data-role-badge='EMPLOYEE']");
     var roleShowEls = Array.from(root.querySelectorAll("[data-role-show]"));
 
+    var ROLE_TEXT = { HR: "HR", EMPLOYEE: "Employee" };
+
     function applyRole(val) {
       roleLabels.forEach(function (el) {
-        el.textContent = val === "HR" ? "HR" : "Employee";
+        el.textContent = ROLE_TEXT[val] || "Employee";
       });
       if (hrBadge)  hrBadge.style.display  = val === "HR"       ? "" : "none";
       if (empBadge) empBadge.style.display = val === "EMPLOYEE" ? "" : "none";
       roleShowEls.forEach(function (el) {
-        el.style.display = el.dataset.roleShow === val ? "" : "none";
+        // data-role-show may be a comma-separated list of roles.
+        var roles = el.dataset.roleShow.split(",");
+        el.style.display = roles.indexOf(val) !== -1 ? "" : "none";
       });
     }
 

@@ -1,6 +1,9 @@
+import calendar as _calendar
 import uuid
 
 from django.db import models
+
+_MONTH_CHOICES = [(i, _calendar.month_name[i]) for i in range(1, 13)]
 
 
 class Organization(models.Model):
@@ -66,6 +69,10 @@ class Organization(models.Model):
         WEEKLY = "WEEKLY", "Weekly"
         BIWEEKLY = "BIWEEKLY", "Bi-weekly"
         MONTHLY = "MONTHLY", "Monthly"
+
+    class PayrollLopPolicy(models.TextChoices):
+        ASSUME_PRESENT = "ASSUME_PRESENT", "Assume present (pay full unless explicitly absent)"
+        STRICT = "STRICT", "Strict proration (pay by present ÷ working days)"
 
     class WeekStartDay(models.TextChoices):
         MONDAY = "MONDAY", "Monday"
@@ -156,6 +163,11 @@ class Organization(models.Model):
     payroll_cycle = models.CharField(max_length=20, choices=PayrollCycle.choices, blank=True)
     week_start_day = models.CharField(max_length=20, choices=WeekStartDay.choices, blank=True)
     financial_year_start = models.DateField(blank=True, null=True)
+    fy_start_month = models.PositiveSmallIntegerField(
+        default=4,
+        choices=_MONTH_CHOICES,
+        help_text="Financial year start month (1=January … 12=December). Default: April (4).",
+    )
     shift_enabled = models.BooleanField(default=False)
     biometric_enabled = models.BooleanField(default=False)
     hr_self_in_mark_attendance = models.BooleanField(
@@ -169,6 +181,15 @@ class Organization(models.Model):
         help_text=(
             "TIME_BASED: HR/Admin record check-in/out times (hours, late, overtime auto-calculated). "
             "STATUS_BASED: attendance is marked with status values only (P/A/L/HD/H/WO), no time tracking."
+        ),
+    )
+    hr_role_display_name = models.CharField(
+        max_length=50,
+        default="HR",
+        blank=True,
+        help_text=(
+            "Label shown wherever a user's role appears as 'HR' (e.g. Manager, Team Leader, "
+            "Supervisor). Display only — the stored role and permissions are unchanged."
         ),
     )
     weekend_policy = models.CharField(
@@ -209,8 +230,27 @@ class Organization(models.Model):
         default=True,
         help_text="Organization admin must give final approval.",
     )
+    leave_auto_approve_without_manager = models.BooleanField(
+        default=True,
+        help_text=(
+            "When the approval chain resolves no approvers (e.g. employee has no "
+            "reporting manager and no other steps are enabled), auto-approve the "
+            "request. When disabled, the request is routed to HR (or the admin) "
+            "instead of being auto-approved. Default preserves legacy behavior."
+        ),
+    )
     leave_management_enabled = models.BooleanField(default=True)
     payroll_enabled = models.BooleanField(default=True)
+    payroll_lop_policy = models.CharField(
+        max_length=20,
+        choices=PayrollLopPolicy.choices,
+        default=PayrollLopPolicy.ASSUME_PRESENT,
+        help_text=(
+            "How unmarked attendance affects pay when running payroll. "
+            "ASSUME_PRESENT pays full salary unless a day is explicitly marked absent; "
+            "STRICT prorates pay by present ÷ working days."
+        ),
+    )
 
     subscription_plan = models.CharField(
         max_length=20, choices=SubscriptionPlan.choices, default=SubscriptionPlan.BASIC, blank=True
@@ -283,6 +323,11 @@ class Organization(models.Model):
             self.OrganizationType.IT_SERVICES: ("Department", "Departments"),
         }
         return mapping.get(self.organization_type, ("Department", "Departments"))
+
+    @property
+    def hr_label(self) -> str:
+        """Org-configured display name for the HR role; falls back to 'HR'."""
+        return (self.hr_role_display_name or "").strip() or "HR"
 
     @property
     def department_label(self) -> str:

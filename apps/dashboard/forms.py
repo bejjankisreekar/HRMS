@@ -4,11 +4,18 @@ from django.utils.text import slugify
 
 from apps.accounts.hierarchy import hr_choices_qs, manager_choices_qs
 from apps.accounts.models import User
+from apps.accounts.role_labels import MANAGED_STAFF_ROLES, role_display_for
 from apps.attendance.models import WorkShift
 from apps.grades.models import Designation, Grade, GradeStatus
 from apps.organizations.models import Department, Organization
 
 _INP = "se-input w-full"
+
+# Roles an Organization Admin may assign when creating/editing staff.
+ADMIN_ASSIGNABLE_ROLE_CHOICES = (
+    (User.Role.HR, "HR"),
+    (User.Role.EMPLOYEE, "Employee"),
+)
 
 
 def _user_choice_label(user: User) -> str:
@@ -18,7 +25,7 @@ def _user_choice_label(user: User) -> str:
 class StaffCreateForm(forms.Form):
     # --- Role & account ---
     role = forms.ChoiceField(
-        choices=((User.Role.HR, "HR"), (User.Role.EMPLOYEE, "Employee")),
+        choices=ADMIN_ASSIGNABLE_ROLE_CHOICES,
         widget=forms.Select(attrs={"class": _INP}),
     )
     username = forms.SlugField(max_length=50, widget=forms.TextInput(attrs={"class": _INP}))
@@ -151,6 +158,11 @@ class StaffCreateForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.organization = organization
         self.created_by = created_by
+        if "role" in self.fields:
+            self.fields["role"].choices = (
+                (User.Role.HR, role_display_for(User.Role.HR, organization)),
+                (User.Role.EMPLOYEE, "Employee"),
+            )
         self.fields["reporting_manager"].queryset = manager_choices_qs(organization)
         self.fields["reporting_manager"].empty_label = "Select reporting manager (optional)"
         self.fields["assigned_hr"].queryset = hr_choices_qs(organization)
@@ -203,7 +215,9 @@ class StaffCreateForm(forms.Form):
         assigned_hr = cleaned.get("assigned_hr")
         reporting_manager = cleaned.get("reporting_manager")
 
-        if role == User.Role.EMPLOYEE:
+        # Employees and Managers are owned by an HR person (enables HR oversight
+        # and the Employee → Manager → HR two-level leave approval chain).
+        if role in MANAGED_STAFF_ROLES:
             if not assigned_hr:
                 self.add_error("assigned_hr", "Select the HR person responsible for this employee.")
             elif assigned_hr.role != User.Role.HR or assigned_hr.organization_id != self.organization.pk:
@@ -254,7 +268,7 @@ class StaffCreateForm(forms.Form):
             employment_type=data.get("employment_type", ""),
             date_of_joining=data.get("date_of_joining"),
             reporting_manager=data.get("reporting_manager"),
-            assigned_hr=data.get("assigned_hr") if data["role"] == User.Role.EMPLOYEE else None,
+            assigned_hr=data.get("assigned_hr") if data["role"] in MANAGED_STAFF_ROLES else None,
             work_shift=data.get("work_shift"),
             work_location=data.get("work_location", ""),
             work_mode=data.get("work_mode", ""),

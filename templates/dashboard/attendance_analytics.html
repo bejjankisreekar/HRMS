@@ -7,8 +7,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script>
   window.ATTENDANCE_CHARTS = {{ charts_json|safe }};
+  window.ATTENDANCE_TREND = {{ trend_json|safe }};
 </script>
 <script src="{% static 'attendance-analytics.js' %}" defer></script>
+<script src="{% static 'attendance-reports.js' %}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -33,13 +35,85 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <a href="{% url 'dashboard:attendance' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Mark attendance</a>
+        <a href="{% url 'attendance:employee_chart' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30"><i data-lucide="bar-chart-3" class="inline h-3.5 w-3.5"></i> Employee Attendance Chart</a>
         <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30"><i data-lucide="download" class="inline h-3.5 w-3.5"></i> CSV</a>
-        <a href="?{{ filter_query }}&export=excel" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Excel</a>
+        <a href="?{{ filter_query }}&export=xlsx" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Excel</a>
         <button type="button" id="btnExportPdf" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">PDF</button>
         <button type="button" id="btnPrint" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Print</button>
       </div>
     </div>
   </div>
+
+  <!-- Attendance Trends (AJAX) -->
+  <section id="trendSection" class="ar-glass mb-8 p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Attendance Trends</h2>
+        <p class="text-xs text-slate-500">Attendance rate over {{ filters.date_from|date:"d M Y" }} – {{ filters.date_to|date:"d M Y" }}</p>
+      </div>
+      <label class="flex items-center gap-2 text-xs text-slate-500">
+        View
+        <select id="granularitySelect" class="ar-input w-auto text-xs">
+          {% for val, label in granularity_choices %}
+          <option value="{{ val }}" {% if filters.granularity == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="mt-5 grid gap-6 lg:grid-cols-2">
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Attendance % trend</h3>
+        <div class="mt-3 h-64"><canvas id="chartTrendPct"></canvas></div>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Attendance distribution</h3>
+        <p class="text-xs text-slate-500">Records by status in the selected period</p>
+        <div class="mt-3 h-64"><canvas id="chartDistribution"></canvas></div>
+      </div>
+    </div>
+    <div class="mt-6">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Department-wise attendance</h3>
+        <label class="flex items-center gap-2 text-xs text-slate-500">
+          Sort
+          <select id="deptSort" class="ar-input w-auto text-xs">
+            <option value="desc">Highest first</option>
+            <option value="asc">Lowest first</option>
+          </select>
+        </label>
+      </div>
+      <div class="mt-3 h-72"><canvas id="chartDeptRate"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Period KPI cards -->
+  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div class="ar-glass ar-stat-card" title="Percentage of employees marked present during the selected period.">
+      <p class="text-xs text-slate-500">Attendance Rate</p>
+      <p id="kpiAttendanceRate" class="mt-2 text-2xl font-bold text-emerald-400">{{ period_kpis.attendance_rate }}%</p>
+      <p class="mt-1 text-xs text-slate-500">Present ÷ expected days</p>
+    </div>
+    <div class="ar-glass ar-stat-card" title="Total number of present records within the selected period.">
+      <p class="text-xs text-slate-500">Total Present Days</p>
+      <p id="kpiPresentDays" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{{ period_kpis.total_present_days }}</p>
+    </div>
+    <div class="ar-glass ar-stat-card" title="Number of absence records during the selected period.">
+      <p class="text-xs text-slate-500">Total Absences</p>
+      <p id="kpiAbsences" class="mt-2 text-2xl font-bold text-rose-400">{{ period_kpis.total_absences }}</p>
+    </div>
+    <div class="ar-glass ar-stat-card" title="Total late check-ins recorded during the selected period.">
+      <p class="text-xs text-slate-500">Late Arrivals</p>
+      <p id="kpiLate" class="mt-2 text-2xl font-bold text-orange-400">{{ period_kpis.late_arrivals }}</p>
+    </div>
+    <div class="ar-glass ar-stat-card" title="Approved leave days during the selected period.">
+      <p class="text-xs text-slate-500">Leave Days</p>
+      <p id="kpiLeaveDays" class="mt-2 text-2xl font-bold text-amber-400">{{ period_kpis.leave_days|floatformat:"-1" }}</p>
+    </div>
+    <div class="ar-glass ar-stat-card" title="Employees in scope for the selected filters.">
+      <p class="text-xs text-slate-500">Total Employees</p>
+      <p id="kpiEmployees" class="mt-2 text-2xl font-bold text-violet-300">{{ period_kpis.total_employees }}</p>
+    </div>
+  </section>
 
   <!-- Filters -->
   <form method="get" class="ar-glass ar-no-print mb-8 p-5">
@@ -78,6 +152,22 @@
           <option value="">All employees</option>
           {% for e in filter_options.employees %}
           <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Date range</label>
+        <select name="range" class="ar-input" id="dateRangeSelect">
+          {% for val, label in range_choices %}
+          <option value="{{ val }}" {% if filters.date_range == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs text-slate-500">Employee status</label>
+        <select name="emp_status" class="ar-input">
+          {% for val, label in emp_status_choices %}
+          <option value="{{ val }}" {% if filters.employee_status == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
@@ -139,62 +229,9 @@
     <div class="mt-4 flex gap-2">
       <button type="submit" class="ar-btn-primary">Apply filters</button>
       <input type="hidden" name="sort" value="{{ filters.sort }}">
+      <input type="hidden" name="view" id="formViewInput" value="{{ filters.granularity }}">
     </div>
   </form>
-
-  <!-- Summary cards -->
-  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-    <div class="ar-glass ar-stat-card">
-      <div class="relative flex items-start justify-between">
-        <div>
-          <p class="text-xs text-slate-500">Total Employees</p>
-          <p class="ar-counter mt-2 text-2xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.total_employees }}">0</p>
-        </div>
-        <div class="ar-stat-icon"><i data-lucide="users" class="h-5 w-5"></i></div>
-      </div>
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <div class="relative flex items-start justify-between">
-        <div>
-          <p class="text-xs text-slate-500">Present Today</p>
-          <p class="ar-counter mt-2 text-2xl font-bold text-emerald-400" data-counter="{{ summary.present_today }}">0</p>
-          <p class="mt-1 text-xs text-sky-300">{{ summary.attendance_rate }}% rate</p>
-        </div>
-        <div class="ar-stat-icon"><i data-lucide="user-check" class="h-5 w-5"></i></div>
-      </div>
-      {% if summary.trend_present != 0 %}
-      <p class="relative mt-2 text-xs {% if summary.trend_present > 0 %}ar-trend-up{% else %}ar-trend-down{% endif %}">
-        {% if summary.trend_present > 0 %}↑{% else %}↓{% endif %} {{ summary.trend_present|floatformat:1 }}% vs prior period
-      </p>
-      {% endif %}
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <p class="text-xs text-slate-500">Absent Today</p>
-      <p class="ar-counter mt-2 text-2xl font-bold text-rose-400" data-counter="{{ summary.absent_today }}">0</p>
-      <div class="ar-stat-icon mt-2"><i data-lucide="user-x" class="h-5 w-5"></i></div>
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <p class="text-xs text-slate-500">On Leave</p>
-      <p class="ar-counter mt-2 text-2xl font-bold text-amber-400" data-counter="{{ summary.on_leave }}">0</p>
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <p class="text-xs text-slate-500">Late Check-ins</p>
-      <p class="ar-counter mt-2 text-2xl font-bold text-orange-400" data-counter="{{ summary.late_checkins }}">0</p>
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <p class="text-xs text-slate-500">Work From Home</p>
-      <p class="ar-counter mt-2 text-2xl font-bold text-sky-300" data-counter="{{ summary.wfh }}">0</p>
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <p class="text-xs text-slate-500">Half Day</p>
-      <p class="ar-counter mt-2 text-2xl font-bold text-sky-400" data-counter="{{ summary.half_day }}">0</p>
-    </div>
-    <div class="ar-glass ar-stat-card">
-      <p class="text-xs text-slate-500">Avg Working Hours</p>
-      <p class="mt-2 text-xl font-bold text-cyan-400">{{ summary.avg_working_hours }}</p>
-      <p class="mt-1 text-xs text-slate-500">Today (checked in)</p>
-    </div>
-  </section>
 
   <!-- Charts -->
   <section class="mb-8 grid gap-6 lg:grid-cols-2">

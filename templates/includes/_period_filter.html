@@ -1,0 +1,46 @@
+{#
+  Reusable period filter component.
+  Usage:
+    {% include "includes/_period_filter.html" with
+        period_months=period_months
+        current_year=filters.year
+        current_month=filters.month
+        field_year="year"
+        field_month="month"
+    %}
+
+  Variables:
+    period_months   list of {month, year, label} — from payroll_month_choices()
+    current_year    currently selected year (int)
+    current_month   currently selected month (int, 0=all)
+    field_year      name of the year hidden/select field  (default: "year")
+    field_month     name of the month select field        (default: "month")
+    show_all_months boolean — show "All months" option     (default: False)
+#}
+{% with _fy="year" _fm="month" %}
+{% with fy_field=field_year|default:_fy fm_field=field_month|default:_fm %}
+<div class="hf-field hf-field--md">
+  <label class="hf-label" for="id_{{ fm_field }}">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Period
+  </label>
+  <select name="{{ fm_field }}" id="id_{{ fm_field }}" class="hf-select"
+          onchange="this.form.querySelector('[name={{ fy_field }}]').value = this.options[this.selectedIndex].dataset.year || ''">
+    {% if show_all_months %}
+    <option value="0" data-year="{{ current_year }}" {% if current_month == 0 %}selected{% endif %}>All months</option>
+    {% endif %}
+    {% for m in period_months %}
+    <option value="{{ m.month }}" data-year="{{ m.year }}"
+            {% if m.month == current_month and m.year == current_year %}selected{% endif %}>
+      {{ m.label }}
+    </option>
+    {% empty %}
+    <option value="{{ current_month }}" data-year="{{ current_year }}">
+      {% if current_month %}{{ current_month }}/{{ current_year }}{% else %}Select period{% endif %}
+    </option>
+    {% endfor %}
+  </select>
+</div>
+<input type="hidden" name="{{ fy_field }}" value="{{ current_year }}">
+{% endwith %}
+{% endwith %}

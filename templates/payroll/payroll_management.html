@@ -12,7 +12,7 @@
 <div class="payroll-page w-full space-y-6">
   <!-- Hero -->
   <div class="payroll-hero pr-no-print">
-    <div class="payroll-hero-inner flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+    <div class="payroll-hero-inner flex flex-col gap-5">
       <div class="flex items-start gap-4">
         <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
           <i data-lucide="wallet" class="h-7 w-7 text-white"></i>
@@ -28,110 +28,433 @@
           </p>
         </div>
       </div>
-      {% if can_process %}
-      <div class="flex flex-wrap gap-2">
-        <form method="post" class="inline">{% csrf_token %}
-          <input type="hidden" name="action" value="run_payroll">
-          <input type="hidden" name="year" value="{{ filters.year }}">
-          <input type="hidden" name="month" value="{{ filters.month }}">
-          <button type="submit" class="pr-btn-primary"><i data-lucide="play" class="h-4 w-4"></i> Run Payroll</button>
-        </form>
-        <form method="post" class="inline">{% csrf_token %}
-          <input type="hidden" name="action" value="generate_payslips">
-          <input type="hidden" name="year" value="{{ filters.year }}">
-          <input type="hidden" name="month" value="{{ filters.month }}">
-          <button type="submit" class="pr-btn-ghost"><i data-lucide="file-text" class="h-4 w-4"></i> Generate Payslips</button>
-        </form>
-        {% if is_admin %}
-        <form method="post" class="inline">{% csrf_token %}
-          <input type="hidden" name="action" value="approve_payroll">
-          <input type="hidden" name="year" value="{{ filters.year }}">
-          <input type="hidden" name="month" value="{{ filters.month }}">
-          <button type="submit" class="pr-btn-ghost"><i data-lucide="check-circle" class="h-4 w-4"></i> Approve</button>
-        </form>
-        <form method="post" class="inline">{% csrf_token %}
-          <input type="hidden" name="action" value="mark_paid">
-          <input type="hidden" name="year" value="{{ filters.year }}">
-          <input type="hidden" name="month" value="{{ filters.month }}">
-          <button type="submit" class="pr-btn-ghost"><i data-lucide="banknote" class="h-4 w-4"></i> Mark Paid</button>
-        </form>
-        {% endif %}
-        <a href="{% url 'payroll:salary_structures' %}" class="pr-btn-ghost"><i data-lucide="wallet" class="h-4 w-4"></i> Salary Structures</a>
-        <a href="?{{ filter_query }}&export=csv" class="pr-btn-ghost"><i data-lucide="download" class="h-4 w-4"></i> Export</a>
-      </div>
-      {% endif %}
     </div>
   </div>
 
-  <!-- Filters -->
-  <form method="get" class="pr-glass pr-no-print px-4 py-3">
-    <div class="pr-filter-bar">
-      <div class="pr-filter-item" style="min-width:9rem">
-        <label class="pr-filter-label">Organization</label>
-        <input type="text" readonly value="{{ organization.name }}" class="pr-input opacity-70">
-      </div>
-      <div class="pr-filter-item">
-        <label class="pr-filter-label">Branch</label>
-        <select name="branch" class="pr-input">
-          <option value="">All</option>
-          {% for b in filter_options.branches %}
-          <option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="pr-filter-item">
-        <label class="pr-filter-label">Department</label>
-        <select name="department" class="pr-input">
-          <option value="">All</option>
-          {% for d in filter_options.departments %}
-          <option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="pr-filter-item">
-        <label class="pr-filter-label">Payroll month</label>
-        <div class="flex gap-1">
-          <select name="month" class="pr-input w-24">
-            {% for num, name in month_choices %}
-            <option value="{{ num }}" {% if filters.month == num %}selected{% endif %}>{{ name|slice:":3" }}</option>
-            {% endfor %}
-          </select>
-          <input type="number" name="year" value="{{ filters.year }}" class="pr-input w-20" min="2020" max="2100">
-        </div>
-      </div>
-      <div class="pr-filter-item">
-        <label class="pr-filter-label">Employee</label>
-        <select name="employee" class="pr-input">
-          <option value="">All</option>
-          {% for e in filter_options.employees %}
-          <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="pr-filter-item">
-        <label class="pr-filter-label">Payment status</label>
-        <select name="payment_status" class="pr-input">
-          <option value="">All</option>
-          {% for val, label in filter_options.payment_statuses %}
-          <option value="{{ val }}" {% if filters_get.payment_status == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="flex items-end gap-2 pb-0.5">
-        <button type="submit" class="pr-btn-primary text-xs py-2">Apply</button>
-        <a href="{% url 'payroll:management' %}" class="pr-btn-ghost text-xs py-2">Reset</a>
-      </div>
+  <!-- ── Period & Filters ──────────────────────────────────────────── -->
+  <form method="get" class="hf-bar pr-no-print">
+    <!-- Year selector -->
+    <div class="hf-field hf-field--sm">
+      <label class="hf-label" for="id_year">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        {% if fy_label %}<span class="hf-fy-badge" style="margin-left:.15rem">{{ fy_label }}</span>{% endif %}
+        Year
+      </label>
+      <select name="year" id="id_year" class="hf-select">
+        {% for y in period_years %}
+        <option value="{{ y }}" {% if y == filters.year %}selected{% endif %}>{{ y }}</option>
+        {% empty %}
+        <option value="{{ filters.year }}" selected>{{ filters.year }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Month selector -->
+    <div class="hf-field hf-field--sm">
+      <label class="hf-label" for="id_month">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Month
+      </label>
+      <select name="month" id="id_month" class="hf-select">
+        <option value="1"  {% if filters.month == 1  %}selected{% endif %}>January</option>
+        <option value="2"  {% if filters.month == 2  %}selected{% endif %}>February</option>
+        <option value="3"  {% if filters.month == 3  %}selected{% endif %}>March</option>
+        <option value="4"  {% if filters.month == 4  %}selected{% endif %}>April</option>
+        <option value="5"  {% if filters.month == 5  %}selected{% endif %}>May</option>
+        <option value="6"  {% if filters.month == 6  %}selected{% endif %}>June</option>
+        <option value="7"  {% if filters.month == 7  %}selected{% endif %}>July</option>
+        <option value="8"  {% if filters.month == 8  %}selected{% endif %}>August</option>
+        <option value="9"  {% if filters.month == 9  %}selected{% endif %}>September</option>
+        <option value="10" {% if filters.month == 10 %}selected{% endif %}>October</option>
+        <option value="11" {% if filters.month == 11 %}selected{% endif %}>November</option>
+        <option value="12" {% if filters.month == 12 %}selected{% endif %}>December</option>
+      </select>
+    </div>
+
+    <div class="hf-divider"></div>
+
+    <!-- Department -->
+    <div class="hf-field hf-field--md">
+      <label class="hf-label" for="id_dept">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Department
+      </label>
+      <select name="department" id="id_dept" class="hf-select">
+        <option value="">All departments</option>
+        {% for d in filter_options.departments %}
+        <option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Branch -->
+    <div class="hf-field hf-field--sm">
+      <label class="hf-label" for="id_branch">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Branch
+      </label>
+      <select name="branch" id="id_branch" class="hf-select">
+        <option value="">All</option>
+        {% for b in filter_options.branches %}
+        <option value="{{ b }}" {% if filters_get.branch == b %}selected{% endif %}>{{ b }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Employee -->
+    <div class="hf-field hf-field--md">
+      <label class="hf-label" for="id_emp">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Employee
+      </label>
+      <select name="employee" id="id_emp" class="hf-select">
+        <option value="">All employees</option>
+        {% for e in filter_options.employees %}
+        <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Payment status -->
+    <div class="hf-field hf-field--sm">
+      <label class="hf-label" for="id_pstatus">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Status
+      </label>
+      <select name="payment_status" id="id_pstatus" class="hf-select">
+        <option value="">All statuses</option>
+        {% for val, label in filter_options.payment_statuses %}
+        <option value="{{ val }}" {% if filters_get.payment_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Actions -->
+    <div class="hf-actions">
+      <button type="submit" class="hf-btn hf-btn--primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Apply
+      </button>
+      <a href="{% url 'payroll:management' %}" class="hf-btn hf-btn--ghost">Reset</a>
     </div>
   </form>
 
+  {% if can_process %}
+  <!-- ═══════════════════════════════════════════════════════════════
+       Payroll Action + Manage Cards
+       Styles are embedded here so they are immune to collectstatic
+       timing issues and always present on this page.
+  ════════════════════════════════════════════════════════════════ -->
+  <style>
+    /* ── Action card grid ─────────────────────────────────────── */
+    .payd-section-label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 0.875rem;
+    }
+    .payd-action-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem;
+    }
+    .payd-action-grid > form {
+      display: flex;
+      flex-direction: column;
+    }
+    .payd-ac {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border-radius: 0.875rem;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.15s;
+    }
+    .payd-ac:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.1);
+      border-color: #c4b5fd;
+    }
+    .payd-ac:focus-visible {
+      outline: 2px solid #6d28d9;
+      outline-offset: 3px;
+    }
+    .payd-ac--primary {
+      background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 55%, #4f46e5 100%);
+      border-color: transparent;
+      box-shadow: 0 4px 14px rgba(109,40,217,0.35);
+      color: #ffffff;
+    }
+    .payd-ac--primary:hover {
+      box-shadow: 0 10px 28px rgba(109,40,217,0.45);
+      border-color: transparent;
+    }
+    .payd-ac-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ede9fe;
+      color: #6d28d9;
+      flex-shrink: 0;
+    }
+    .payd-ac--primary .payd-ac-icon {
+      background: rgba(255,255,255,0.2);
+      color: #ffffff;
+    }
+    .payd-ac-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+    .payd-ac-title {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .payd-ac--primary .payd-ac-title { color: #ffffff; }
+    .payd-ac-desc {
+      font-size: 0.6875rem;
+      color: #64748b;
+      line-height: 1.4;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .payd-ac--primary .payd-ac-desc { color: rgba(255,255,255,0.75); }
+
+    /* ── Manage card grid ─────────────────────────────────────── */
+    .payd-manage-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.875rem;
+    }
+    @media (max-width: 640px) { .payd-manage-grid { grid-template-columns: 1fr; } }
+
+    .payd-mc {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-radius: 0.875rem;
+      padding: 1.125rem 1.25rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.15s;
+    }
+    .payd-mc:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.11);
+      border-color: #c4b5fd;
+      text-decoration: none;
+      color: inherit;
+    }
+    .payd-mc-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f3ff;
+      color: #6d28d9;
+      flex-shrink: 0;
+    }
+    .payd-mc-body { flex: 1; min-width: 0; }
+    .payd-mc-title {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .payd-mc-desc {
+      display: block;
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.15rem;
+      line-height: 1.4;
+    }
+    .payd-mc-arrow {
+      width: 1.125rem;
+      height: 1.125rem;
+      color: #94a3b8;
+      flex-shrink: 0;
+      transition: transform 0.18s ease, color 0.15s;
+    }
+    .payd-mc:hover .payd-mc-arrow {
+      transform: translateX(4px);
+      color: #6d28d9;
+    }
+  </style>
+
+  <!-- ── Actions ──────────────────────────────────────────────────── -->
+  <section class="pr-no-print">
+    <p class="payd-section-label">Actions</p>
+    <div class="payd-action-grid">
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="run_payroll">
+        <input type="hidden" name="year" value="{{ filters.year }}">
+        <input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="payd-ac payd-ac--primary">
+          <span class="payd-ac-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </span>
+          <span class="payd-ac-body">
+            <span class="payd-ac-title">Run Payroll</span>
+            <span class="payd-ac-desc">Process salaries for {{ filters.period_label }}</span>
+          </span>
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="generate_payslips">
+        <input type="hidden" name="year" value="{{ filters.year }}">
+        <input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="payd-ac">
+          <span class="payd-ac-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </span>
+          <span class="payd-ac-body">
+            <span class="payd-ac-title">Generate Payslips</span>
+            <span class="payd-ac-desc">Create payslip documents for all employees</span>
+          </span>
+        </button>
+      </form>
+
+      {% if is_admin %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="approve_payroll">
+        <input type="hidden" name="year" value="{{ filters.year }}">
+        <input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="payd-ac">
+          <span class="payd-ac-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </span>
+          <span class="payd-ac-body">
+            <span class="payd-ac-title">Approve Payroll</span>
+            <span class="payd-ac-desc">Review and approve the payroll run</span>
+          </span>
+        </button>
+      </form>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="mark_paid">
+        <input type="hidden" name="year" value="{{ filters.year }}">
+        <input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="payd-ac">
+          <span class="payd-ac-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          </span>
+          <span class="payd-ac-body">
+            <span class="payd-ac-title">Mark Paid</span>
+            <span class="payd-ac-desc">Mark salaries as disbursed to employees</span>
+          </span>
+        </button>
+      </form>
+      {% endif %}
+
+    </div>
+  </section>
+
+  <!-- ── Manage ───────────────────────────────────────────────────── -->
+  <section class="pr-no-print">
+    <p class="payd-section-label">Manage</p>
+    <div class="payd-manage-grid">
+
+      <a href="{% url 'payroll:salary_structures' %}" class="payd-mc">
+        <span class="payd-mc-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </span>
+        <span class="payd-mc-body">
+          <span class="payd-mc-title">Salary Structures</span>
+          <span class="payd-mc-desc">Manage employee salary templates and components</span>
+        </span>
+        <svg class="payd-mc-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+      <a href="{% url 'payroll:reports' %}" class="payd-mc">
+        <span class="payd-mc-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </span>
+        <span class="payd-mc-body">
+          <span class="payd-mc-title">Payroll Reports</span>
+          <span class="payd-mc-desc">Generate and download monthly payroll reports</span>
+        </span>
+        <svg class="payd-mc-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+      <a href="{% url 'payroll:deductions' %}" class="payd-mc">
+        <span class="payd-mc-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        </span>
+        <span class="payd-mc-body">
+          <span class="payd-mc-title">Payroll Deductions</span>
+          <span class="payd-mc-desc">Track TDS, PF, ESI and other deduction types</span>
+        </span>
+        <svg class="payd-mc-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+      {% if can_access_compliance %}
+      <a href="{% url 'payroll:compliance' %}" class="payd-mc">
+        <span class="payd-mc-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </span>
+        <span class="payd-mc-body">
+          <span class="payd-mc-title">Compliance Reports</span>
+          <span class="payd-mc-desc">PF, ESI, TDS and professional tax reports</span>
+        </span>
+        <svg class="payd-mc-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+      {% endif %}
+
+      <a href="?{{ filter_query }}&export=csv" class="payd-mc">
+        <span class="payd-mc-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </span>
+        <span class="payd-mc-body">
+          <span class="payd-mc-title">Export Payroll</span>
+          <span class="payd-mc-desc">Download payroll data as CSV or Excel</span>
+        </span>
+        <svg class="payd-mc-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+
+    </div>
+  </section>
+  {% endif %}
+
   <!-- Stats -->
   <section class="grid gap-3 grid-cols-2 sm:grid-cols-4 xl:grid-cols-8">
-    <div class="pr-glass pr-stat pr-stat--glow">
+    <div class="pr-glass pr-stat pr-stat--glow" title="Total employee compensation expense for the selected period.">
       <div class="relative flex justify-between">
         <div>
           <p class="text-[10px] uppercase text-slate-500">Total payroll</p>
           <p class="pr-counter mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.total_payroll }}" data-money="1">0</p>
-          {% if summary.trend_payroll %}<p class="text-[10px] text-emerald-400">↑ {{ summary.trend_payroll }}%</p>{% endif %}
+          {% if summary.trend_payroll %}<p class="text-[10px] {% if summary.trend_payroll < 0 %}text-rose-400{% else %}text-emerald-400{% endif %}">{% if summary.trend_payroll < 0 %}↓{% else %}↑{% endif %} {{ summary.trend_payroll_abs }}%</p>{% endif %}
         </div>
         <div class="pr-stat-icon"><i data-lucide="indian-rupee" class="h-5 w-5"></i></div>
       </div>
@@ -161,7 +484,7 @@
       <p class="text-[10px] uppercase text-slate-500">Deductions</p>
       <p class="pr-counter mt-1 text-xl font-bold text-rose-400" data-counter="{{ summary.total_deductions }}" data-money="1">0</p>
     </div>
-    <div class="pr-glass pr-stat pr-stat--glow">
+    <div class="pr-glass pr-stat pr-stat--glow" title="Average salary paid per employee during the selected period.">
       <p class="text-[10px] uppercase text-slate-500">Avg salary</p>
       <p class="pr-counter mt-1 text-xl font-bold text-slate-900 dark:text-white" data-counter="{{ summary.average_salary }}" data-money="1">0</p>
     </div>
@@ -235,6 +558,36 @@
     </div>
     {% endif %}
   </section>
+
+  {% if is_admin %}
+  <!-- Payroll pay policy (admin) -->
+  <section class="pr-glass p-5">
+    <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Payroll settings</h2>
+    <p class="text-xs text-slate-500">How unmarked attendance affects pay when you run payroll.</p>
+    <form method="post" class="mt-4 grid gap-3 sm:grid-cols-2">{% csrf_token %}
+      <input type="hidden" name="action" value="save_payroll_policy">
+      <input type="hidden" name="year" value="{{ filters.year }}">
+      <input type="hidden" name="month" value="{{ filters.month }}">
+      <label class="flex cursor-pointer gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10 {% if lop_policy == 'ASSUME_PRESENT' %}ring-2 ring-violet-500{% endif %}">
+        <input type="radio" name="payroll_lop_policy" value="ASSUME_PRESENT" class="mt-0.5 accent-violet-600" {% if lop_policy == 'ASSUME_PRESENT' %}checked{% endif %}>
+        <span>
+          <span class="block text-sm font-semibold text-slate-900 dark:text-white">Assume present</span>
+          <span class="mt-0.5 block text-xs text-slate-500">Unmarked days are paid in full. Only days explicitly marked <strong>Absent</strong> reduce pay. Best when attendance isn't always recorded.</span>
+        </span>
+      </label>
+      <label class="flex cursor-pointer gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10 {% if lop_policy == 'STRICT' %}ring-2 ring-violet-500{% endif %}">
+        <input type="radio" name="payroll_lop_policy" value="STRICT" class="mt-0.5 accent-violet-600" {% if lop_policy == 'STRICT' %}checked{% endif %}>
+        <span>
+          <span class="block text-sm font-semibold text-slate-900 dark:text-white">Strict proration</span>
+          <span class="mt-0.5 block text-xs text-slate-500">Pay = salary × (present days ÷ working days). Employees with no attendance marked for the month are paid ₹0.</span>
+        </span>
+      </label>
+      <div class="sm:col-span-2">
+        <button type="submit" class="pr-btn-primary text-xs py-2">Save policy</button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
   {% endif %}
 
   <!-- Charts -->
@@ -286,6 +639,35 @@
       {% endif %}
     </section>
   </div>
+
+  {% if run_history %}
+  <!-- Month-wise run history -->
+  <section class="pr-glass overflow-hidden">
+    <div class="border-b border-white/10 px-5 py-4">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Payroll run history</h2>
+      <p class="text-xs text-slate-500">How much was generated each month · click a row to open that month</p>
+    </div>
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        <thead>
+          <tr><th>Period</th><th>Employees</th><th>Gross</th><th>Deductions</th><th>Net generated</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for r in run_history %}
+          <tr class="cursor-pointer" onclick="window.location='?year={{ r.year }}&month={{ r.month }}'">
+            <td class="font-medium text-slate-900 dark:text-white">{{ r.period_label }}</td>
+            <td>{{ r.employee_count }}</td>
+            <td>₹{{ r.gross|floatformat:0 }}</td>
+            <td>₹{{ r.deductions|floatformat:0 }}</td>
+            <td class="font-semibold text-violet-300">₹{{ r.net|floatformat:0 }}</td>
+            <td><span class="pr-badge">{{ r.status_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
 
   <!-- Payroll table -->
   <section class="pr-glass overflow-hidden">

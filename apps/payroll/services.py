@@ -18,9 +18,11 @@ from apps.leaves.models import LeaveRequest
 from apps.organizations.models import Organization
 
 from .models import (
+    EmployeeDeduction,
     EmployeeLoan,
     EmployeeSalary,
     PayrollApproval,
+    PayrollAuditLog,
     PayrollRun,
     Payslip,
     PayslipLine,
@@ -46,6 +48,9 @@ DEFAULT_COMPONENTS = [
     ("pt", "Professional Tax", SalaryComponent.ComponentType.DEDUCTION, SalaryComponent.Category.PT, SalaryComponent.CalcType.FIXED, Decimal("200")),
     ("tax", "Income Tax (TDS)", SalaryComponent.ComponentType.DEDUCTION, SalaryComponent.Category.TAX, SalaryComponent.CalcType.FIXED, Decimal("0")),
     ("loan", "Loan Deduction", SalaryComponent.ComponentType.DEDUCTION, SalaryComponent.Category.LOAN, SalaryComponent.CalcType.FIXED, Decimal("0")),
+    ("advance", "Salary Advance Recovery", SalaryComponent.ComponentType.DEDUCTION, SalaryComponent.Category.ADVANCE, SalaryComponent.CalcType.FIXED, Decimal("0")),
+    ("notice", "Notice Period Recovery", SalaryComponent.ComponentType.DEDUCTION, SalaryComponent.Category.NOTICE, SalaryComponent.CalcType.FIXED, Decimal("0")),
+    ("lop", "Loss of Pay", SalaryComponent.ComponentType.DEDUCTION, SalaryComponent.Category.LOP, SalaryComponent.CalcType.FIXED, Decimal("0")),
 ]
 
 
@@ -58,6 +63,7 @@ def payroll_team_for(user: User):
         ).select_related("department")
     if user.role == User.Role.HR:
         return attendance_team_for(user).select_related("department")
+    # Employee: only their own payslip.
     return User.objects.filter(pk=user.pk).select_related("department")
 
 
@@ -170,13 +176,36 @@ def _attendance_stats(user: User, start: date, end: date, working_days: int) -> 
             or 0
         )
     )
+    marked_absent = records.filter(status=AttendanceRecord.Status.ABSENT).count()
     absent = max(0, working_days - present - int(leave_days))
     return {
         "present": present,
         "leave_days": leave_days,
         "absent": absent,
+        "marked_absent": marked_absent,
         "working_days": working_days,
     }
+
+
+def attendance_factor(org, stats: dict) -> Decimal:
+    """Fraction of the month an employee is paid for, per the org's LOP policy.
+
+    STRICT: pay strictly by present ÷ working days (unmarked days are unpaid).
+    ASSUME_PRESENT (default): unmarked days are paid; only days explicitly marked
+    Absent reduce pay. Result is clamped to [0, 1]; an empty calendar pays in full.
+    """
+    from apps.organizations.models import Organization
+
+    working = stats["working_days"]
+    if not working:
+        return Decimal("1")
+    policy = getattr(org, "payroll_lop_policy", Organization.PayrollLopPolicy.ASSUME_PRESENT)
+    if policy == Organization.PayrollLopPolicy.STRICT:
+        payable = Decimal(stats["present"])
+    else:
+        payable = Decimal(working - stats["marked_absent"])
+    factor = payable / Decimal(working)
+    return min(Decimal("1"), max(Decimal("0"), factor))
 
 
 def _calculate_lines(monthly_ctc: Decimal, components, attendance_factor: Decimal) -> tuple[list[dict], Decimal, Decimal]:
@@ -214,13 +243,14 @@ def _calculate_lines(monthly_ctc: Decimal, components, attendance_factor: Decima
     hra = _money(basic * Decimal("0.50"))
     add_line(hra_c, "HRA", hra, SalaryComponent.ComponentType.EARNING)
 
+    # Fixed allowances are prorated by attendance so an absent month scales the
+    # whole payslip down (consistent with the per-employee component path).
     remaining = gross_base - basic - hra
-    for code, default_amt in (("medical", Decimal("1250")), ("travel", Decimal("1600")), ("special", None)):
+    medical_amt = _money(Decimal("1250") * attendance_factor)
+    travel_amt = _money(Decimal("1600") * attendance_factor)
+    special_amt = max(Decimal("0"), remaining - medical_amt - travel_amt)
+    for code, amt in (("medical", medical_amt), ("travel", travel_amt), ("special", special_amt)):
         comp = comp_map.get(code)
-        if code == "special":
-            amt = max(Decimal("0"), remaining - Decimal("2850"))
-        else:
-            amt = default_amt or Decimal("0")
         add_line(comp, comp.name if comp else code.title(), amt, SalaryComponent.ComponentType.EARNING)
 
     pf_c = comp_map.get("pf")
@@ -231,7 +261,7 @@ def _calculate_lines(monthly_ctc: Decimal, components, attendance_factor: Decima
         add_line(esi_c, "ESI", gross_base * Decimal("0.0075"), SalaryComponent.ComponentType.DEDUCTION)
 
     pt_c = comp_map.get("pt")
-    add_line(pt_c, "Professional Tax", Decimal("200"), SalaryComponent.ComponentType.DEDUCTION)
+    add_line(pt_c, "Professional Tax", Decimal("200") * attendance_factor, SalaryComponent.ComponentType.DEDUCTION)
 
     tax_c = comp_map.get("tax")
     annual = gross_base * 12
@@ -273,6 +303,27 @@ def _approved_reimbursements(user: User, start: date, end: date) -> Decimal:
         or 0
     )
     return _money(Decimal(str(total)))
+
+
+def record_payroll_action(org, actor, action, summary, *, period="", request=None, **details):
+    """Write a PayrollAuditLog entry (captures actor, action, period, IP)."""
+    if org is None:
+        return None
+    data = dict(details)
+    if period:
+        data["period"] = period
+    if request is not None:
+        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "")
+        if ip:
+            data["ip"] = ip
+    return PayrollAuditLog.objects.create(
+        organization=org,
+        actor=actor if getattr(actor, "pk", None) else None,
+        action=action,
+        summary=str(summary)[:255],
+        details=data,
+    )
 
 
 def _loan_emi(user: User) -> Decimal:
@@ -318,9 +369,10 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
         salary = get_active_salary(member)
         _, _, working_days = _month_bounds(org, run.year, run.month, user=member)
         stats = _attendance_stats(member, start, end, working_days)
-        factor = Decimal(stats["present"]) / Decimal(working_days) if working_days else Decimal("1")
-        factor = min(Decimal("1"), max(Decimal("0"), factor))
+        factor = attendance_factor(org, stats)
 
+        # Earnings AND deductions are prorated by the attendance factor — this is
+        # the single loss-of-pay mechanism, so net can never go negative.
         lines = employee_payslip_lines(salary, factor)
         reimb = _approved_reimbursements(member, start, end)
         emi = _loan_emi(member)
@@ -335,37 +387,100 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
                     "sort_order": 99,
                 }
             )
-            deductions += emi
 
-        leave_ded = Decimal("0")
-        if stats["absent"] > 0:
-            per_day = salary.monthly_ctc / Decimal(working_days or 1)
-            leave_ded = _money(per_day * Decimal(stats["absent"]))
+        # Ad-hoc recoveries (salary advance / notice period / other) — like loan EMI.
+        # Balance is only decremented when the payslip is first created (below), so
+        # reprocessing a run keeps net stable instead of double-recovering.
+        applied_recoveries = []
+        for ded in EmployeeDeduction.objects.filter(user=member, is_active=True):
+            cap = ded.balance if ded.balance > 0 else ded.amount
+            take = _money(min(ded.amount, cap))
+            if take <= 0:
+                continue
+            code = {"ADVANCE": "advance", "NOTICE": "notice"}.get(ded.deduction_type)
+            comp = next((c for c in components if c.code == code), None) if code else None
+            lines.append(
+                {
+                    "component": comp,
+                    "label": ded.label or ded.get_deduction_type_display(),
+                    "line_type": SalaryComponent.ComponentType.DEDUCTION,
+                    "amount": take,
+                    "sort_order": 100,
+                }
+            )
+            applied_recoveries.append((ded, take, cap))
 
-        gross = _money(sum(l["amount"] for l in lines if l["line_type"] == SalaryComponent.ComponentType.EARNING))
-        deductions = _money(sum(l["amount"] for l in lines if l["line_type"] == SalaryComponent.ComponentType.DEDUCTION))
-        net = _money(gross - deductions - leave_ded + reimb)
+        EARNING = SalaryComponent.ComponentType.EARNING
+        DEDUCTION = SalaryComponent.ComponentType.DEDUCTION
+        earned_gross = _money(sum((l["amount"] for l in lines if l["line_type"] == EARNING), Decimal("0")))
+        deduction_lines = [l for l in lines if l["line_type"] == DEDUCTION]
+        # Employer PF contribution (12% match) — stored for reporting, NOT deducted from net.
+        employer_pf = _money(
+            sum(
+                (
+                    l["amount"]
+                    for l in deduction_lines
+                    if (l.get("component") and l["component"].code == "pf")
+                    or l["label"] == "Provident Fund"
+                ),
+                Decimal("0"),
+            )
+        )
+
+        # Conventional model: Gross = FULL monthly earnings; the slice withheld for absence
+        # becomes an explicit Loss-of-Pay deduction (always ≤ gross). Statutory deductions stay
+        # computed on earned pay. Net = gross − deductions, so it can never go negative.
+        full_earning_lines = [
+            l for l in employee_payslip_lines(salary, Decimal("1")) if l["line_type"] == EARNING
+        ]
+        full_gross = _money(sum((l["amount"] for l in full_earning_lines), Decimal("0")))
+        leave_ded = _money(max(Decimal("0"), full_gross - earned_gross))
+        if leave_ded > 0:
+            lop_c = next((c for c in components if c.code == "lop"), None)
+            deduction_lines.append(
+                {
+                    "component": lop_c,
+                    "label": "Loss of Pay",
+                    "line_type": DEDUCTION,
+                    "amount": leave_ded,
+                    "sort_order": 50,
+                }
+            )
+
+        stored_lines = full_earning_lines + deduction_lines
+        gross = full_gross
+        deductions = _money(sum((l["amount"] for l in deduction_lines), Decimal("0")))
+        net = max(Decimal("0.00"), _money(gross - deductions + reimb))
+        # Days actually paid for (reflects the LOP policy), for the payslip note.
+        paid_days = int((factor * Decimal(working_days)).to_integral_value(rounding=ROUND_HALF_UP))
         bonus = Decimal("0")
 
-        payslip, _ = Payslip.objects.update_or_create(
+        payslip, created = Payslip.objects.update_or_create(
             payroll_run=run,
             user=member,
             defaults={
                 "gross_salary": gross,
-                "total_deductions": deductions + leave_ded,
+                "total_deductions": deductions,
                 "net_salary": net,
                 "bonus": bonus,
                 "reimbursements": reimb,
                 "leave_deduction": leave_ded,
-                "attendance_days": stats["present"],
+                "employer_pf": employer_pf,
+                "attendance_days": paid_days,
                 "working_days": working_days,
                 "leave_days": stats["leave_days"],
                 "payment_status": Payslip.PaymentStatus.PENDING,
                 "payslip_number": f"PS-{run.year}{run.month:02d}-{member.employee_id or member.pk.hex[:6].upper()}",
             },
         )
+        if created:
+            for ded, take, cap in applied_recoveries:
+                ded.balance = max(Decimal("0"), cap - take)
+                if ded.balance <= 0:
+                    ded.is_active = False
+                ded.save(update_fields=["balance", "is_active"])
         payslip.lines.all().delete()
-        for line in lines:
+        for line in stored_lines:
             PayslipLine.objects.create(
                 payslip=payslip,
                 component=line.get("component"),
@@ -377,7 +492,7 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
 
         total_gross += gross
         total_net += net
-        total_ded += deductions + leave_ded
+        total_ded += deductions
         total_reimb += reimb
         count += 1
 

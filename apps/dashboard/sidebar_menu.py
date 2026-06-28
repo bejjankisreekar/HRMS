@@ -39,6 +39,7 @@ ADMIN_NAV_ORDER = [
     "Staff attendance",
     "Leave management",
     "Payroll",
+    "Compliance Reports",
     "Analytics",
     "Organization settings",
 ]
@@ -71,6 +72,14 @@ EMPLOYEE_NAV_ORDER = [
     "Leave requests",
     "Payslips",
     "Settings",
+]
+
+# Shown to employees who lead a team (have active direct reports).
+TEAM_LEAD_NAV_ORDER = [
+    "Team members",
+    "Team attendance",
+    "Leave approvals",
+    "Attendance regularizations",
 ]
 
 # =============================================================================
@@ -502,6 +511,14 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             ("lifecycle:offboarding",),
             hr,
         ),
+        "Compliance Reports": _item(
+            "Compliance Reports",
+            "shield-check",
+            "payroll:compliance",
+            ("payroll:compliance",),
+            ar,
+            keywords=("pf", "esi", "tds", "professional tax", "form 16", "statutory", "filing", "compliance"),
+        ),
         "Organization settings": _item(
             "Organization settings",
             "building",
@@ -736,6 +753,53 @@ def _employee_nav_catalog() -> dict[str, SidebarItem]:
     }
 
 
+def _team_lead_nav_catalog() -> dict[str, SidebarItem]:
+    em = (User.Role.EMPLOYEE,)
+    return {
+        "Team members": _item(
+            "Team members",
+            "users",
+            "dashboard:team_members",
+            ("dashboard:team_members",),
+            em,
+            keywords=("team", "directory", "reports", "members"),
+        ),
+        "Team attendance": _item(
+            "Team attendance",
+            "calendar-check",
+            "dashboard:team_attendance",
+            ("dashboard:team_attendance", "dashboard:team_attendance_export"),
+            em,
+        ),
+        "Leave approvals": _item(
+            "Leave approvals",
+            "check-circle",
+            "dashboard:team_leave_approvals",
+            ("dashboard:team_leave_approvals", "dashboard:team_leave_decision"),
+            em,
+            keywords=("approve", "leave", "approvals"),
+        ),
+        "Attendance regularizations": _item(
+            "Attendance regularizations",
+            "clock",
+            "dashboard:team_regularizations",
+            ("dashboard:team_regularizations", "dashboard:team_regularization_decision"),
+            em,
+            keywords=("regularization", "correction", "attendance"),
+        ),
+    }
+
+
+def _team_lead_group() -> SidebarGroup:
+    catalog = _team_lead_nav_catalog()
+    return SidebarGroup(
+        id="team",
+        title="My team",
+        roles=(User.Role.EMPLOYEE,),
+        items=[catalog[label] for label in TEAM_LEAD_NAV_ORDER if label in catalog],
+    )
+
+
 def _super_admin_groups() -> list[SidebarGroup]:
     return _groups_from_order(
         SUPER_ADMIN_NAV_ORDER,
@@ -860,9 +924,20 @@ def _employee_groups(user: User | None = None) -> list[SidebarGroup]:
         dynamic = _dynamic_groups(user, (User.Role.EMPLOYEE,))
         if dynamic:
             _ensure_employee_dashboard_item(dynamic)
+            _append_team_lead_group(dynamic, user)
             return dynamic
-    return _groups_from_order(
+    groups = _groups_from_order(
         EMPLOYEE_NAV_ORDER,
         _employee_nav_catalog(),
         (User.Role.EMPLOYEE,),
     )
+    _append_team_lead_group(groups, user)
+    return groups
+
+
+def _append_team_lead_group(groups: list[SidebarGroup], user: User | None) -> None:
+    """Employees with active direct reports also get team-management links."""
+    from apps.accounts.hierarchy import has_direct_reports
+
+    if user and user.organization_id and has_direct_reports(user):
+        groups.append(_team_lead_group())

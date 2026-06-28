@@ -129,6 +129,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        db_index=True,
         related_name="direct_reports",
     )
     assigned_hr = models.ForeignKey(
@@ -184,6 +185,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     privacy_policy_accepted = models.BooleanField(default=False)
 
     is_active = models.BooleanField(default=True)
+    # Admin-granted per-account permission for HR users to view Compliance Reports.
+    can_access_compliance = models.BooleanField(default=False)
     employment_status = models.CharField(
         max_length=20,
         choices=EmploymentStatus.choices,
@@ -201,6 +204,13 @@ class User(AbstractBaseUser, PermissionsMixin):
                 fields=["organization", "employee_id"],
                 condition=~models.Q(employee_id=""),
                 name="unique_employee_id_per_org",
+            ),
+        ]
+        indexes = [
+            # Efficient team queries: a manager's direct reports within their org.
+            models.Index(
+                fields=["organization", "reporting_manager"],
+                name="user_org_reporting_mgr_idx",
             ),
         ]
 

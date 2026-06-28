@@ -39,15 +39,15 @@ LOGIN_PORTALS = [
         "allowed_roles": {User.Role.SUPER_ADMIN, User.Role.ADMIN},
         "role_mismatch_message": (
             "This account is not authorized for the Organization Admin Portal. "
-            "HR staff should use the HR portal; employees should use the Employee portal."
+            "Managers / HR should use the Manager / HR portal; employees should use the Employee portal."
         ),
     },
     {
         "id": PORTAL_HR,
-        "label": "HR",
-        "title": "HR Portal",
+        "label": "Manager / HR",
+        "title": "Manager / HR Portal",
         "subtitle": (
-            "HR operations — attendance, leave approvals, "
+            "Team & HR operations — attendance, leave approvals, "
             "payroll assistance, and employee support."
         ),
         "icon": "users",
@@ -64,7 +64,7 @@ LOGIN_PORTALS = [
         ],
         "allowed_roles": {User.Role.HR},
         "role_mismatch_message": (
-            "This account is not authorized for the HR Portal. "
+            "This account is not authorized for the Manager / HR Portal. "
             "Organization Admins should use the Organization Admin portal; "
             "employees should use the Employee portal."
         ),
@@ -90,7 +90,7 @@ LOGIN_PORTALS = [
         "allowed_roles": {User.Role.EMPLOYEE},
         "role_mismatch_message": (
             "This account is not authorized for the Employee Portal. "
-            "Organization Admins and HR staff should use their respective portals."
+            "Organization Admins and Managers / HR should use their respective portals."
         ),
     },
 ]

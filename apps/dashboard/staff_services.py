@@ -124,7 +124,7 @@ def get_staff_profile_context(staff: User) -> dict:
         "recent_leaves": leaves,
         "direct_reports_count": direct_reports,
         "audit_logs": audit,
-        "role_label": role_display_for(staff.role),
+        "role_label": role_display_for(staff.role, staff.organization),
     }
 
 
@@ -311,46 +311,51 @@ def get_staff_edit_context(staff: User) -> dict:
     }
 
 
-def export_staff_csv(staff_qs: QuerySet[User]) -> str:
+STAFF_EXPORT_HEADERS = [
+    "Employee ID", "First Name", "Last Name", "Username", "Email", "Phone", "Role",
+    "Grade", "Department", "Designation", "Manager", "Joining Date", "Employment Status", "Active",
+]
+
+
+def _staff_export_row(u: User, organization=None) -> list:
+    return [
+        u.employee_id,
+        u.first_name,
+        u.last_name,
+        u.username,
+        u.email,
+        u.phone,
+        role_display_for(u.role, organization or u.organization),
+        u.grade_name,
+        u.department_name,
+        u.designation_label,
+        u.reporting_manager.display_name if u.reporting_manager else "",
+        u.date_of_joining.isoformat() if u.date_of_joining else "",
+        u.get_employment_status_display(),
+        "Yes" if u.is_active else "No",
+    ]
+
+
+def export_staff_csv(staff_qs: QuerySet[User], organization=None) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(
-        [
-            "Employee ID",
-            "First Name",
-            "Last Name",
-            "Username",
-            "Email",
-            "Phone",
-            "Role",
-            "Grade",
-            "Department",
-            "Designation",
-            "Manager",
-            "Joining Date",
-            "Employment Status",
-            "Active",
-        ]
-    )
+    writer.writerow(STAFF_EXPORT_HEADERS)
     for u in staff_qs:
-        writer.writerow(
-            [
-                u.employee_id,
-                u.first_name,
-                u.last_name,
-                u.username,
-                u.email,
-                u.phone,
-                role_display_for(u.role),
-                u.grade_name,
-                u.department_name,
-                u.designation_label,
-                u.reporting_manager.display_name if u.reporting_manager else "",
-                u.date_of_joining.isoformat() if u.date_of_joining else "",
-                u.get_employment_status_display(),
-                "Yes" if u.is_active else "No",
-            ]
-        )
+        writer.writerow(_staff_export_row(u, organization))
+    return buf.getvalue()
+
+
+def export_staff_xlsx(staff_qs: QuerySet[User], organization=None) -> bytes:
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Employees"
+    ws.append(STAFF_EXPORT_HEADERS)
+    for u in staff_qs:
+        ws.append(_staff_export_row(u, organization))
+    buf = io.BytesIO()
+    wb.save(buf)
     return buf.getvalue()
 
 

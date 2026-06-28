@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from django.urls import reverse
+
 from apps.accounts.models import User
 from apps.dashboard.notification_service import (
     _leave_notification_payload,
     dismiss_notifications_by_prefix,
+    send_notification,
     upsert_dashboard_notification,
 )
 from apps.leaves.models import LeaveApproval, LeaveRequest
@@ -60,6 +63,64 @@ def notify_leave_next_approver(leave_request: LeaveRequest) -> None:
     )
     if first_pending and first_pending.approver:
         _notify_user(first_pending.approver, leave_request)
+
+
+def notify_leave_decision(leave_request: LeaveRequest, *, approved: bool, actor: User | None = None) -> None:
+    """Notify the employee that their leave request was approved or rejected.
+
+    Sent over the in-app channel today; the email channel is wired through the
+    same ``send_notification`` seam and can be enabled later without touching
+    this call site.
+    """
+    employee = leave_request.user
+    if not employee:
+        return
+    verb = "approved" if approved else "rejected"
+    lt = leave_request.leave_type
+    send_notification(
+        employee,
+        channels=("in_app", "email"),
+        source_key=f"leave-decision:{leave_request.pk}",
+        title=f"Leave {verb}",
+        message=(
+            f"Your {lt.name} request "
+            f"({leave_request.start_date:%d %b} – {leave_request.end_date:%d %b %Y}) "
+            f"was {verb}"
+            + (f" by {actor.display_name}" if actor else "")
+            + "."
+        ),
+        url=reverse("leaves:management"),
+        icon="check-circle" if approved else "x-circle",
+        notification_type="leave",
+        force_unread=True,
+    )
+
+
+def notify_leave_cancelled(leave_request: LeaveRequest) -> None:
+    """Notify approvers with a pending step that the employee cancelled."""
+    employee = leave_request.user
+    pending_approvers = (
+        leave_request.approvals.filter(status=LeaveApproval.StepStatus.PENDING)
+        .exclude(approver=None)
+        .select_related("approver")
+    )
+    for step in pending_approvers:
+        if step.approver_id == employee.pk:
+            continue
+        send_notification(
+            step.approver,
+            channels=("in_app", "email"),
+            source_key=f"leave-cancelled:{leave_request.pk}:{step.approver_id}",
+            title="Leave request cancelled",
+            message=(
+                f"{employee.display_name} cancelled their {leave_request.leave_type.name} "
+                f"request ({leave_request.start_date:%d %b} – {leave_request.end_date:%d %b %Y})."
+            ),
+            url=reverse("leaves:management"),
+            icon="x-circle",
+            notification_type="leave",
+            force_unread=True,
+        )
 
 
 def dismiss_leave_notifications(leave_request: LeaveRequest) -> None:

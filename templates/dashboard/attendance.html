@@ -231,7 +231,7 @@
       </label>
       <select id="att-role-filter" name="role" class="att-filter-select" onchange="this.form.submit()">
         <option value="all"      {% if role_filter == "all" %}selected{% endif %}>All roles</option>
-        <option value="HR"       {% if role_filter == "HR" %}selected{% endif %}>HR</option>
+        <option value="HR"       {% if role_filter == "HR" %}selected{% endif %}>{{ hr_role_label }}</option>
         <option value="EMPLOYEE" {% if role_filter == "EMPLOYEE" %}selected{% endif %}>Employees</option>
       </select>
     </div>

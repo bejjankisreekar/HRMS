@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.storage',
     'apps.leads',
     'apps.grades',
+    'apps.team',
 ]
 
 MIDDLEWARE = [

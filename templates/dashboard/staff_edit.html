@@ -296,6 +296,14 @@
             </div>
             <p class="se-hint">{{ form.new_password.help_text }}</p>
           </div>
+          {% if form.can_access_compliance %}
+          <div class="se-field sm:col-span-2">
+            <label class="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              {{ form.can_access_compliance }} Allow Compliance Reports access
+            </label>
+            <p class="se-hint">Lets this HR account open Payroll → Compliance Reports (PF/ESI/TDS/PT filing).</p>
+          </div>
+          {% endif %}
         </div>
       </section>
 

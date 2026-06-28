@@ -14,8 +14,10 @@ from apps.accounts.models import User
 from .attendance_analytics import (
     AnalyticsFilters,
     build_table_rows,
+    build_trend,
     employee_detail_payload,
     export_rows_csv,
+    export_rows_xlsx,
     get_analytics_context,
 )
 from .mixins import AdminOrHRRequiredMixin
@@ -29,14 +31,12 @@ class AttendanceAnalyticsView(AdminOrHRRequiredMixin, TemplateView):
 
     def get(self, request, *args, **kwargs):
         export = request.GET.get("export")
-        if export in ("csv", "excel"):
+        if export in ("csv", "excel", "xlsx"):
             filters = AnalyticsFilters.from_request(request)
             rows = build_table_rows(request.user, filters)
-            response = export_rows_csv(rows)
-            if export == "excel":
-                response["Content-Type"] = "application/vnd.ms-excel; charset=utf-8"
-                response["Content-Disposition"] = 'attachment; filename="attendance_report.xls"'
-            return response
+            if export in ("xlsx", "excel"):
+                return export_rows_xlsx(rows)
+            return export_rows_csv(rows)
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -61,6 +61,90 @@ class AttendanceAnalyticsView(AdminOrHRRequiredMixin, TemplateView):
             ("HALF_DAY", "Half day"),
             ("WFH", "Work from home"),
         ]
+        ctx["range_choices"] = [
+            ("today", "Today"),
+            ("this_week", "This Week"),
+            ("this_month", "This Month"),
+            ("last_month", "Last Month"),
+            ("this_quarter", "This Quarter"),
+            ("custom", "Custom Range"),
+        ]
+        ctx["granularity_choices"] = [
+            ("daily", "Daily View"),
+            ("weekly", "Weekly View"),
+            ("monthly", "Monthly View"),
+        ]
+        ctx["emp_status_choices"] = [
+            ("active", "Active Employees"),
+            ("inactive", "Inactive Employees"),
+            ("all", "All Employees"),
+        ]
+        return ctx
+
+
+class AttendanceReportsDataView(AdminOrHRRequiredMixin, View):
+    """JSON payload for the AJAX trend/distribution/department + KPI refresh."""
+
+    def get(self, request, *args, **kwargs):
+        filters = AnalyticsFilters.from_request(request)
+        return JsonResponse(build_trend(request.user, filters))
+
+
+class EmployeeAttendanceChartView(AdminOrHRRequiredMixin, TemplateView):
+    """Employee Attendance Overview — per-employee attendance % bar chart (Admin/HR only)."""
+
+    template_name = "dashboard/employee_attendance_chart.html"
+
+    def get(self, request, *args, **kwargs):
+        from . import attendance_overview as AO
+
+        if request.GET.get("export") in ("csv", "xlsx", "excel"):
+            from apps.attendance.models import AttendanceReportAudit, record_report_audit
+
+            filters = AO.OverviewFilters.from_request(request)
+            data = AO.employee_attendance_overview(request.user, filters)
+            fmt = request.GET["export"]
+            record_report_audit(
+                request.user.organization, request.user,
+                AttendanceReportAudit.Action.EXPORTED,
+                export_type=("xlsx" if fmt in ("xlsx", "excel") else "csv"),
+                filters={"period": filters.label(), "department": filters.department},
+            )
+            if fmt in ("xlsx", "excel"):
+                return AO.export_xlsx(filters, data["summary"], data["rows"])
+            return AO.export_csv(filters, data["summary"], data["rows"])
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        from . import attendance_overview as AO
+        from apps.attendance.models import AttendanceReportAudit, record_report_audit
+
+        import json
+
+        ctx = super().get_context_data(**kwargs)
+        filters = AO.OverviewFilters.from_request(self.request)
+        data = AO.employee_attendance_overview(self.request.user, filters)
+
+        query = self.request.GET.copy()
+        query.pop("export", None)
+
+        ctx.update({
+            "organization": self.request.user.organization,
+            "filters": filters,
+            "filters_get": self.request.GET,
+            "filter_query": query.urlencode(),
+            "filter_options": AO.filter_options(self.request.user),
+            "summary": data["summary"],
+            "rows": data["rows"],
+            "rows_json": json.dumps(data["rows"]),
+            "working_days": data["working_days"],
+            "today": timezone.localdate(),
+        })
+        record_report_audit(
+            self.request.user.organization, self.request.user,
+            AttendanceReportAudit.Action.VIEWED,
+            filters={"period": filters.label(), "department": filters.department},
+        )
         return ctx
 
 

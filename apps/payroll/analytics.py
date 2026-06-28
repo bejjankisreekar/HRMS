@@ -133,23 +133,30 @@ def build_summary(viewer: User, filters: PayrollFilters) -> dict:
         prev_month = 12
         prev_year -= 1
     prev_run = PayrollRun.objects.filter(organization=org, year=prev_year, month=prev_month).first()
+    # Trend = change in payroll *expense* magnitude vs the previous period, so the
+    # arrow direction reflects spend going up/down regardless of the stored sign.
     trend = 0.0
     if prev_run and prev_run.total_net and run and run.total_net:
-        prev_net = float(prev_run.total_net)
+        prev_net = abs(float(prev_run.total_net))
+        cur_net = abs(float(run.total_net))
         if prev_net:
-            trend = round(((float(run.total_net) - prev_net) / prev_net) * 100, 1)
+            trend = round(((cur_net - prev_net) / prev_net) * 100, 1)
 
+    # Payroll figures are expense totals — always presented as positive amounts.
+    # Accounting signs (e.g. debit/negative) are preserved in the DB; we only
+    # transform at the presentation layer here.
     return {
-        "total_payroll": float(agg["net"] or 0),
+        "total_payroll": abs(float(agg["net"] or 0)),
         "employees_processed": qs.count() if run else 0,
         "team_total": team_count,
         "pending_payroll": pending_slips,
         "paid_salaries": paid,
         "reimbursements_pending": pending_reimb,
-        "bonuses_paid": float(agg["bonus"] or 0),
-        "total_deductions": float(agg["ded"] or 0),
-        "average_salary": float(agg["avg_net"] or 0),
+        "bonuses_paid": abs(float(agg["bonus"] or 0)),
+        "total_deductions": abs(float(agg["ded"] or 0)),
+        "average_salary": abs(float(agg["avg_net"] or 0)),
         "trend_payroll": trend,
+        "trend_payroll_abs": abs(trend),
         "run_status": run.status if run else "DRAFT",
         "run_id": str(run.pk) if run else "",
     }
@@ -310,11 +317,13 @@ def table_rows(qs) -> list[dict]:
                 "department": u.department_name or "—",
                 "designation": u.designation or "—",
                 "period": slip.payroll_run.period_label,
-                "gross": slip.gross_salary,
-                "deductions": slip.total_deductions,
-                "net": slip.net_salary,
-                "bonus": slip.bonus,
-                "reimbursements": slip.reimbursements,
+                # Payroll figures are expense amounts — shown positive (accounting
+                # signs stay in the DB). Transform only at this presentation layer.
+                "gross": abs(slip.gross_salary),
+                "deductions": abs(slip.total_deductions),
+                "net": abs(slip.net_salary),
+                "bonus": abs(slip.bonus),
+                "reimbursements": abs(slip.reimbursements),
                 "payment_status": slip.payment_status,
                 "payment_status_display": slip.get_payment_status_display(),
                 "payment_date": slip.payment_date,
@@ -389,6 +398,13 @@ def approval_steps(run: PayrollRun | None) -> list[PayrollApproval]:
     if not run:
         return []
     return list(run.approvals.order_by("step"))
+
+
+def recent_runs(org: Organization, limit: int = 12) -> list[PayrollRun]:
+    """Most recent payroll runs (newest first) for the month-wise history table."""
+    return list(
+        PayrollRun.objects.filter(organization=org).order_by("-year", "-month")[:limit]
+    )
 
 
 def recent_revisions(org: Organization, limit: int = 5) -> list[SalaryRevision]:

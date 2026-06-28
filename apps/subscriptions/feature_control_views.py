@@ -22,6 +22,7 @@ from apps.subscriptions.models import (
     FeatureRolePermission,
     FeatureType,
     FieldDefinition,
+    MenuAudience,
     NavigationItem,
     OrganizationFeatureOverride,
     OrganizationLimit,
@@ -154,7 +155,7 @@ class NavigationControlView(FeatureControlMixin, TemplateView):
         else:
             qs = qs.filter(plan__isnull=True)
         ctx["nav_items"] = qs
-        ctx["audiences"] = [("ADMIN", "Admin"), ("HR", "HR"), ("EMPLOYEE", "Employee")]
+        ctx["audiences"] = MenuAudience.choices
         return ctx
 
 

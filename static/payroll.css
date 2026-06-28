@@ -145,6 +145,215 @@
   background: rgba(139, 92, 246, 0.15);
 }
 
+/* ── Section title ─────────────────────────────────────────────────── */
+.prd-section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+  margin-bottom: 0.75rem;
+}
+
+.dark .prd-section-title { color: rgb(71 85 105); }
+
+/* ── Action cards grid ─────────────────────────────────────────────── */
+.pra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.pra-card {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.pra-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  width: 100%;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid rgb(226 232 240);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.15s;
+}
+
+.pra-inner:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.11);
+  border-color: rgb(196 181 253);
+}
+
+.pra-inner:focus-visible {
+  outline: 2px solid rgb(109 40 217);
+  outline-offset: 3px;
+}
+
+.pra-card--primary .pra-inner {
+  background: linear-gradient(135deg, rgb(76 29 149) 0%, rgb(109 40 217) 55%, rgb(79 70 229) 100%);
+  border: none;
+  box-shadow: 0 8px 24px rgba(109, 40, 217, 0.42);
+}
+
+.pra-card--primary .pra-inner:hover {
+  box-shadow: 0 20px 44px rgba(109, 40, 217, 0.52);
+  border-color: transparent;
+}
+
+.pra-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.875rem;
+  background: rgb(245 243 255);
+  color: rgb(109 40 217);
+  flex-shrink: 0;
+}
+
+.pra-card--primary .pra-icon {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.pra-title {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: rgb(15 23 42);
+  margin-top: 0.125rem;
+}
+
+.pra-card--primary .pra-title { color: #fff; }
+
+.pra-desc {
+  display: block;
+  font-size: 0.75rem;
+  color: rgb(100 116 139);
+  margin-top: 0.2rem;
+  line-height: 1.4;
+}
+
+.pra-card--primary .pra-desc { color: rgba(255, 255, 255, 0.72); }
+
+.dark .pra-inner {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.dark .pra-inner:hover { border-color: rgba(139, 92, 246, 0.45); }
+
+.dark .pra-icon {
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(196 181 253);
+}
+
+.dark .pra-title { color: #f1f5f9; }
+.dark .pra-desc  { color: #64748b; }
+
+/* ── Feature / Manage cards grid ──────────────────────────────────── */
+.prf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.875rem;
+}
+
+@media (max-width: 640px) { .prf-grid { grid-template-columns: 1fr; } }
+
+.prf-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 1rem;
+  padding: 1.125rem 1.25rem;
+  background: #fff;
+  border: 1px solid rgb(226 232 240);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  text-decoration: none;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.15s;
+}
+
+.prf-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+  border-color: rgb(196 181 253);
+}
+
+.prf-card:focus-visible {
+  outline: 2px solid rgb(109 40 217);
+  outline-offset: 3px;
+}
+
+.prf-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgb(245 243 255);
+  color: rgb(109 40 217);
+  flex-shrink: 0;
+}
+
+.prf-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.prf-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgb(15 23 42);
+}
+
+.prf-desc {
+  font-size: 0.75rem;
+  color: rgb(100 116 139);
+  margin-top: 0.15rem;
+  line-height: 1.4;
+}
+
+.prf-arrow {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: rgb(148 163 184);
+  flex-shrink: 0;
+  transition: transform 0.18s ease, color 0.15s;
+}
+
+.prf-card:hover .prf-arrow {
+  transform: translateX(4px);
+  color: rgb(109 40 217);
+}
+
+.dark .prf-card {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.dark .prf-card:hover { border-color: rgba(139, 92, 246, 0.45); }
+
+.dark .prf-icon {
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(196 181 253);
+}
+
+.dark .prf-title { color: #f1f5f9; }
+.dark .prf-desc  { color: #64748b; }
+.dark .prf-arrow { color: #475569; }
+
 .pr-input {
   width: 100%;
   border-radius: 0.625rem;
@@ -250,6 +459,34 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+.pr-tfoot td {
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  border-top: 2px solid rgb(139 92 246 / 0.35);
+  background: rgb(245 243 255);
+  color: rgb(71 85 105);
+  position: sticky;
+  bottom: 0;
+}
+
+.pr-tfoot-label {
+  color: rgb(109 40 217);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dark .pr-tfoot td {
+  background: rgb(30 20 60);
+  border-top-color: rgb(109 40 217 / 0.4);
+  color: #e2e8f0;
+}
+
+.dark .pr-tfoot-label {
+  color: rgb(196 181 253);
+}
+
 .pr-badge {
   display: inline-flex;
   padding: 0.2rem 0.55rem;
@@ -268,6 +505,43 @@
 .dark .pr-badge--pending { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
 .dark .pr-badge--processing { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
 .dark .pr-badge--failed { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+
+/* ── Compliance Payment Status ──────────────────────────────────────────── */
+.cp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.cp-status-badge--paid {
+  background: rgb(209 250 229);
+  color: rgb(4 120 87);
+  border: 1px solid rgb(167 243 208);
+}
+
+.cp-status-badge--pending {
+  background: rgb(254 243 199);
+  color: rgb(146 64 14);
+  border: 1px solid rgb(253 230 138);
+}
+
+.dark .cp-status-badge--paid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dark .cp-status-badge--pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
 
 .pr-component-chip {
   display: inline-flex;

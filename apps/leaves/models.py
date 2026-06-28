@@ -14,6 +14,11 @@ class LeaveType(models.Model):
         MALE = "MALE", "Male only"
         FEMALE = "FEMALE", "Female only"
 
+    class ApplicableTo(models.TextChoices):
+        ALL = "ALL", "All employees"
+        DEPARTMENT = "DEPARTMENT", "Specific departments"
+        DESIGNATION = "DESIGNATION", "Specific designations"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -22,6 +27,7 @@ class LeaveType(models.Model):
     )
     name = models.CharField(max_length=80)
     code = models.SlugField(max_length=40)
+    description = models.TextField(blank=True)
     color = models.CharField(max_length=20, default="#8b5cf6")
     annual_quota = models.DecimalField(
         max_digits=5,
@@ -40,6 +46,22 @@ class LeaveType(models.Model):
         choices=GenderEligibility.choices,
         default=GenderEligibility.ALL,
     )
+    applicable_to = models.CharField(
+        max_length=20,
+        choices=ApplicableTo.choices,
+        default=ApplicableTo.ALL,
+        help_text="Which employees may use this leave type.",
+    )
+    applicable_departments = models.ManyToManyField(
+        "organizations.Department",
+        blank=True,
+        related_name="leave_types",
+    )
+    applicable_designations = models.ManyToManyField(
+        "grades.Designation",
+        blank=True,
+        related_name="leave_types",
+    )
     requires_attachment = models.BooleanField(default=False)
     is_paid = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
@@ -57,6 +79,27 @@ class LeaveType(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def is_applicable_to(self, user) -> bool:
+        """Whether this leave type is available to the given employee.
+
+        Checks gender eligibility and the All/Department/Designation scope.
+        """
+        # Only filter by gender when the user has one recorded (legacy behavior).
+        if self.gender_eligibility != self.GenderEligibility.ALL and user.gender:
+            if self.gender_eligibility == self.GenderEligibility.MALE and user.gender != "MALE":
+                return False
+            if self.gender_eligibility == self.GenderEligibility.FEMALE and user.gender != "FEMALE":
+                return False
+        if self.applicable_to == self.ApplicableTo.DEPARTMENT:
+            if not user.department_id:
+                return False
+            return self.applicable_departments.filter(pk=user.department_id).exists()
+        if self.applicable_to == self.ApplicableTo.DESIGNATION:
+            if not user.org_designation_id:
+                return False
+            return self.applicable_designations.filter(pk=user.org_designation_id).exists()
+        return True
 
 
 class Holiday(models.Model):
@@ -108,6 +151,12 @@ class LeaveBalance(models.Model):
     year = models.PositiveSmallIntegerField()
     allocated = models.DecimalField(max_digits=6, decimal_places=1, default=Decimal("0"))
     used = models.DecimalField(max_digits=6, decimal_places=1, default=Decimal("0"))
+    adjusted = models.DecimalField(
+        max_digits=6,
+        decimal_places=1,
+        default=Decimal("0"),
+        help_text="Manual HR/Admin adjustment (positive or negative).",
+    )
     carried_forward = models.DecimalField(max_digits=6, decimal_places=1, default=Decimal("0"))
 
     class Meta:
@@ -120,7 +169,7 @@ class LeaveBalance(models.Model):
 
     @property
     def remaining(self) -> Decimal:
-        return self.allocated + self.carried_forward - self.used
+        return self.allocated + self.carried_forward + self.adjusted - self.used
 
     def __str__(self) -> str:
         return f"{self.user_id} · {self.leave_type.code} · {self.year}"
@@ -172,6 +221,23 @@ class LeaveRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} · {self.leave_type.code} · {self.start_date}"
+
+    @property
+    def current_stage_label(self) -> str:
+        """Human stage, e.g. 'Pending — Manager approval', derived from the chain.
+
+        Iterates ``approvals.all()`` so a ``prefetch_related("approvals")`` on the
+        queryset avoids per-row queries (approvals are ordered by step).
+        """
+        if self.status != self.Status.PENDING:
+            return self.get_status_display()
+        first_pending = next(
+            (a for a in self.approvals.all() if a.status == LeaveApproval.StepStatus.PENDING),
+            None,
+        )
+        if first_pending and first_pending.step_label:
+            return f"Pending — {first_pending.step_label}"
+        return self.get_status_display()
 
 
 class LeaveApproval(models.Model):

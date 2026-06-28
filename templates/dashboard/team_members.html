@@ -1,0 +1,47 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Team members · HRMS{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:home' as home_url %}
+  {% include "dashboard/_back_button.html" with back_url=home_url back_label="Dashboard" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="settings-page w-full space-y-6">
+  <div class="settings-hero">
+    <h1>Team directory</h1>
+    <p>Your direct reports ({{ team_count }}). You only see employees who report to you.</p>
+  </div>
+
+  <section class="settings-panel">
+    <div class="settings-panel-body overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-slate-400">
+          <tr>
+            <th class="px-3 py-2">Employee</th>
+            <th class="px-3 py-2">Employee ID</th>
+            <th class="px-3 py-2">Department</th>
+            <th class="px-3 py-2">Designation</th>
+            <th class="px-3 py-2">Email</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+          {% for member in team %}
+          <tr>
+            <td class="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">{{ member.display_name }}</td>
+            <td class="px-3 py-2.5 text-slate-500">{{ member.employee_id|default:"—" }}</td>
+            <td class="px-3 py-2.5 text-slate-500">{{ member.department_name|default:"—" }}</td>
+            <td class="px-3 py-2.5 text-slate-500">{{ member.designation_label|default:"—" }}</td>
+            <td class="px-3 py-2.5 text-slate-500">{{ member.email }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-3 py-8 text-center text-slate-500">No team members report to you yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

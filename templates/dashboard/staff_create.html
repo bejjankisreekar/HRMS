@@ -34,7 +34,7 @@
             <svg class="h-1.5 w-1.5 fill-amber-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3"/></svg>Draft
           </span>
           <span data-role-badge="HR" style="display:none"
-                class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">HR portal</span>
+                class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">{{ hr_role_label }} portal</span>
           <span data-role-badge="EMPLOYEE"
                 class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">Employee portal</span>
           <span class="text-xs text-slate-400">Created by {{ creator_name }}</span>
@@ -458,7 +458,7 @@
               </label>
               <label class="se-role-card flex cursor-pointer items-start gap-3 rounded-xl border-2 border-slate-200 p-4 transition hover:border-violet-300 dark:border-white/10">
                 <input type="radio" name="role" value="EMPLOYEE" class="mt-0.5 accent-violet-600"
-                       {% if form.role.value != "HR" %}checked{% endif %}>
+                       {% if form.role.value == "EMPLOYEE" or not form.role.value %}checked{% endif %}>
                 <div>
                   <p class="font-bold text-slate-900 dark:text-white">Employee</p>
                   <p class="mt-0.5 text-xs text-slate-500">Self-service access — profile, payslips &amp; leave</p>

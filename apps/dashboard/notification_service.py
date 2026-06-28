@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 
 from apps.accounts.models import User
+from apps.accounts.role_labels import role_display_for
 from apps.dashboard.models import DashboardNotification
 from apps.dashboard.staff_services import staff_queryset_for, user_notification_url
 from apps.organizations.models import Organization
@@ -62,6 +63,40 @@ def upsert_dashboard_notification(
 
 def dismiss_notifications_by_prefix(source_prefix: str) -> int:
     return DashboardNotification.objects.filter(source_key__startswith=source_prefix).delete()[0]
+
+
+def _send_email_notification(user: User, *, title: str, message: str, url: str, **_kwargs) -> None:
+    """Email delivery seam.
+
+    Intentionally a no-op for now — the notification system is designed to grow
+    an email channel without changing call sites. Wire an actual transport here
+    (Django ``send_mail`` / a task queue) when email notifications are enabled.
+    """
+    # TODO(notifications): deliver email when the email channel is enabled.
+    return None
+
+
+def send_notification(user: User, *, channels: tuple[str, ...] = ("in_app",), **payload):
+    """Dispatch a notification to one user across the requested channels.
+
+    Channels:
+      * ``in_app`` — persists a :class:`DashboardNotification` (active today).
+      * ``email``  — routed through :func:`_send_email_notification` (stub today).
+
+    Unknown channels are ignored so new channels can be added incrementally.
+    """
+    result = None
+    if "in_app" in channels:
+        force_unread = payload.pop("force_unread", False)
+        result = upsert_dashboard_notification(user, force_unread=force_unread, **payload)
+    if "email" in channels:
+        _send_email_notification(
+            user,
+            title=payload.get("title", ""),
+            message=payload.get("message", ""),
+            url=payload.get("url", ""),
+        )
+    return result
 
 
 def _leave_notification_payload(user: User, leave_request, *, created_at=None) -> dict:
@@ -199,7 +234,7 @@ def _notification_candidates(user: User) -> list[dict]:
                     {
                         "source_key": f"member:{u.pk}",
                         "title": f"New member: {u.display_name or u.username}",
-                        "message": u.get_role_display(),
+                        "message": role_display_for(u.role, org),
                         "url": user_notification_url(user, u),
                         "icon": "user-plus",
                         "notification_type": "user",

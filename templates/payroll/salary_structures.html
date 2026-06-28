@@ -25,6 +25,9 @@
           <p class="mt-1.5 text-sm text-violet-100/90">{{ organization.name }} · view and manage each employee's salary breakdown.</p>
         </div>
       </div>
+      <a href="{% url 'payroll:salary_structures_bulk' %}" class="inline-flex items-center gap-2 self-start rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25 backdrop-blur">
+        <i data-lucide="table-2" class="h-4 w-4"></i> Bulk edit all
+      </a>
     </div>
   </header>
 

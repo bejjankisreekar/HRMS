@@ -6,7 +6,9 @@ from django.utils.text import slugify
 
 from apps.accounts.hierarchy import hr_choices_qs, manager_choices_qs
 from apps.accounts.models import User
+from apps.accounts.role_labels import MANAGED_STAFF_ROLES, role_display_for
 from apps.attendance.models import WorkShift
+from apps.dashboard.forms import ADMIN_ASSIGNABLE_ROLE_CHOICES
 from apps.grades.models import Designation, Grade, GradeStatus
 from apps.organizations.models import Department, Organization
 
@@ -15,7 +17,7 @@ _INP = "se-input w-full"
 
 class StaffEditForm(forms.Form):
     role = forms.ChoiceField(
-        choices=((User.Role.HR, "HR"), (User.Role.EMPLOYEE, "Employee")),
+        choices=ADMIN_ASSIGNABLE_ROLE_CHOICES,
         widget=forms.Select(attrs={"class": _INP}),
     )
     username = forms.SlugField(max_length=50, widget=forms.TextInput(attrs={"class": _INP}))
@@ -115,6 +117,7 @@ class StaffEditForm(forms.Form):
         widget=forms.PasswordInput(attrs={"class": _INP, "autocomplete": "new-password"}),
         help_text="Leave blank to keep current password",
     )
+    can_access_compliance = forms.BooleanField(required=False)
 
     def __init__(self, *args, instance: User, organization: Organization, editor: User, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,6 +125,10 @@ class StaffEditForm(forms.Form):
         self.organization = organization
         self.editor = editor
 
+        self.fields["role"].choices = (
+            (User.Role.HR, role_display_for(User.Role.HR, organization)),
+            (User.Role.EMPLOYEE, "Employee"),
+        )
         self.fields["reporting_manager"].queryset = manager_choices_qs(organization).exclude(pk=instance.pk)
         self.fields["assigned_hr"].queryset = hr_choices_qs(organization)
         self.fields["work_shift"].queryset = WorkShift.objects.filter(organization=organization)
@@ -138,6 +145,10 @@ class StaffEditForm(forms.Form):
         if instance.role == User.Role.ADMIN:
             self.fields["role"].choices = ((User.Role.ADMIN, "Organization Admin"),)
             self.fields["role"].disabled = True
+
+        # Compliance-access grant is only meaningful for HR accounts, and only an Admin may set it.
+        if not (editor.role == User.Role.ADMIN and instance.role == User.Role.HR):
+            del self.fields["can_access_compliance"]
 
         if not args:
             self._populate_initial()
@@ -176,7 +187,7 @@ class StaffEditForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         role = cleaned.get("role") or self.instance.role
-        if role == User.Role.EMPLOYEE and not cleaned.get("assigned_hr"):
+        if role in MANAGED_STAFF_ROLES and not cleaned.get("assigned_hr"):
             self.add_error("assigned_hr", "Select the HR owner for this employee.")
         rm = cleaned.get("reporting_manager")
         if rm and rm.pk == self.instance.pk:

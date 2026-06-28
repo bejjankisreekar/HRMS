@@ -1,0 +1,56 @@
+{# Employee directory card. Expects: u, hr_role_label, manageable_ids #}
+{% with manageable=u.pk|stringformat:"s" %}
+<div class="stf-card" data-staff-row data-staff-id="{{ u.pk }}" data-staff-name="{{ u.display_name }}">
+  <div class="stf-card-top">
+    <label class="stf-check">
+      <input type="checkbox" class="stf-row-check" data-staff-check value="{{ u.pk }}" aria-label="Select {{ u.display_name }}">
+    </label>
+    <div class="stf-card-status">
+      {% if u.employment_status == "ACTIVE" or u.employment_status == "PROBATION" %}
+      <span class="stf-badge stf-badge--active">{{ u.get_employment_status_display }}</span>
+      {% elif u.employment_status == "SUSPENDED" or u.employment_status == "TERMINATED" %}
+      <span class="stf-badge stf-badge--suspended">{{ u.get_employment_status_display }}</span>
+      {% else %}
+      <span class="stf-badge stf-badge--inactive">{{ u.get_employment_status_display }}</span>
+      {% endif %}
+    </div>
+    <div class="stf-actions">
+      <button type="button" class="stf-actions-btn" data-stf-actions-toggle aria-label="Actions"><i data-lucide="more-vertical" class="h-4 w-4"></i></button>
+      <div class="stf-actions-menu" hidden role="menu">
+        <a href="{% url 'dashboard:staff_detail' u.pk %}" role="menuitem"><i data-lucide="eye" class="h-3.5 w-3.5"></i> View</a>
+        {% if manageable in manageable_ids %}
+        <a href="{% url 'dashboard:staff_edit' u.pk %}" role="menuitem"><i data-lucide="pencil" class="h-3.5 w-3.5"></i> Edit</a>
+        {% if u.is_active %}
+        <button type="button" data-staff-action="deactivate" data-staff-id="{{ u.pk }}" role="menuitem"><i data-lucide="user-x" class="h-3.5 w-3.5"></i> Deactivate</button>
+        {% else %}
+        <button type="button" data-staff-action="activate" data-staff-id="{{ u.pk }}" role="menuitem"><i data-lucide="user-check" class="h-3.5 w-3.5"></i> Activate</button>
+        {% endif %}
+        <button type="button" data-staff-action="reset_password" data-staff-id="{{ u.pk }}" role="menuitem"><i data-lucide="key-round" class="h-3.5 w-3.5"></i> Reset password</button>
+        <a href="{% url 'dashboard:staff_delete' u.pk %}" class="danger" role="menuitem"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i> Delete</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <a href="{% url 'dashboard:staff_detail' u.pk %}" class="stf-card-id-head">
+    <div class="stf-avatar stf-card-avatar attendance-avatar">
+      {% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="">{% else %}{{ u.display_name|slice:":1"|upper }}{% endif %}
+    </div>
+    <div class="min-w-0">
+      <p class="stf-card-name">{{ u.display_name }}</p>
+      <p class="stf-card-desig">{{ u.designation_label|default:"—" }}</p>
+      <p class="stf-card-empid">{{ u.employee_id|default:"—" }}
+        {% if u.role == "HR" %}<span class="stf-badge stf-badge--hr">{{ hr_role_label }}</span>{% endif %}
+      </p>
+    </div>
+  </a>
+
+  <dl class="stf-card-meta">
+    <div><dt><i data-lucide="building-2" class="h-3.5 w-3.5"></i></dt><dd>{{ u.department_name|default:"—" }}</dd></div>
+    <div><dt><i data-lucide="map-pin" class="h-3.5 w-3.5"></i></dt><dd>{{ u.work_location|default:"—" }}</dd></div>
+    <div><dt><i data-lucide="user-round" class="h-3.5 w-3.5"></i></dt><dd>{% if u.reporting_manager %}{{ u.reporting_manager.display_name }}{% else %}—{% endif %}</dd></div>
+    <div><dt><i data-lucide="mail" class="h-3.5 w-3.5"></i></dt><dd class="truncate">{{ u.email }}</dd></div>
+    <div><dt><i data-lucide="phone" class="h-3.5 w-3.5"></i></dt><dd>{{ u.phone|default:"—" }}</dd></div>
+  </dl>
+</div>
+{% endwith %}

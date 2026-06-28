@@ -1,0 +1,451 @@
+/* ══════════════════════════════════════════════════════════════════
+   HRMS Global Filter Framework — hrms-filters.css
+   Shared across Payroll, Attendance, Leave, Reports, Dashboard.
+   Purple HRMS theme · Enterprise-grade · Accessible · Responsive
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Filter Bar Container ──────────────────────────────────────── */
+.hf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+}
+
+.dark .hf-bar {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* Sticky variant */
+.hf-bar--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* ── Individual Filter Field ───────────────────────────────────── */
+.hf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.hf-field--sm { flex: 0 0 9rem; }
+.hf-field--md { flex: 0 0 12rem; }
+.hf-field--lg { flex: 0 0 16rem; }
+.hf-field--grow { flex: 1 1 12rem; }
+
+/* ── Label ─────────────────────────────────────────────────────── */
+.hf-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+  white-space: nowrap;
+}
+
+.dark .hf-label { color: rgb(71 85 105); }
+
+/* ── Input / Select base ───────────────────────────────────────── */
+.hf-input,
+.hf-select {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(250 250 252);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgb(15 23 42);
+  line-height: 1.5;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 2.25rem;
+}
+
+.hf-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 1rem;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+.hf-input:focus,
+.hf-select:focus {
+  outline: none;
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+  background: #fff;
+}
+
+.hf-input::placeholder { color: rgb(148 163 184); font-weight: 400; }
+
+.dark .hf-input,
+.dark .hf-select {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.dark .hf-input:focus,
+.dark .hf-select:focus {
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+/* ── Input with icon ───────────────────────────────────────────── */
+.hf-input-wrap {
+  position: relative;
+}
+
+.hf-input-wrap .hf-input-icon {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: rgb(148 163 184);
+  pointer-events: none;
+}
+
+.hf-input-wrap .hf-input {
+  padding-left: 2rem;
+}
+
+/* ── Actions area ──────────────────────────────────────────────── */
+.hf-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  padding-bottom: 0;
+}
+
+/* ── Filter bar buttons ────────────────────────────────────────── */
+.hf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.625rem;
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+  min-height: 2.25rem;
+  border: 1px solid transparent;
+}
+
+.hf-btn--primary {
+  background: linear-gradient(135deg, rgb(109 40 217), rgb(79 70 229));
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(109, 40, 217, 0.3);
+}
+
+.hf-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.38);
+}
+
+.hf-btn--ghost {
+  background: rgb(250 250 252);
+  border-color: rgb(226 232 240);
+  color: rgb(71 85 105);
+}
+
+.hf-btn--ghost:hover {
+  background: rgb(245 243 255);
+  border-color: rgb(196 181 253);
+  color: rgb(109 40 217);
+}
+
+.dark .hf-btn--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgb(148 163 184);
+}
+
+.dark .hf-btn--ghost:hover {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.35);
+  color: rgb(196 181 253);
+}
+
+.hf-btn:focus-visible {
+  outline: 2px solid rgb(109 40 217);
+  outline-offset: 2px;
+}
+
+/* ── Period selector special ───────────────────────────────────── */
+.hf-period-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.hf-period-tab {
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(250 250 252);
+  color: rgb(71 85 105);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.hf-period-tab:hover,
+.hf-period-tab--active {
+  background: rgb(245 243 255);
+  border-color: rgb(139 92 246);
+  color: rgb(109 40 217);
+}
+
+.dark .hf-period-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgb(148 163 184);
+}
+
+.dark .hf-period-tab:hover,
+.dark .hf-period-tab--active {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: rgb(196 181 253);
+}
+
+/* ── Divider inside bar ────────────────────────────────────────── */
+.hf-divider {
+  width: 1px;
+  height: 2rem;
+  background: rgb(226 232 240);
+  align-self: flex-end;
+  margin-bottom: 0.1rem;
+  flex-shrink: 0;
+}
+
+.dark .hf-divider { background: rgba(255, 255, 255, 0.09); }
+
+/* ── FY badge (shown inside topnav or filter bar) ─────────────── */
+.hf-fy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgb(109 40 217);
+  background: rgb(245 243 255);
+  border: 1px solid rgb(221 214 254);
+  border-radius: 9999px;
+  padding: 0.2rem 0.65rem;
+}
+
+.dark .hf-fy-badge {
+  color: rgb(196 181 253);
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* ── Financial Year Settings page ─────────────────────────────── */
+.fy-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgb(245 243 255), rgb(237 233 254));
+  border: 1px solid rgb(221 214 254);
+}
+
+.dark .fy-banner {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.25);
+}
+
+.fy-banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.875rem;
+  background: rgb(109 40 217);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.fy-banner-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(109 40 217);
+}
+
+.dark .fy-banner-label { color: rgb(196 181 253); }
+
+.fy-banner-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: rgb(15 23 42);
+  line-height: 1.2;
+  margin-top: 0.1rem;
+}
+
+.dark .fy-banner-value { color: #f1f5f9; }
+
+.fy-banner-range {
+  font-size: 0.8125rem;
+  color: rgb(100 116 139);
+  margin-top: 0.15rem;
+}
+
+.fy-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.fy-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.fy-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(51 65 85);
+}
+
+.dark .fy-label { color: #cbd5e1; }
+
+.fy-select {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(250 250 252);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding: 0.6rem 2.25rem 0.6rem 0.875rem;
+  font-size: 0.875rem;
+  color: rgb(15 23 42);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.fy-select:focus {
+  outline: none;
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+
+.dark .fy-select {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.fy-hint {
+  font-size: 0.75rem;
+  color: rgb(148 163 184);
+  line-height: 1.4;
+}
+
+.fy-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.fy-info-card {
+  border-radius: 1rem;
+  border: 1px solid rgb(226 232 240);
+  background: #fff;
+  padding: 1.25rem;
+}
+
+.dark .fy-info-card {
+  background: rgb(15 23 42);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.fy-info-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: rgb(51 65 85);
+  margin-bottom: 0.75rem;
+}
+
+.dark .fy-info-title { color: #cbd5e1; }
+
+.fy-info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  space-y: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fy-info-list li {
+  font-size: 0.8125rem;
+  color: rgb(71 85 105);
+  padding-left: 1rem;
+  position: relative;
+}
+
+.fy-info-list li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: rgb(139 92 246);
+  font-weight: 700;
+}
+
+.dark .fy-info-list li { color: #94a3b8; }
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .hf-bar { gap: 0.5rem; padding: 0.75rem 1rem; }
+  .hf-field--sm { flex: 1 1 100%; }
+  .hf-field--md { flex: 1 1 100%; }
+  .hf-field--lg { flex: 1 1 100%; }
+  .hf-actions { width: 100%; margin-left: 0; }
+  .hf-divider { display: none; }
+}
+
+@media print {
+  .hf-bar { display: none; }
+}

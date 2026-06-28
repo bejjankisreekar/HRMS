@@ -3,6 +3,7 @@
 from django.db.models import Q, QuerySet
 
 from apps.accounts.models import User
+from apps.accounts.role_labels import role_display_for
 from apps.attendance.models import WorkShift
 from apps.grades.models import Designation, Grade, GradeStatus
 from apps.organizations.models import Department, Organization
@@ -136,7 +137,7 @@ def staff_filter_options(organization: Organization, is_hr_view: bool) -> dict:
         "grades": grades,
         "designations": designations,
         "role_choices": [
-            (User.Role.HR, "HR"),
+            (User.Role.HR, role_display_for(User.Role.HR, organization)),
             (User.Role.EMPLOYEE, "Employee"),
         ],
         "dept_label": organization.department_label,

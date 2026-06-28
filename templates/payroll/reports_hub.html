@@ -1,0 +1,41 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Payroll Reports · HRMS{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:management' as pm %}
+  {% include "dashboard/_back_button.html" with back_url=pm back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="folder-open" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Finance · Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Payroll Reports</h1>
+        <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">{{ organization.name }} · summary, registers, statutory and distribution reports.</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {% for r in report_cards %}
+    {% if r.kind == "internal" %}{% url 'payroll:report' r.key as href %}
+    {% elif r.kind == "deductions" %}{% url 'payroll:deductions' as href %}
+    {% else %}{% url 'payroll:compliance' as cbase %}{% endif %}
+    <a href="{% if r.kind == 'compliance' %}{{ cbase }}?report={{ r.key }}{% else %}{{ href }}{% endif %}"
+       class="pr-glass flex items-start gap-4 p-5 transition hover:shadow-lg">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300"><i data-lucide="{{ r.icon }}" class="h-5 w-5"></i></div>
+      <div>
+        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ r.label }}</p>
+        <p class="mt-1 text-xs text-slate-500">{{ r.description }}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

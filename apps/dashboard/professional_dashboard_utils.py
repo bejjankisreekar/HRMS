@@ -68,6 +68,17 @@ def get_professional_dashboard_context(admin: User) -> dict:
 
     # Leave pipeline
     pending_leave = LeaveRequest.objects.filter(user__organization=org, status=LeaveRequest.Status.PENDING).count()
+    on_leave_today = (
+        LeaveRequest.objects.filter(
+            user__organization=org,
+            status=LeaveRequest.Status.APPROVED,
+            start_date__lte=today,
+            end_date__gte=today,
+        )
+        .values("user_id")
+        .distinct()
+        .count()
+    )
 
     avg_fit = None
     performance_score = round(attendance_pct / 20, 1)
@@ -120,7 +131,7 @@ def get_professional_dashboard_context(admin: User) -> dict:
             "id": "leave",
             "label": "Pending leave",
             "value": str(pending_leave),
-            "trend": "Awaiting approval",
+            "trend": f"{on_leave_today} on leave today",
             "trend_up": pending_leave == 0,
             "icon": "palmtree",
             "accent": "indigo",

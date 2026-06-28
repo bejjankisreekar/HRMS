@@ -61,18 +61,10 @@ class LeaveApplyForm(forms.Form):
 
         if organization:
             qs = LeaveType.objects.filter(organization=organization, is_active=True).order_by("sort_order")
-            if user and user.gender:
-                from apps.accounts.models import User as U
-
-                filtered = []
-                for lt in qs:
-                    if lt.gender_eligibility == LeaveType.GenderEligibility.ALL:
-                        filtered.append(lt.pk)
-                    elif lt.gender_eligibility == LeaveType.GenderEligibility.MALE and user.gender == U.Gender.MALE:
-                        filtered.append(lt.pk)
-                    elif lt.gender_eligibility == LeaveType.GenderEligibility.FEMALE and user.gender == U.Gender.FEMALE:
-                        filtered.append(lt.pk)
-                qs = qs.filter(pk__in=filtered) if filtered else qs.none()
+            if user:
+                # Gender + All/Department/Designation applicability in one place.
+                applicable = [lt.pk for lt in qs if lt.is_applicable_to(user)]
+                qs = qs.filter(pk__in=applicable)
             self.fields["leave_type"].queryset = qs
 
     def clean_half_day(self):
@@ -95,13 +87,36 @@ class LeaveApplyForm(forms.Form):
 class LeaveTypeForm(forms.ModelForm):
     class Meta:
         model = LeaveType
-        fields = ("name", "annual_quota", "is_paid", "color")
+        fields = (
+            "name",
+            "code",
+            "description",
+            "annual_quota",
+            "carry_forward_max",
+            "requires_attachment",
+            "gender_eligibility",
+            "applicable_to",
+            "applicable_departments",
+            "applicable_designations",
+            "is_paid",
+            "is_active",
+            "color",
+        )
         widgets = {
             "name": forms.TextInput(attrs={"class": _INP, "placeholder": "e.g. Sick Leave"}),
+            "code": forms.TextInput(attrs={"class": _INP, "placeholder": "Auto-generated if empty"}),
+            "description": forms.Textarea(attrs={"class": _INP, "rows": 2}),
             "annual_quota": forms.NumberInput(
                 attrs={"class": _INP, "placeholder": "Days per year (optional)", "min": 0, "step": 0.5}
             ),
+            "carry_forward_max": forms.NumberInput(attrs={"class": _INP, "min": 0, "step": 0.5}),
+            "requires_attachment": forms.CheckboxInput(),
+            "gender_eligibility": forms.Select(attrs={"class": _INP}),
+            "applicable_to": forms.Select(attrs={"class": _INP}),
+            "applicable_departments": forms.SelectMultiple(attrs={"class": _INP, "size": 4}),
+            "applicable_designations": forms.SelectMultiple(attrs={"class": _INP, "size": 4}),
             "is_paid": forms.CheckboxInput(),
+            "is_active": forms.CheckboxInput(),
             "color": forms.TextInput(attrs={"class": _INP, "placeholder": "#0ea5e9"}),
         }
 
@@ -109,8 +124,21 @@ class LeaveTypeForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.organization = organization
         self.fields["annual_quota"].required = False
+        self.fields["code"].required = False
         self.fields["color"].required = False
+        self.fields["carry_forward_max"].required = False
         self.fields["is_paid"].initial = True
+        self.fields["is_active"].initial = True
+        if organization:
+            from apps.grades.models import Designation, GradeStatus
+            from apps.organizations.models import Department
+
+            self.fields["applicable_departments"].queryset = Department.objects.filter(
+                organization=organization, is_active=True
+            ).order_by("name")
+            self.fields["applicable_designations"].queryset = Designation.objects.filter(
+                organization=organization, status=GradeStatus.ACTIVE
+            ).order_by("name")
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
@@ -123,6 +151,12 @@ class LeaveTypeForm(forms.ModelForm):
         if q is None or q == "":
             return None
         return q
+
+    def clean_carry_forward_max(self):
+        from decimal import Decimal
+
+        q = self.cleaned_data.get("carry_forward_max")
+        return Decimal("0") if q in (None, "") else q
 
     def save(self, commit=True):
         obj = super().save(commit=False)
@@ -139,6 +173,7 @@ class LeaveTypeForm(forms.ModelForm):
             obj.color = "#0ea5e9"
         if commit:
             obj.save()
+            self.save_m2m()
         return obj
 
 

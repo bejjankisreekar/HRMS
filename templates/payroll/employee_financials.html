@@ -12,7 +12,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 {{ components_json|json_script:"salary-components" }}
 <form method="post" class="w-full space-y-5 pb-10"
-      x-data="salaryEditor({ ctc: {{ salary.monthly_ctc|stringformat:'.2f' }}, el: 'salary-components' })" x-init="init()">
+      x-data="salaryEditor({ ctc: {{ salary.monthly_ctc|stringformat:'.2f' }}, base: {{ salary.monthly_ctc|stringformat:'.2f' }}, el: 'salary-components' })" x-init="init()">
   {% csrf_token %}
 
   {# ── Header ── #}
@@ -65,6 +65,27 @@
                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 dark:border-white/10 dark:bg-slate-800 dark:text-white">
           </label>
         </div>
+        {# Hike / raise helper #}
+        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <div class="flex flex-wrap items-end gap-3">
+            <label class="block">
+              <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">Apply hike</span>
+              <div class="flex items-center gap-1">
+                <input type="number" step="0.1" min="0" x-model.number="hikePct" placeholder="e.g. 10"
+                       class="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400 dark:border-white/10 dark:bg-slate-800 dark:text-white">
+                <span class="text-sm font-semibold text-slate-500">%</span>
+              </div>
+            </label>
+            <button type="button" @click="applyHike()"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600">
+              <i data-lucide="trending-up" class="h-4 w-4"></i> Apply to CTC
+            </button>
+            <span x-show="hikeDelta !== 0" x-cloak class="text-sm font-semibold"
+                  :class="hikeDelta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+                  x-text="(hikeDelta >= 0 ? '+' : '') + fmt(hikeDelta) + ' (' + hikeDeltaPct + '%)'"></span>
+          </div>
+          <p class="mt-1.5 text-xs text-slate-400">Computes a new monthly CTC from the current one. Saving records it as a salary revision.</p>
+        </div>
         <label class="mt-4 block">
           <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Reason for revision <span class="font-normal normal-case text-slate-400">(recorded if CTC changes)</span></span>
           <input type="text" name="revision_reason" maxlength="255" placeholder="e.g. Annual appraisal, promotion…"
@@ -102,9 +123,9 @@
             </template>
             <div class="mt-1 flex items-center justify-between border-t border-emerald-200 px-1 pt-2 text-sm font-extrabold dark:border-emerald-500/20"><span>Gross</span><span class="tabular-nums text-emerald-700 dark:text-emerald-400" x-text="fmt(gross)"></span></div>
           </div>
-          {# Deductions #}
+          {# Deductions (employee-side only) #}
           <div class="rounded-xl border border-rose-200 bg-rose-50/40 p-3 dark:border-rose-500/20 dark:bg-rose-500/5">
-            <p class="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400">Deductions</p>
+            <p class="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400">Deductions <span class="font-normal normal-case text-rose-400">(from employee)</span></p>
             <template x-for="r in deductions" :key="r.id">
               <div class="mb-2 rounded-lg bg-white/70 p-2 dark:bg-slate-800/60">
                 <div class="flex items-center justify-between">
@@ -128,6 +149,36 @@
             <div class="mt-1 flex items-center justify-between border-t border-rose-200 px-1 pt-2 text-sm font-extrabold dark:border-rose-500/20"><span>Total deductions</span><span class="tabular-nums text-rose-700 dark:text-rose-400" x-text="fmt(totalDed)"></span></div>
           </div>
         </div>
+        {# Employer contributions (cost to company — not deducted from employee net) #}
+        <template x-if="employerPf.length > 0">
+          <div class="rounded-xl border border-amber-200 bg-amber-50/40 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
+            <p class="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">Employer Contributions <span class="font-normal normal-case text-amber-500">(cost to company — not deducted from net)</span></p>
+            <template x-for="r in employerPf" :key="r.id">
+              <div class="mb-2 rounded-lg bg-white/70 p-2 dark:bg-slate-800/60">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-700 dark:text-slate-200" x-text="r.label"></span>
+                  <span class="text-sm font-bold tabular-nums text-amber-700 dark:text-amber-400" x-text="fmt(amountFor(r))"></span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-1.5">
+                  <select :name="'comp_'+r.id+'_mode'" x-model="r.mode" class="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs dark:border-white/10 dark:bg-slate-800 dark:text-white">
+                    <option value="FIXED">Fixed ₹</option>
+                    <option value="PCT_CTC">% of CTC</option>
+                    <option value="PCT_BASIC">% of Basic</option>
+                  </select>
+                  <div class="relative flex-1">
+                    <input type="number" step="0.01" min="0" :name="'comp_'+r.id+'_value'" x-model.number="r.value"
+                           class="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs tabular-nums dark:border-white/10 dark:bg-slate-800 dark:text-white">
+                    <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[0.6rem] font-semibold text-slate-400" x-text="r.mode==='FIXED' ? '₹' : '%'"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div class="mt-1 flex items-center justify-between border-t border-amber-200 px-1 pt-2 text-sm font-extrabold dark:border-amber-500/20">
+              <span>Employer PF total</span>
+              <span class="tabular-nums text-amber-700 dark:text-amber-400" x-text="fmt(employerPfTotal)"></span>
+            </div>
+          </div>
+        </template>
         <div class="mt-4 flex items-center justify-between rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 px-4 py-3 text-white shadow-lg shadow-violet-600/20">
           <span class="text-sm font-semibold">Net Salary (monthly)</span>
           <span class="text-2xl font-extrabold tabular-nums" x-text="fmt(net)"></span>
@@ -141,16 +192,17 @@
         <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10">
           <table class="w-full text-left text-sm">
             <thead class="bg-slate-50 text-[0.65rem] uppercase tracking-wide text-slate-500 dark:bg-white/5"><tr>
-              <th class="px-3 py-2 font-semibold">Effective</th><th class="px-3 py-2 font-semibold">Previous</th><th class="px-3 py-2 font-semibold">Revised</th><th class="px-3 py-2 font-semibold">Reason</th><th class="px-3 py-2 font-semibold">By</th>
+              <th class="px-3 py-2 font-semibold">Effective</th><th class="px-3 py-2 font-semibold">Previous</th><th class="px-3 py-2 font-semibold">Revised</th><th class="px-3 py-2 font-semibold">Change</th><th class="px-3 py-2 font-semibold">Reason</th><th class="px-3 py-2 font-semibold">By</th>
             </tr></thead>
             <tbody class="divide-y divide-slate-100 dark:divide-white/5">
-              {% for rev in revisions %}
+              {% for item in revisions %}
               <tr class="text-slate-700 dark:text-slate-300">
-                <td class="whitespace-nowrap px-3 py-2">{{ rev.effective_date|date:"d M Y" }}</td>
-                <td class="px-3 py-2 tabular-nums text-slate-500">₹{{ rev.previous_ctc|floatformat:0|intcomma }}</td>
-                <td class="px-3 py-2 tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">₹{{ rev.new_ctc|floatformat:0|intcomma }}</td>
-                <td class="px-3 py-2 text-slate-500">{{ rev.reason|default:"—" }}</td>
-                <td class="px-3 py-2 text-slate-500">{{ rev.approved_by.display_name|default:"—" }}</td>
+                <td class="whitespace-nowrap px-3 py-2">{{ item.rev.effective_date|date:"d M Y" }}</td>
+                <td class="px-3 py-2 tabular-nums text-slate-500">₹{{ item.rev.previous_ctc|floatformat:0|intcomma }}</td>
+                <td class="px-3 py-2 tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">₹{{ item.rev.new_ctc|floatformat:0|intcomma }}</td>
+                <td class="px-3 py-2 tabular-nums {% if item.pct > 0 %}text-emerald-600 dark:text-emerald-400{% elif item.pct < 0 %}text-rose-600 dark:text-rose-400{% else %}text-slate-500{% endif %}">{% if item.pct is not None %}{% if item.pct > 0 %}+{% endif %}{{ item.pct }}%{% else %}—{% endif %}</td>
+                <td class="px-3 py-2 text-slate-500">{{ item.rev.reason|default:"—" }}</td>
+                <td class="px-3 py-2 text-slate-500">{{ item.rev.approved_by.display_name|default:"—" }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -194,9 +246,23 @@ function salaryEditor(cfg) {
   try { rows = JSON.parse(document.getElementById(cfg.el).textContent) || []; } catch (e) {}
   return {
     ctc: cfg.ctc,
+    base: cfg.base,
+    hikePct: null,
     rows: rows,
     init() { this.$nextTick(() => window.lucide && lucide.createIcons()); },
     fmt(v) { return '₹' + (Number(v) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); },
+    applyHike() {
+      const pct = Number(this.hikePct) || 0;
+      if (!pct) return;
+      this.ctc = Math.round((Number(this.base) || 0) * (1 + pct / 100));
+      const reason = document.querySelector('input[name="revision_reason"]');
+      if (reason && !reason.value.trim()) reason.value = 'Annual hike ' + pct + '%';
+    },
+    get hikeDelta() { return (Number(this.ctc) || 0) - (Number(this.base) || 0); },
+    get hikeDeltaPct() {
+      const b = Number(this.base) || 0;
+      return b ? Math.round(((Number(this.ctc) || 0) - b) / b * 1000) / 10 : 0;
+    },
     get basic() {
       const b = this.rows.find(r => r.code === 'basic');
       if (!b) return 0;
@@ -211,9 +277,11 @@ function salaryEditor(cfg) {
       return v; // FIXED
     },
     get earnings() { return this.rows.filter(r => r.kind === 'EARNING'); },
-    get deductions() { return this.rows.filter(r => r.kind === 'DEDUCTION'); },
+    get deductions() { return this.rows.filter(r => r.kind === 'DEDUCTION' && r.category !== 'EMPLOYER_PF'); },
+    get employerPf() { return this.rows.filter(r => r.category === 'EMPLOYER_PF'); },
     get gross() { return this.earnings.reduce((s, r) => s + this.amountFor(r), 0); },
     get totalDed() { return this.deductions.reduce((s, r) => s + this.amountFor(r), 0); },
+    get employerPfTotal() { return this.employerPf.reduce((s, r) => s + this.amountFor(r), 0); },
     get net() { return this.gross - this.totalDed; },
   };
 }

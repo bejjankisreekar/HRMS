@@ -36,7 +36,12 @@
         {% if is_approver %}
         <a href="?status=PENDING" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Pending</a>
         {% endif %}
-        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export</a>
+        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export CSV</a>
+        <a href="?{{ filter_query }}&export=xlsx" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export Excel</a>
+        {% if can_manage_types %}
+        <a href="?export=balances_csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Balances CSV</a>
+        <a href="?export=balances_xlsx" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Balances Excel</a>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -77,70 +82,60 @@
     </div>
   </section>
 
-  {% if is_admin %}
-  <div class="mb-6">
-    <!-- Leave policy (admin only) -->
-    <section class="ar-glass p-5 max-w-3xl">
+  {% if can_manage_types %}
+  <div class="mb-6 grid gap-5 {% if is_admin %}lg:grid-cols-3{% endif %}">
+
+    <!-- ── Left: Leave policy + Balance adjust (spans 2 cols on large screens) ── -->
+    <section class="ar-glass p-5 {% if is_admin %}lg:col-span-2{% endif %}">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Organization leave policy</h2>
           <p class="text-xs text-slate-500">Add types and set annual days. Default quota is none until you set it.</p>
         </div>
-        {% if not show_add_leave_type %}
+        {% if not show_add_leave_type and not edit_type_obj %}
         <a href="?add_type=1" class="ar-btn-primary text-xs py-2">+ Add leave type</a>
         {% endif %}
       </div>
 
-      {% if show_add_leave_type %}
-      <form method="post" class="mt-4 space-y-3 rounded-xl border border-violet-200 bg-violet-50/80 p-4 dark:border-white/10 dark:bg-white/5">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_leave_type">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label class="lm-filter-label">Name</label>
-            {{ leave_type_form.name }}
-          </div>
-          <div>
-            <label class="lm-filter-label">Days / year (optional)</label>
-            {{ leave_type_form.annual_quota }}
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-4">
-          <label class="flex items-center gap-2 text-xs text-slate-300">
-            {{ leave_type_form.is_paid }} Paid leave
-          </label>
-          <div class="w-28">
-            <label class="lm-filter-label">Color</label>
-            {{ leave_type_form.color }}
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button type="submit" class="ar-btn-primary text-sm">Save</button>
-          <a href="{% url 'leaves:management' %}" class="ar-btn-ghost text-sm">Cancel</a>
-        </div>
-      </form>
+      {% if show_add_leave_type or edit_type_obj %}
+      {% if edit_type_obj %}{% with type_form=edit_type_form %}{% include "leaves/includes/leave_type_form.html" %}{% endwith %}
+      {% else %}{% with type_form=leave_type_form %}{% include "leaves/includes/leave_type_form.html" %}{% endwith %}
+      {% endif %}
       {% endif %}
 
       <div class="ar-policy-grid mt-4">
         {% for lt in org_leave_types %}
-        <div class="ar-policy-card {% if not lt.is_paid %}ar-policy-card--lop{% endif %}"
+        <div class="ar-policy-card {% if not lt.is_paid %}ar-policy-card--lop{% endif %} {% if not lt.is_active %}opacity-50{% endif %}"
              style="--policy-accent: {{ lt.color }}">
           <div class="flex items-start justify-between gap-1 pl-1">
-            <p class="ar-policy-card-name">{{ lt.name }}</p>
-            <form method="post" class="shrink-0" onsubmit="return confirm('Remove {{ lt.name }}?');">
+            <p class="ar-policy-card-name">{{ lt.name }}{% if not lt.is_active %} <span class="text-[10px] uppercase text-slate-400">(inactive)</span>{% endif %}</p>
+            {% if is_admin %}
+            <form method="post" class="shrink-0" onsubmit="return confirm(‘Remove {{ lt.name }}?’);">
               {% csrf_token %}
               <input type="hidden" name="action" value="delete_leave_type">
               <input type="hidden" name="leave_type_id" value="{{ lt.pk }}">
               <button type="submit" class="ar-policy-card-remove">Remove</button>
             </form>
+            {% endif %}
           </div>
           <p class="ar-policy-card-quota" style="color: {{ lt.color }}">
             {% if lt.annual_quota is not None %}{{ lt.annual_quota }}{% else %}—{% endif %}
             <span>days/yr</span>
           </p>
           <p class="ar-policy-card-meta">
-            {% if lt.is_paid %}Paid leave{% else %}Unpaid · LOP{% endif %}
+            {% if lt.is_paid %}Paid leave{% else %}Unpaid · LOP{% endif %}{% if lt.requires_attachment %} · Doc required{% endif %}
           </p>
+          <div class="mt-2 flex gap-2 pl-1 text-[11px]">
+            <a href="?edit_type={{ lt.pk }}" class="font-semibold text-violet-500 hover:underline">Edit</a>
+            <form method="post" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="toggle_leave_type">
+              <input type="hidden" name="leave_type_id" value="{{ lt.pk }}">
+              <button type="submit" class="font-semibold {% if lt.is_active %}text-amber-500{% else %}text-emerald-500{% endif %} hover:underline">
+                {% if lt.is_active %}Deactivate{% else %}Activate{% endif %}
+              </button>
+            </form>
+          </div>
         </div>
         {% empty %}
         <p class="col-span-full rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-500 dark:border-white/15">
@@ -150,42 +145,91 @@
       </div>
 
       <div class="mt-6 border-t border-slate-200 pt-5 dark:border-white/10">
-        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Approval workflow</h3>
-        <p class="mt-1 text-xs text-slate-500">
-          Choose who must approve leave. Steps run in order: manager → HR → admin. Uncheck roles your company does not need.
-        </p>
-        <form method="post" class="mt-4 space-y-3">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Adjust employee balance</h3>
+        <p class="mt-1 text-xs text-slate-500">Add or remove days from an employee’s balance (e.g. comp-off credit, correction). Recorded in the audit log.</p>
+        <form method="post" class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {% csrf_token %}
-          <input type="hidden" name="action" value="save_approval_workflow">
-          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
-            <input type="checkbox" name="leave_approval_require_manager" class="mt-0.5 h-4 w-4 accent-violet-600"
-                   {% if organization.leave_approval_require_manager %}checked{% endif %}>
-            <span>
-              <span class="block text-sm font-semibold text-slate-900 dark:text-white">Reporting manager</span>
-              <span class="mt-0.5 block text-xs text-slate-500">Employee’s manager approves first.</span>
-            </span>
-          </label>
-          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
-            <input type="checkbox" name="leave_approval_require_hr" class="mt-0.5 h-4 w-4 accent-violet-600"
-                   {% if organization.leave_approval_require_hr %}checked{% endif %}>
-            <span>
-              <span class="block text-sm font-semibold text-slate-900 dark:text-white">HR</span>
-              <span class="mt-0.5 block text-xs text-slate-500">Assigned HR (or any HR if none assigned).</span>
-            </span>
-          </label>
-          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
-            <input type="checkbox" name="leave_approval_require_admin" class="mt-0.5 h-4 w-4 accent-violet-600"
-                   {% if organization.leave_approval_require_admin %}checked{% endif %}>
-            <span>
-              <span class="block text-sm font-semibold text-slate-900 dark:text-white">Organization admin</span>
-              <span class="mt-0.5 block text-xs text-slate-500">Final sign-off by org admin.</span>
-            </span>
-          </label>
-          <p class="text-xs text-slate-400">If none are selected, leave requests are auto-approved.</p>
-          <button type="submit" class="ar-btn-primary text-sm">Save approval workflow</button>
+          <input type="hidden" name="action" value="adjust_balance">
+          <div>
+            <label class="lm-filter-label">Employee</label>
+            <select name="user_id" class="ar-input w-full" required>
+              <option value="">Select employee</option>
+              {% for emp in filter_options.employees %}
+              <option value="{{ emp.pk }}">{{ emp.choice_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="lm-filter-label">Leave type</label>
+            <select name="leave_type_id" class="ar-input w-full" required>
+              {% for lt in org_leave_types %}{% if lt.is_active %}
+              <option value="{{ lt.pk }}">{{ lt.name }}</option>
+              {% endif %}{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="lm-filter-label">± Days</label>
+            <input type="number" name="adjustment" step="0.5" class="ar-input w-full" placeholder="e.g. 2 or −1" required>
+          </div>
+          <div>
+            <label class="lm-filter-label">Reason (optional)</label>
+            <input type="text" name="reason" class="ar-input w-full" placeholder="Comp-off, correction…">
+          </div>
+          <div class="sm:col-span-2 lg:col-span-4">
+            <button type="submit" class="ar-btn-primary text-sm">Apply adjustment</button>
+          </div>
         </form>
       </div>
     </section>
+
+    <!-- ── Right: Approval workflow (admin only, 1 col) ── -->
+    {% if is_admin %}
+    <section class="ar-glass p-5">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Approval workflow</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        Choose who must approve leave. Steps run in order: manager → HR → admin.
+      </p>
+      <form method="post" class="mt-4 space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_approval_workflow">
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+          <input type="checkbox" name="leave_approval_require_manager" class="mt-0.5 h-4 w-4 accent-violet-600"
+                 {% if organization.leave_approval_require_manager %}checked{% endif %}>
+          <span>
+            <span class="block text-sm font-semibold text-slate-900 dark:text-white">Reporting manager</span>
+            <span class="mt-0.5 block text-xs text-slate-500">Employee’s manager approves first.</span>
+          </span>
+        </label>
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+          <input type="checkbox" name="leave_approval_require_hr" class="mt-0.5 h-4 w-4 accent-violet-600"
+                 {% if organization.leave_approval_require_hr %}checked{% endif %}>
+          <span>
+            <span class="block text-sm font-semibold text-slate-900 dark:text-white">HR</span>
+            <span class="mt-0.5 block text-xs text-slate-500">Assigned HR (or any HR if none assigned).</span>
+          </span>
+        </label>
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+          <input type="checkbox" name="leave_approval_require_admin" class="mt-0.5 h-4 w-4 accent-violet-600"
+                 {% if organization.leave_approval_require_admin %}checked{% endif %}>
+          <span>
+            <span class="block text-sm font-semibold text-slate-900 dark:text-white">Organization admin</span>
+            <span class="mt-0.5 block text-xs text-slate-500">Final sign-off by org admin.</span>
+          </span>
+        </label>
+        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+          <input type="checkbox" name="leave_auto_approve_without_manager" class="mt-0.5 h-4 w-4 accent-violet-600"
+                 {% if organization.leave_auto_approve_without_manager %}checked{% endif %}>
+          <span>
+            <span class="block text-sm font-semibold text-slate-900 dark:text-white">Auto-approve when no approver</span>
+            <span class="mt-0.5 block text-xs text-slate-500">When off, requests without an approver route to HR or admin instead.</span>
+          </span>
+        </label>
+        <p class="text-xs text-slate-400">If none are selected, leave requests are auto-approved.</p>
+        <button type="submit" class="ar-btn-primary w-full justify-center text-sm">Save workflow</button>
+      </form>
+    </section>
+    {% endif %}
+
   </div>
   {% endif %}
 
@@ -440,7 +484,8 @@
             <td>{{ row.end_date|date:"d M Y" }}</td>
             <td>{{ row.days }}</td>
             <td>
-              {% if row.status == "PENDING" %}<span class="lm-badge lm-badge--pending">Pending</span>
+              {% if row.status == "PENDING" %}<span class="lm-badge lm-badge--pending" title="{{ row.stage }}">Pending</span>
+              <span class="mt-0.5 block text-[10px] text-slate-400">{{ row.stage }}</span>
               {% elif row.status == "APPROVED" %}<span class="lm-badge lm-badge--approved">Approved</span>
               {% elif row.status == "REJECTED" %}<span class="lm-badge lm-badge--rejected">Rejected</span>
               {% else %}<span class="lm-badge lm-badge--cancelled">{{ row.status_display }}</span>{% endif %}

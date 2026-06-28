@@ -1,0 +1,168 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Financial Year Settings · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'settings-pages.css' %}">
+<link rel="stylesheet" href="{% static 'hrms-filters.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'dashboard:settings' as settings_url %}
+  {% include "dashboard/_back_button.html" with back_url=settings_url back_label="Settings" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="settings-page space-y-8">
+  <div class="settings-hero">
+    <h1>Financial Year Settings</h1>
+    <p>Configure how your organization's financial year, calendar, and locale are calculated. All modules — Payroll, Attendance, Leave, and Reports — read these settings automatically.</p>
+  </div>
+
+  {% if messages %}
+  <div class="space-y-2">
+    {% for msg in messages %}
+    <div class="rounded-xl px-4 py-3 text-sm font-medium {% if msg.tags == 'error' %}bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/20 dark:text-rose-300{% else %}bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Current FY banner -->
+  {% if current_fy %}
+  <div class="fy-banner">
+    <div class="fy-banner-icon"><i data-lucide="calendar-range" class="h-6 w-6"></i></div>
+    <div>
+      <p class="fy-banner-label">Current Financial Year</p>
+      <p class="fy-banner-value">{{ current_fy.label }}</p>
+      <p class="fy-banner-range">{{ current_fy.date_from|date:"d M Y" }} → {{ current_fy.date_to|date:"d M Y" }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Settings form -->
+  <form method="post" class="space-y-6" action="{% url 'dashboard:financial_year_settings' %}">
+    {% csrf_token %}
+
+    <div class="settings-panel">
+      <div class="settings-panel-header">
+        <h2 class="text-sm font-semibold">Financial Year</h2>
+        <p class="text-xs text-slate-500">Controls which months belong to a financial year in all reports and filters.</p>
+      </div>
+      <div class="settings-panel-body">
+        <div class="fy-form-grid">
+          <div class="fy-field">
+            <label class="fy-label" for="fy_start_month">
+              <i data-lucide="calendar-check" class="h-4 w-4 text-violet-500"></i>
+              Financial Year Start Month
+            </label>
+            <select name="fy_start_month" id="fy_start_month" class="fy-select">
+              {% for num, name in month_choices %}
+              <option value="{{ num }}" {% if organization.fy_start_month == num %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+            <p class="fy-hint">Most organizations use <strong>April</strong> (India) or <strong>January</strong> (US/EU).</p>
+          </div>
+
+          <div class="fy-field">
+            <label class="fy-label" for="week_start_day">
+              <i data-lucide="calendar" class="h-4 w-4 text-violet-500"></i>
+              Week Starts On
+            </label>
+            <select name="week_start_day" id="week_start_day" class="fy-select">
+              {% for val, label in week_start_choices %}
+              <option value="{{ val }}" {% if organization.week_start_day == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <p class="fy-hint">Used in attendance weekly views and shift scheduling.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-panel">
+      <div class="settings-panel-header">
+        <h2 class="text-sm font-semibold">Locale &amp; Format</h2>
+        <p class="text-xs text-slate-500">Default currency, timezone, and date display format across the platform.</p>
+      </div>
+      <div class="settings-panel-body">
+        <div class="fy-form-grid">
+          <div class="fy-field">
+            <label class="fy-label" for="timezone">
+              <i data-lucide="globe" class="h-4 w-4 text-violet-500"></i>
+              Time Zone
+            </label>
+            <select name="timezone" id="timezone" class="fy-select">
+              {% for tz in common_timezones %}
+              <option value="{{ tz }}" {% if organization.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+              {% endfor %}
+              {% if organization.timezone and organization.timezone not in common_timezones %}
+              <option value="{{ organization.timezone }}" selected>{{ organization.timezone }}</option>
+              {% endif %}
+            </select>
+            <p class="fy-hint">Attendance timestamps and payroll processing use this timezone.</p>
+          </div>
+
+          <div class="fy-field">
+            <label class="fy-label" for="currency">
+              <i data-lucide="coins" class="h-4 w-4 text-violet-500"></i>
+              Currency
+            </label>
+            <select name="currency" id="currency" class="fy-select">
+              {% for code, display in common_currencies %}
+              <option value="{{ code }}" {% if organization.currency == code %}selected{% endif %}>{{ display }}</option>
+              {% endfor %}
+            </select>
+            <p class="fy-hint">Shown in payslips, reports, and salary structures.</p>
+          </div>
+
+          <div class="fy-field">
+            <label class="fy-label" for="date_format">
+              <i data-lucide="type" class="h-4 w-4 text-violet-500"></i>
+              Date Format
+            </label>
+            <select name="date_format" id="date_format" class="fy-select">
+              {% for val, label in date_format_choices %}
+              <option value="{{ val }}" {% if organization.date_format == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <p class="fy-hint">Controls how dates are displayed in exports and reports.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <a href="{% url 'dashboard:settings' %}" class="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+        Cancel
+      </a>
+      <button type="submit" class="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+        Save Settings
+      </button>
+    </div>
+  </form>
+
+  <!-- Reference card -->
+  <div class="fy-info-grid">
+    <div class="fy-info-card">
+      <h3 class="fy-info-title"><i data-lucide="info" class="h-4 w-4 text-violet-500"></i> How Financial Year Works</h3>
+      <ul class="fy-info-list">
+        <li><strong>April start (India):</strong> FY 2026-27 = April 2026 → March 2027</li>
+        <li><strong>January start (US/EU):</strong> FY 2026 = January 2026 → December 2026</li>
+        <li><strong>July start:</strong> FY 2026-27 = July 2026 → June 2027</li>
+      </ul>
+    </div>
+    <div class="fy-info-card">
+      <h3 class="fy-info-title"><i data-lucide="layers" class="h-4 w-4 text-violet-500"></i> Modules Affected</h3>
+      <ul class="fy-info-list">
+        <li>Payroll period selectors &amp; reports</li>
+        <li>Attendance analytics date ranges</li>
+        <li>Leave annual quota calculations</li>
+        <li>Compliance reports (PF/ESI/TDS/PT)</li>
+        <li>Dashboard financial year widgets</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

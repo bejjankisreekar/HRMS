@@ -1,0 +1,30 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Notifications · HRMS{% endblock %}
+
+{% block content %}
+<div class="settings-page w-full space-y-6">
+  <div class="settings-hero">
+    <h1>Notifications</h1>
+    <p>Recent activity and approvals relevant to you.</p>
+  </div>
+
+  <section class="settings-panel">
+    <div class="settings-panel-body divide-y divide-slate-100 dark:divide-white/10">
+      {% for n in notifications %}
+      <a href="{{ n.url|default:'#' }}"
+         class="flex items-start gap-3 py-3 {% if not n.is_read %}font-semibold{% endif %}">
+        <i data-lucide="{{ n.icon|default:'bell' }}" class="mt-0.5 h-4 w-4 shrink-0 text-violet-500"></i>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm text-slate-900 dark:text-white">{{ n.title }}</p>
+          <p class="truncate text-xs text-slate-500">{{ n.message }}</p>
+        </div>
+        <span class="shrink-0 text-xs text-slate-400">{{ n.created_at|date:"d M, g:i A" }}</span>
+      </a>
+      {% empty %}
+      <p class="py-8 text-center text-sm text-slate-500">You have no notifications.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

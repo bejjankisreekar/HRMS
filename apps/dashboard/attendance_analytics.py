@@ -12,13 +12,14 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from django.core.cache import cache
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, Q, QuerySet, Sum
 from django.http import HttpResponse
 from django.utils import timezone
 
 from apps.accounts.hierarchy import attendance_team_for
 from apps.accounts.models import User
 from apps.attendance.models import AttendanceRecord, WorkShift
+from apps.attendance.work_calendar import count_working_days
 from apps.organizations.models import Department, Organization
 
 from .attendance_utils import (
@@ -32,6 +33,24 @@ from .attendance_utils import (
 )
 
 
+def _preset_range(preset: str, today):
+    """Resolve a date-range preset to (date_from, date_to). None = use from/to."""
+    if preset == "today":
+        return today, today
+    if preset == "this_week":
+        return today - timedelta(days=today.weekday()), today
+    if preset == "this_month":
+        return today.replace(day=1), today
+    if preset == "last_month":
+        first_this = today.replace(day=1)
+        last_month_end = first_this - timedelta(days=1)
+        return last_month_end.replace(day=1), last_month_end
+    if preset == "this_quarter":
+        q_start_month = 3 * ((today.month - 1) // 3) + 1
+        return today.replace(month=q_start_month, day=1), today
+    return None
+
+
 @dataclass
 class AnalyticsFilters:
     date_from: Any
@@ -42,6 +61,9 @@ class AnalyticsFilters:
     shift_id: str = ""
     status: str = ""
     employment_type: str = ""
+    employee_status: str = "active"
+    granularity: str = "monthly"
+    date_range: str = "custom"
     late_only: bool = False
     wfh_only: bool = False
     leave_only: bool = False
@@ -51,10 +73,22 @@ class AnalyticsFilters:
     @classmethod
     def from_request(cls, request) -> AnalyticsFilters:
         today = timezone.localdate()
-        date_from = parse_attendance_date(request.GET.get("from") or str(today.replace(day=1)))
-        date_to = parse_attendance_date(request.GET.get("to") or str(today))
+        preset = (request.GET.get("range") or "custom").strip()
+        preset_dates = _preset_range(preset, today)
+        if preset_dates:
+            date_from, date_to = preset_dates
+        else:
+            preset = "custom"
+            date_from = parse_attendance_date(request.GET.get("from") or str(today.replace(day=1)))
+            date_to = parse_attendance_date(request.GET.get("to") or str(today))
         if date_from > date_to:
             date_from, date_to = date_to, date_from
+        granularity = (request.GET.get("view") or "monthly").strip().lower()
+        if granularity not in ("daily", "weekly", "monthly"):
+            granularity = "monthly"
+        employee_status = (request.GET.get("emp_status") or "active").strip().lower()
+        if employee_status not in ("active", "inactive", "all"):
+            employee_status = "active"
         return cls(
             date_from=date_from,
             date_to=date_to,
@@ -64,6 +98,9 @@ class AnalyticsFilters:
             shift_id=(request.GET.get("shift") or "").strip(),
             status=(request.GET.get("status") or "").strip(),
             employment_type=(request.GET.get("employment_type") or "").strip(),
+            employee_status=employee_status,
+            granularity=granularity,
+            date_range=preset,
             late_only=request.GET.get("late") == "1",
             wfh_only=request.GET.get("wfh") == "1",
             leave_only=request.GET.get("leave") == "1",
@@ -81,6 +118,8 @@ class AnalyticsFilters:
             self.shift_id,
             self.status,
             self.employment_type,
+            self.employee_status,
+            self.granularity,
             str(self.late_only),
             str(self.wfh_only),
             str(self.leave_only),
@@ -123,8 +162,33 @@ def compute_early_exit_minutes(record: AttendanceRecord | None, shift: WorkShift
     return int((shift_end - local_out).total_seconds() // 60)
 
 
+def _scoped_team(manager: User, employee_status: str = "active") -> QuerySet[User]:
+    """Attendance team scoped by role, with the is_active filter per employee_status.
+
+    Mirrors ``attendance_team_for`` (Admin → org HR+EMPLOYEE; HR → assigned
+    employees + self) but lets callers include inactive users.
+    """
+    org = manager.organization
+    if not org:
+        return User.objects.none()
+    base = User.objects.filter(organization=org)
+    if manager.role == User.Role.ADMIN:
+        base = base.filter(role__in=[User.Role.HR, User.Role.EMPLOYEE])
+    elif manager.role == User.Role.HR:
+        base = base.filter(
+            Q(assigned_hr=manager, role=User.Role.EMPLOYEE) | Q(pk=manager.pk)
+        )
+    else:
+        base = base.filter(pk=manager.pk)
+    if employee_status == "active":
+        base = base.filter(is_active=True)
+    elif employee_status == "inactive":
+        base = base.filter(is_active=False)
+    return base.select_related("department", "work_shift")
+
+
 def filter_team(manager: User, filters: AnalyticsFilters) -> QuerySet[User]:
-    qs = attendance_team_for(manager)
+    qs = _scoped_team(manager, filters.employee_status)
     if filters.employee_id:
         qs = qs.filter(pk=filters.employee_id)
     if filters.department:
@@ -448,6 +512,183 @@ def _employee_attendance_percentages(team_ids: list, filters: AnalyticsFilters) 
     return result[:12]
 
 
+def build_period_kpis(manager: User, filters: AnalyticsFilters) -> dict:
+    """Period-based KPI cards: rate, present days, absences, late, leave days."""
+    from apps.leaves.models import LeaveRequest
+
+    org = manager.organization
+    team_ids = list(filter_team(manager, filters).values_list("pk", flat=True))
+    empty = {
+        "attendance_rate": 0.0,
+        "total_present_days": 0,
+        "total_absences": 0,
+        "late_arrivals": 0,
+        "leave_days": 0.0,
+        "wfh": 0,
+        "half_day": 0,
+        "total_employees": 0,
+    }
+    if not team_ids:
+        return empty
+    team_count = len(team_ids)
+    records = AttendanceRecord.objects.filter(
+        user_id__in=team_ids,
+        date__gte=filters.date_from,
+        date__lte=filters.date_to,
+    ).select_related("user", "user__work_shift")
+
+    present = absent = half = wfh = late = 0
+    for rec in records:
+        st = rec.status
+        if st == AttendanceRecord.Status.PRESENT:
+            present += 1
+        elif st == AttendanceRecord.Status.ABSENT:
+            absent += 1
+        elif st == AttendanceRecord.Status.HALF_DAY:
+            half += 1
+        elif st == AttendanceRecord.Status.WFH:
+            wfh += 1
+        shift = get_effective_shift(rec.user)
+        if analyze_lateness(rec, shift, rec.date).get("is_late"):
+            late += 1
+
+    working_days = (
+        count_working_days(org, filters.date_from, filters.date_to)
+        if org
+        else (filters.date_to - filters.date_from).days + 1
+    )
+    denom = working_days * team_count
+    rate = round(present / denom * 100, 1) if denom else 0.0
+    rate = min(100.0, rate)
+
+    leave_days = (
+        LeaveRequest.objects.filter(
+            user_id__in=team_ids,
+            status=LeaveRequest.Status.APPROVED,
+            start_date__lte=filters.date_to,
+            end_date__gte=filters.date_from,
+        ).aggregate(s=Sum("total_days"))["s"]
+        or 0
+    )
+
+    return {
+        "attendance_rate": rate,
+        "total_present_days": present,
+        "total_absences": absent,
+        "late_arrivals": late,
+        "leave_days": float(leave_days),
+        "wfh": wfh,
+        "half_day": half,
+        "total_employees": team_count,
+    }
+
+
+def build_trend(manager: User, filters: AnalyticsFilters, use_cache: bool = True) -> dict:
+    """AJAX payload: attendance-% line by granularity, status distribution, dept rates, KPIs."""
+    cache_key = (
+        f"att_trend:{manager.organization_id}:{manager.pk}:{filters.cache_key_suffix()}"
+    )
+    if use_cache:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
+    org = manager.organization
+    members = list(filter_team(manager, filters))
+    team_ids = [m.pk for m in members]
+    dist_labels = ["Present", "Absent", "Late", "Half Day", "Leave", "WFH"]
+    if not team_ids:
+        payload = {
+            "granularity": filters.granularity,
+            "trend": {"labels": [], "values": []},
+            "distribution": {"labels": dist_labels, "values": [0, 0, 0, 0, 0, 0]},
+            "dept_rate": [],
+            "kpis": build_period_kpis(manager, filters),
+        }
+        if use_cache:
+            cache.set(cache_key, payload, 60)
+        return payload
+
+    team_count = len(team_ids)
+    records = AttendanceRecord.objects.filter(
+        user_id__in=team_ids,
+        date__gte=filters.date_from,
+        date__lte=filters.date_to,
+    ).select_related("user", "user__work_shift")
+
+    present_by_date: dict = defaultdict(int)
+    dist = {"PRESENT": 0, "ABSENT": 0, "LATE": 0, "HALF_DAY": 0, "LEAVE": 0, "WFH": 0}
+    dept_present: dict = defaultdict(int)
+    for rec in records:
+        st = rec.status
+        if st in dist:
+            dist[st] += 1
+        if st == AttendanceRecord.Status.PRESENT:
+            present_by_date[rec.date] += 1
+            dept_present[rec.user.department_name or "Unassigned"] += 1
+        shift = get_effective_shift(rec.user)
+        if analyze_lateness(rec, shift, rec.date).get("is_late"):
+            dist["LATE"] += 1
+
+    def day_pct(d) -> float:
+        return round(present_by_date.get(d, 0) / team_count * 100, 1) if team_count else 0.0
+
+    span = (filters.date_to - filters.date_from).days + 1
+    days = [filters.date_from + timedelta(days=i) for i in range(max(0, span))]
+
+    labels: list[str] = []
+    values: list[float] = []
+    if filters.granularity == "daily":
+        for d in days:
+            labels.append(d.strftime("%d %b"))
+            values.append(day_pct(d))
+    elif filters.granularity == "weekly":
+        buckets: dict = defaultdict(list)
+        for d in days:
+            buckets[(d - filters.date_from).days // 7].append(day_pct(d))
+        for wk in sorted(buckets):
+            vals = buckets[wk]
+            labels.append(f"Week {wk + 1}")
+            values.append(round(sum(vals) / len(vals), 1) if vals else 0.0)
+    else:  # monthly
+        buckets = defaultdict(list)
+        for d in days:
+            buckets[(d.year, d.month)].append(day_pct(d))
+        for (y, m) in sorted(buckets):
+            vals = buckets[(y, m)]
+            labels.append(f"{calendar.month_abbr[m]} {y}")
+            values.append(round(sum(vals) / len(vals), 1) if vals else 0.0)
+
+    working_days = count_working_days(org, filters.date_from, filters.date_to) if org else span
+    working_days = working_days or 1
+    dept_members: dict = defaultdict(int)
+    for m in members:
+        dept_members[m.department_name or "Unassigned"] += 1
+    dept_rate = []
+    for name, cnt in dept_members.items():
+        denom = cnt * working_days
+        pct = round(dept_present.get(name, 0) / denom * 100, 1) if denom else 0.0
+        dept_rate.append({"name": name, "pct": min(100.0, pct)})
+    dept_rate.sort(key=lambda x: -x["pct"])
+
+    payload = {
+        "granularity": filters.granularity,
+        "trend": {"labels": labels, "values": values},
+        "distribution": {
+            "labels": dist_labels,
+            "values": [
+                dist["PRESENT"], dist["ABSENT"], dist["LATE"],
+                dist["HALF_DAY"], dist["LEAVE"], dist["WFH"],
+            ],
+        },
+        "dept_rate": dept_rate,
+        "kpis": build_period_kpis(manager, filters),
+    }
+    if use_cache:
+        cache.set(cache_key, payload, 60)
+    return payload
+
+
 def build_insights(manager: User, filters: AnalyticsFilters) -> list[dict]:
     team = filter_team(manager, filters)
     team_ids = list(team.values_list("pk", flat=True))
@@ -704,6 +945,42 @@ def export_rows_csv(rows: list[dict]) -> HttpResponse:
     return response
 
 
+_EXPORT_HEADERS = [
+    "Employee ID", "Employee Name", "Department", "Designation", "Date",
+    "Check-in", "Check-out", "Working Hours", "Break", "Overtime", "Status",
+    "Late By", "Early Exit", "Leave Type", "Source", "Remarks",
+]
+
+
+def _export_row_values(r: dict) -> list:
+    return [
+        r["employee_id"], r["employee_name"], r["department"], r["designation"],
+        r["date"].isoformat(), r["check_in"], r["check_out"], r["working_hours"],
+        r["break_time"], r["overtime"], r["status_display"], r["late_by"],
+        r["early_exit"], r["leave_type"], r["attendance_source"], r["remarks"],
+    ]
+
+
+def export_rows_xlsx(rows: list[dict]) -> HttpResponse:
+    """Real .xlsx export via openpyxl (same columns as the CSV export)."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Attendance"
+    ws.append(_EXPORT_HEADERS)
+    for r in rows:
+        ws.append(_export_row_values(r))
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="attendance_report.xlsx"'
+    return response
+
+
 def get_analytics_context(manager: User, request, use_cache: bool = True) -> dict:
     filters = AnalyticsFilters.from_request(request)
     cache_key = f"att_analytics:{manager.organization_id}:{manager.pk}:{filters.cache_key_suffix()}"
@@ -718,10 +995,14 @@ def get_analytics_context(manager: User, request, use_cache: bool = True) -> dic
         charts = build_chart_data(manager, filters)
         insights = build_insights(manager, filters)
         options = filter_options(manager)
+        period_kpis = build_period_kpis(manager, filters)
+        trend = build_trend(manager, filters)
         ctx = {
             "filters": filters,
             "summary": summary,
+            "period_kpis": period_kpis,
             "charts_json": json.dumps(charts),
+            "trend_json": json.dumps(trend),
             "insights": insights,
             "filter_options": options,
             "organization": manager.organization,

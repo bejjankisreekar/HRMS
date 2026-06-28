@@ -242,3 +242,48 @@ class AttendanceRegularizationRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} · {self.date} · {self.status}"
+
+
+class AttendanceReportAudit(models.Model):
+    """Audit trail for attendance report access and exports."""
+
+    class Action(models.TextChoices):
+        VIEWED = "VIEWED", "Viewed"
+        EXPORTED = "EXPORTED", "Exported"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="attendance_report_audits",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_report_audits",
+    )
+    action = models.CharField(max_length=12, choices=Action.choices)
+    report = models.CharField(max_length=60, default="employee_attendance_chart")
+    export_type = models.CharField(max_length=12, blank=True)
+    filters = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+def record_report_audit(org, actor, action, *, report="employee_attendance_chart",
+                        export_type="", filters=None):
+    """Write an AttendanceReportAudit entry (view/export tracking)."""
+    if org is None:
+        return None
+    return AttendanceReportAudit.objects.create(
+        organization=org,
+        actor=actor if getattr(actor, "pk", None) else None,
+        action=action,
+        report=report,
+        export_type=export_type or "",
+        filters=filters or {},
+    )

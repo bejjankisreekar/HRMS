@@ -32,6 +32,16 @@ from .topnav_views import (
     NotificationReadAllAPIView,
     NotificationReadAPIView,
 )
+from .manager_views import (
+    NotificationsPageView,
+    TeamAttendanceExportView,
+    TeamAttendancePageView,
+    TeamDirectoryView,
+    TeamLeaveApprovalsView,
+    TeamLeaveDecisionView,
+    TeamRegularizationDecisionView,
+    TeamRegularizationsView,
+)
 from .views import (
     AttendanceChartDataView,
     AttendanceCorrectionsView,
@@ -47,8 +57,16 @@ from .views import (
     StarterAdminDashboardView,
     SettingsView,
     ModuleSettingsView,
+    FinancialYearSettingsView,
+    SetFinancialYearView,
     StaffCreateView,
 )
+from .staff_import_views import (
+    StaffImportReportView,
+    StaffImportTemplateView,
+    StaffImportView,
+)
+from .staff_api import SavedFilterAPI, SavedFilterDeleteAPI, StaffDirectoryAPI
 from .staff_views import (
     StaffBulkAPIView,
     StaffAttendanceSheetView,
@@ -131,8 +149,27 @@ urlpatterns = [
     path("admin/professional/", ProfessionalAdminDashboardView.as_view(), name="professional_admin"),
     path("hr/", RedirectView.as_view(pattern_name="dashboard:attendance_team", permanent=True), name="hr"),
     path("employee/", EmployeeDashboardView.as_view(), name="employee"),
+    # ── Team lead (users with direct reports) ────────────────────────────────
+    path("notifications/", NotificationsPageView.as_view(), name="notifications"),
+    path("team/members/", TeamDirectoryView.as_view(), name="team_members"),
+    path("team/attendance/", TeamAttendancePageView.as_view(), name="team_attendance"),
+    path("team/attendance/export/", TeamAttendanceExportView.as_view(), name="team_attendance_export"),
+    path("team/leave-approvals/", TeamLeaveApprovalsView.as_view(), name="team_leave_approvals"),
+    path(
+        "team/leave-approvals/<uuid:pk>/<str:decision>/",
+        TeamLeaveDecisionView.as_view(),
+        name="team_leave_decision",
+    ),
+    path("team/regularizations/", TeamRegularizationsView.as_view(), name="team_regularizations"),
+    path(
+        "team/regularizations/<uuid:pk>/<str:decision>/",
+        TeamRegularizationDecisionView.as_view(),
+        name="team_regularization_decision",
+    ),
     path("settings/", SettingsView.as_view(), name="settings"),
     path("settings/modules/", ModuleSettingsView.as_view(), name="module_settings"),
+    path("settings/financial-year/", FinancialYearSettingsView.as_view(), name="financial_year_settings"),
+    path("api/set-fy/", SetFinancialYearView.as_view(), name="set_fy"),
     path("api/search/", GlobalSearchAPIView.as_view(), name="global_search"),
     path("api/notifications/", NotificationListAPIView.as_view(), name="notifications_list"),
     path("api/notifications/read-all/", NotificationReadAllAPIView.as_view(), name="notifications_read_all"),
@@ -141,7 +178,13 @@ urlpatterns = [
     path("staff/", StaffListView.as_view(), name="staff_list"),
     path("staff/create/", StaffCreateView.as_view(), name="staff_create"),
     path("staff/export/", StaffExportView.as_view(), name="staff_export"),
+    path("staff/import/", StaffImportView.as_view(), name="staff_import"),
+    path("staff/import/template/", StaffImportTemplateView.as_view(), name="staff_import_template"),
+    path("staff/import/report/", StaffImportReportView.as_view(), name="staff_import_report"),
     path("staff/api/bulk/", StaffBulkAPIView.as_view(), name="staff_api_bulk"),
+    path("staff/api/directory/", StaffDirectoryAPI.as_view(), name="staff_api_directory"),
+    path("staff/api/saved-filters/", SavedFilterAPI.as_view(), name="staff_saved_filters"),
+    path("staff/api/saved-filters/<uuid:pk>/delete/", SavedFilterDeleteAPI.as_view(), name="staff_saved_filter_delete"),
     path("staff/<uuid:pk>/", StaffDetailView.as_view(), name="staff_detail"),
     path("staff/<uuid:pk>/attendance/", StaffAttendanceSheetView.as_view(), name="staff_attendance_sheet"),
     path("staff/<uuid:pk>/edit/", StaffUpdateView.as_view(), name="staff_edit"),

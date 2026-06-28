@@ -1,0 +1,145 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{{ meta.label }} · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:reports' as rh %}
+  {% include "dashboard/_back_button.html" with back_url=rh back_label="Payroll Reports" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-5">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex flex-col gap-3">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="{{ meta.icon|default:'file-text' }}" class="h-7 w-7 text-white"></i></div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Finance · Payroll</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{{ meta.label }}</h1>
+          <p class="mt-1.5 text-sm text-violet-100/90">{{ meta.description }} · {{ filters.label }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters + exports -->
+  <form method="get" class="pr-glass pr-no-print px-4 py-3">
+    <div class="pr-filter-bar">
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Year</label>
+        <select name="year" class="pr-input">
+          {% for y in filter_options.years %}<option value="{{ y }}" {% if filters.year == y %}selected{% endif %}>{{ y }}</option>{% empty %}<option>{{ filters.year }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Month</label>
+        <select name="month" class="pr-input">
+          <option value="0">All months</option>
+          {% for num, name in filter_options.months %}<option value="{{ num }}" {% if filters.month == num %}selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="pr-filter-item">
+        <label class="pr-filter-label">Department</label>
+        <select name="department" class="pr-input">
+          <option value="">All</option>
+          {% for d in filter_options.departments %}<option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex items-end gap-2 pb-0.5">
+        <button type="submit" class="pr-btn-primary text-xs py-2">Apply</button>
+        <a href="?{{ filter_query }}&export=csv" class="pr-btn-ghost text-xs py-2"><i data-lucide="download" class="h-3.5 w-3.5"></i> CSV</a>
+        <a href="?{{ filter_query }}&export=xlsx" class="pr-btn-ghost text-xs py-2">Excel</a>
+        <button type="button" onclick="window.print()" class="pr-btn-ghost text-xs py-2">PDF</button>
+      </div>
+    </div>
+  </form>
+
+  {% if totals %}
+  <section class="grid gap-3 grid-cols-2 sm:grid-cols-5">
+    <div class="pr-glass pr-stat"><p class="text-[10px] uppercase text-slate-500">Total payslips</p><p class="mt-1 text-xl font-bold text-slate-900 dark:text-white">{{ totals.total }}</p></div>
+    <div class="pr-glass pr-stat"><p class="text-[10px] uppercase text-slate-500">Generated</p><p class="mt-1 text-xl font-bold text-violet-300">{{ totals.generated }}</p></div>
+    <div class="pr-glass pr-stat"><p class="text-[10px] uppercase text-slate-500">Downloaded</p><p class="mt-1 text-xl font-bold text-emerald-400">{{ totals.downloaded }}</p></div>
+    <div class="pr-glass pr-stat"><p class="text-[10px] uppercase text-slate-500">Pending</p><p class="mt-1 text-xl font-bold text-amber-400">{{ totals.pending }}</p></div>
+    <div class="pr-glass pr-stat"><p class="text-[10px] uppercase text-slate-500">Not generated</p><p class="mt-1 text-xl font-bold text-rose-400">{{ totals.not_generated }}</p></div>
+  </section>
+  {% endif %}
+
+  <section class="pr-glass overflow-hidden">
+    <div class="border-b border-white/10 px-5 py-3"><p class="text-sm font-semibold text-slate-900 dark:text-white">{{ rows|length }} record(s)</p></div>
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        {% if kind == "summary" %}
+        <thead><tr><th>Emp. ID</th><th>Employee</th><th>Department</th><th>Period</th><th>Gross</th><th>Deductions</th><th>Net</th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.employee_id }}</td><td class="font-medium text-slate-900 dark:text-white">{{ r.name }}</td>
+            <td>{{ r.department }}</td><td>{{ r.period }}</td>
+            <td>₹{{ r.gross|floatformat:0 }}</td><td class="text-rose-300">₹{{ r.deductions|floatformat:0 }}</td>
+            <td class="font-semibold text-emerald-300">₹{{ r.net|floatformat:0 }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="7" class="py-16 text-center text-slate-500">No records for this period. Run payroll first.</td></tr>{% endfor %}
+        </tbody>
+        {% if totals %}
+        <tfoot class="pr-tfoot">
+          <tr>
+            <td colspan="4" class="pr-tfoot-label">Total ({{ rows|length }} employee{{ rows|length|pluralize }})</td>
+            <td>₹{{ totals.gross|floatformat:0 }}</td>
+            <td class="text-rose-300">₹{{ totals.deductions|floatformat:0 }}</td>
+            <td class="text-emerald-300">₹{{ totals.net|floatformat:0 }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+        {% elif kind == "register" %}
+        <thead><tr><th>Emp. ID</th><th>Employee</th><th>Department</th><th>Period</th><th>Gross</th><th>TDS</th><th>EE PF</th><th>ESI</th><th>PT</th><th>LOP</th><th>Loan</th><th>Other</th><th>Total Ded.</th><th>Net</th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.employee_id }}</td><td class="font-medium text-slate-900 dark:text-white">{{ r.employee_name }}</td>
+            <td>{{ r.department }}</td><td>{{ r.period }}</td>
+            <td>₹{{ r.gross|floatformat:0 }}</td><td>₹{{ r.tds|floatformat:0 }}</td><td>₹{{ r.employee_pf|floatformat:0 }}</td>
+            <td>₹{{ r.esi|floatformat:0 }}</td><td>₹{{ r.pt|floatformat:0 }}</td><td>₹{{ r.lop|floatformat:0 }}</td>
+            <td>₹{{ r.loan|floatformat:0 }}</td><td>₹{{ r.custom|floatformat:0 }}</td>
+            <td class="font-semibold text-rose-300">₹{{ r.total_deductions|floatformat:0 }}</td>
+            <td class="font-semibold text-emerald-300">₹{{ r.net|floatformat:0 }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="14" class="py-16 text-center text-slate-500">No records for this period. Run payroll first.</td></tr>{% endfor %}
+        </tbody>
+        {% if totals %}
+        <tfoot class="pr-tfoot">
+          <tr>
+            <td colspan="4" class="pr-tfoot-label">Total ({{ rows|length }} employee{{ rows|length|pluralize }})</td>
+            <td>₹{{ totals.gross|floatformat:0 }}</td>
+            <td>₹{{ totals.tds|floatformat:0 }}</td>
+            <td>₹{{ totals.employee_pf|floatformat:0 }}</td>
+            <td>₹{{ totals.esi|floatformat:0 }}</td>
+            <td>₹{{ totals.pt|floatformat:0 }}</td>
+            <td>₹{{ totals.lop|floatformat:0 }}</td>
+            <td>₹{{ totals.loan|floatformat:0 }}</td>
+            <td>₹{{ totals.custom|floatformat:0 }}</td>
+            <td class="text-rose-300">₹{{ totals.total_deductions|floatformat:0 }}</td>
+            <td class="text-emerald-300">₹{{ totals.net|floatformat:0 }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+        {% else %}{# distribution #}
+        <thead><tr><th>Emp. ID</th><th>Employee</th><th>Period</th><th>Generated</th><th>Downloads</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.employee_id }}</td><td class="font-medium text-slate-900 dark:text-white">{{ r.name }}</td>
+            <td>{{ r.period }}</td>
+            <td>{% if r.generated %}<span class="pr-badge pr-badge--paid">Yes</span>{% else %}<span class="pr-badge">No</span>{% endif %}</td>
+            <td>{{ r.download_count }}</td>
+            <td>{% if r.downloaded %}<span class="text-emerald-400">{{ r.status }}</span>{% elif r.generated %}<span class="text-amber-400">{{ r.status }}</span>{% else %}<span class="text-rose-400">{{ r.status }}</span>{% endif %}</td>
+          </tr>
+          {% empty %}<tr><td colspan="6" class="py-16 text-center text-slate-500">No payslips for this period.</td></tr>{% endfor %}
+        </tbody>
+        {% endif %}
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{# Shared add/edit leave type form. Expects `type_form`, optional `edit_type_obj`. #}
+<form method="post" class="mt-4 space-y-3 rounded-xl border border-violet-200 bg-violet-50/80 p-4 dark:border-white/10 dark:bg-white/5">
+  {% csrf_token %}
+  {% if edit_type_obj %}
+  <input type="hidden" name="action" value="edit_leave_type">
+  <input type="hidden" name="leave_type_id" value="{{ edit_type_obj.pk }}">
+  <p class="text-xs font-semibold uppercase tracking-wide text-violet-500">Editing: {{ edit_type_obj.name }}</p>
+  {% else %}
+  <input type="hidden" name="action" value="add_leave_type">
+  {% endif %}
+
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div>
+      <label class="lm-filter-label">Name</label>
+      {{ type_form.name }}
+    </div>
+    <div>
+      <label class="lm-filter-label">Code (optional, auto-generated)</label>
+      {{ type_form.code }}
+    </div>
+    <div>
+      <label class="lm-filter-label">Days / year (optional)</label>
+      {{ type_form.annual_quota }}
+    </div>
+    <div>
+      <label class="lm-filter-label">Max carry-forward days (0 = none)</label>
+      {{ type_form.carry_forward_max }}
+    </div>
+  </div>
+
+  <div>
+    <label class="lm-filter-label">Description</label>
+    {{ type_form.description }}
+  </div>
+
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div>
+      <label class="lm-filter-label">Gender eligibility</label>
+      {{ type_form.gender_eligibility }}
+    </div>
+    <div>
+      <label class="lm-filter-label">Applicable employees</label>
+      {{ type_form.applicable_to }}
+    </div>
+    <div>
+      <label class="lm-filter-label">Departments (when scoped by department)</label>
+      {{ type_form.applicable_departments }}
+    </div>
+    <div>
+      <label class="lm-filter-label">Designations (when scoped by designation)</label>
+      {{ type_form.applicable_designations }}
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-4">
+    <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+      {{ type_form.is_paid }} Paid leave
+    </label>
+    <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+      {{ type_form.requires_attachment }} Requires supporting document
+    </label>
+    <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+      {{ type_form.is_active }} Active
+    </label>
+    <div class="w-28">
+      <label class="lm-filter-label">Color</label>
+      {{ type_form.color }}
+    </div>
+  </div>
+
+  <div class="flex gap-2">
+    <button type="submit" class="ar-btn-primary text-sm">{% if edit_type_obj %}Save changes{% else %}Save{% endif %}</button>
+    <a href="{% url 'leaves:management' %}" class="ar-btn-ghost text-sm">Cancel</a>
+  </div>
+</form>

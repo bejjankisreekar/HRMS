@@ -9,7 +9,9 @@
 {% endblock %}
 
 {% block content %}
-<div id="staff-management" class="attendance-page stf-page hrms-page-fluid w-full space-y-6">
+<div id="staff-management" class="attendance-page stf-page hrms-page-fluid w-full space-y-6"
+     data-bulk-url="{% url 'dashboard:staff_api_bulk' %}"
+     data-saved-url="{% url 'dashboard:staff_saved_filters' %}">
 
   {# ── Hero (matches attendance page) ── #}
   <div class="attendance-hero">
@@ -43,6 +45,14 @@
           <i data-lucide="download" class="h-3.5 w-3.5"></i> Export all
         </a>
         {% if can_create %}
+        <a href="{% url 'dashboard:staff_import_template' %}"
+           class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">
+          <i data-lucide="file-down" class="h-3.5 w-3.5"></i> Download CSV template
+        </a>
+        <a href="{% url 'dashboard:staff_import' %}"
+           class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">
+          <i data-lucide="upload" class="h-3.5 w-3.5"></i> Import staff
+        </a>
         <a href="{% url 'dashboard:staff_create' %}"
            class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-lg hover:bg-violet-50">
           <i data-lucide="user-plus" class="h-4 w-4"></i> Add member
@@ -233,38 +243,103 @@
     </div>
   </form>
 
-  {# ── Staff table panel ── #}
-  <div class="attendance-panel attendance-table-wrap stf-table-wrap">
-    <div class="attendance-panel-head">
-      <div>
-        <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Team directory</h2>
-        <p class="text-xs text-slate-500">{{ result_count }} people{% if page_obj.paginator.num_pages > 1 %} · page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}{% endif %}</p>
+  {# ── Directory toolbar ── #}
+  <div class="stf-toolbar" data-staff-toolbar>
+    <div class="stf-toolbar-left">
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Team directory</h2>
+      <p class="text-xs text-slate-500">{{ result_count }} people{% if page_obj.paginator.num_pages > 1 %} · page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}{% endif %}</p>
+    </div>
+    <div class="stf-toolbar-right">
+      {# View toggle #}
+      <div class="stf-segment" role="tablist" aria-label="View">
+        <button type="button" class="stf-segment-btn is-active" data-view-toggle="table" aria-label="Table view"><i data-lucide="table-2" class="h-4 w-4"></i></button>
+        <button type="button" class="stf-segment-btn" data-view-toggle="cards" aria-label="Card view"><i data-lucide="layout-grid" class="h-4 w-4"></i></button>
+      </div>
+      {# Saved filters #}
+      <div class="stf-dd" data-saved-filters data-current-query="{{ filter_query }}">
+        <button type="button" class="stf-filter-btn stf-filter-btn--ghost" data-dd-toggle><i data-lucide="bookmark" class="h-3.5 w-3.5"></i> Saved</button>
+        <div class="stf-dd-menu" hidden>
+          <div class="stf-dd-list" data-saved-list><p class="stf-dd-empty">No saved filters.</p></div>
+          <div class="stf-dd-save">
+            <input type="text" placeholder="Name this filter…" data-saved-name maxlength="80" class="ar-input">
+            <button type="button" class="stf-btn stf-btn--primary" data-saved-create>Save current</button>
+          </div>
+        </div>
+      </div>
+      {# Column visibility #}
+      <div class="stf-dd" data-columns>
+        <button type="button" class="stf-filter-btn stf-filter-btn--ghost" data-dd-toggle><i data-lucide="columns-3" class="h-3.5 w-3.5"></i> Columns</button>
+        <div class="stf-dd-menu" hidden>
+          {% for key, label in column_defs %}
+          <label class="stf-dd-check"><input type="checkbox" data-col-toggle="{{ key }}" checked> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      {# Export menu #}
+      <div class="stf-dd" data-export>
+        <button type="button" class="stf-filter-btn stf-filter-btn--ghost" data-dd-toggle><i data-lucide="download" class="h-3.5 w-3.5"></i> Export</button>
+        <div class="stf-dd-menu" hidden>
+          <a href="{% url 'dashboard:staff_export' %}?{{ filter_query }}&format=csv" class="stf-dd-item"><i data-lucide="file-text" class="h-3.5 w-3.5"></i> CSV</a>
+          <a href="{% url 'dashboard:staff_export' %}?{{ filter_query }}&format=xlsx" class="stf-dd-item"><i data-lucide="file-spreadsheet" class="h-3.5 w-3.5"></i> Excel</a>
+          <button type="button" class="stf-dd-item" data-print><i data-lucide="printer" class="h-3.5 w-3.5"></i> Print</button>
+        </div>
       </div>
     </div>
+  </div>
 
+  {# ── Bulk action bar (shown on selection) ── #}
+  <div class="stf-bulkbar" data-bulk-bar hidden>
+    <span class="stf-bulkbar-count"><strong data-bulk-count>0</strong> selected</span>
+    <div class="stf-bulkbar-actions">
+      <button type="button" class="stf-btn stf-btn--ghost" data-bulk-action="activate"><i data-lucide="user-check" class="h-3.5 w-3.5"></i> Activate</button>
+      <button type="button" class="stf-btn stf-btn--ghost" data-bulk-action="deactivate"><i data-lucide="user-x" class="h-3.5 w-3.5"></i> Deactivate</button>
+      <select class="ar-input w-auto text-xs" data-bulk-status>
+        <option value="">Set status…</option>
+        {% for val, label in employment_status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+      <button type="button" class="stf-btn stf-btn--danger" data-bulk-action="delete"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i> Delete</button>
+      <button type="button" class="stf-btn stf-btn--ghost" data-bulk-clear>Clear</button>
+    </div>
+  </div>
+
+  {# ── Card view ── #}
+  <div class="stf-cards" data-staff-cards hidden>
+    {% for u in staff %}
+      {% include "dashboard/_staff_card.html" with u=u %}
+    {% empty %}
+    <div class="stf-cards-empty">
+      {% if has_active_filters %}No matches. <a href="{% url 'dashboard:staff_list' %}" class="font-semibold text-violet-600">Clear filters</a>{% else %}No team members yet.{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Staff table panel ── #}
+  <div class="attendance-panel attendance-table-wrap stf-table-wrap" data-staff-table>
     <div class="stf-table-scroll">
       <table class="stf-table attendance-table attendance-table--nowrap min-w-full">
         <thead>
           <tr class="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/[0.03]">
-            <th class="px-4 py-3">Emp. ID</th>
-            <th class="px-4 py-3">Employee</th>
-            <th class="px-3 py-3">Role</th>
-            <th class="px-3 py-3">Grade</th>
-            <th class="px-3 py-3">{{ dept_label|default:"Dept" }}</th>
-            <th class="px-3 py-3">Designation</th>
-            <th class="px-3 py-3">Manager</th>
-            <th class="px-3 py-3">Email</th>
-            <th class="px-3 py-3">Phone</th>
-            <th class="px-3 py-3">Joined</th>
-            <th class="px-3 py-3">Status</th>
+            <th class="px-4 py-3"><input type="checkbox" data-staff-check-all aria-label="Select all"></th>
+            <th class="px-4 py-3" data-col="empid">Emp. ID</th>
+            <th class="px-4 py-3" data-col="name">Employee</th>
+            <th class="px-3 py-3" data-col="role">Role</th>
+            <th class="px-3 py-3" data-col="grade">Grade</th>
+            <th class="px-3 py-3" data-col="dept">{{ dept_label|default:"Dept" }}</th>
+            <th class="px-3 py-3" data-col="designation">Designation</th>
+            <th class="px-3 py-3" data-col="manager">Manager</th>
+            <th class="px-3 py-3" data-col="email">Email</th>
+            <th class="px-3 py-3" data-col="phone">Phone</th>
+            <th class="px-3 py-3" data-col="joined">Joined</th>
+            <th class="px-3 py-3" data-col="status">Status</th>
             <th class="px-3 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-white/10">
           {% for u in staff %}
-          <tr>
-            <td class="px-4 py-3 font-mono text-xs">{{ u.employee_id|default:"—" }}</td>
-            <td class="px-4 py-3">
+          <tr data-staff-row data-staff-id="{{ u.pk }}" data-staff-name="{{ u.display_name }}">
+            <td class="px-4 py-3"><input type="checkbox" class="stf-row-check" data-staff-check value="{{ u.pk }}" aria-label="Select {{ u.display_name }}"></td>
+            <td class="px-4 py-3 font-mono text-xs" data-col="empid">{{ u.employee_id|default:"—" }}</td>
+            <td class="px-4 py-3" data-col="name">
               <div class="stf-name-cell">
                 <div class="stf-avatar attendance-avatar">
                   {% if u.profile_picture %}<img src="{{ u.profile_picture.url }}" alt="">{% else %}{{ u.display_name|slice:":1"|upper }}{% endif %}
@@ -275,18 +350,18 @@
                 </div>
               </div>
             </td>
-            <td class="px-3 py-3">
-              {% if u.role == "HR" %}<span class="stf-badge stf-badge--hr">HR</span>
+            <td class="px-3 py-3" data-col="role">
+              {% if u.role == "HR" %}<span class="stf-badge stf-badge--hr">{{ hr_role_label }}</span>
               {% else %}<span class="stf-badge stf-badge--employee">Employee</span>{% endif %}
             </td>
-            <td class="px-3 py-3">{{ u.grade_name|default:"—" }}</td>
-            <td class="px-3 py-3">{{ u.department_name|default:"—" }}</td>
-            <td class="px-3 py-3">{{ u.designation_label|default:"—" }}</td>
-            <td class="px-3 py-3">{% if u.reporting_manager %}{{ u.reporting_manager.display_name }}{% else %}—{% endif %}</td>
-            <td class="px-3 py-3 text-xs">{{ u.email }}</td>
-            <td class="px-3 py-3">{{ u.phone|default:"—" }}</td>
-            <td class="px-3 py-3">{% if u.date_of_joining %}{{ u.date_of_joining|date:"M j, Y" }}{% else %}—{% endif %}</td>
-            <td class="px-3 py-3">
+            <td class="px-3 py-3" data-col="grade">{{ u.grade_name|default:"—" }}</td>
+            <td class="px-3 py-3" data-col="dept">{{ u.department_name|default:"—" }}</td>
+            <td class="px-3 py-3" data-col="designation">{{ u.designation_label|default:"—" }}</td>
+            <td class="px-3 py-3" data-col="manager">{% if u.reporting_manager %}{{ u.reporting_manager.display_name }}{% else %}—{% endif %}</td>
+            <td class="px-3 py-3 text-xs" data-col="email">{{ u.email }}</td>
+            <td class="px-3 py-3" data-col="phone">{{ u.phone|default:"—" }}</td>
+            <td class="px-3 py-3" data-col="joined">{% if u.date_of_joining %}{{ u.date_of_joining|date:"M j, Y" }}{% else %}—{% endif %}</td>
+            <td class="px-3 py-3" data-col="status">
               {% if u.employment_status == "ACTIVE" or u.employment_status == "PROBATION" %}
               <span class="stf-badge stf-badge--active">{{ u.get_employment_status_display }}</span>
               {% elif u.employment_status == "SUSPENDED" or u.employment_status == "TERMINATED" %}
@@ -302,10 +377,14 @@
                   <a href="{% url 'dashboard:staff_detail' u.pk %}" role="menuitem"><i data-lucide="eye" class="h-3.5 w-3.5"></i> View profile</a>
                   {% if u.pk|stringformat:"s" in manageable_ids %}
                   <a href="{% url 'dashboard:staff_edit' u.pk %}" role="menuitem"><i data-lucide="pencil" class="h-3.5 w-3.5"></i> Edit employee</a>
+                  {% if u.is_active %}
+                  <button type="button" data-staff-action="deactivate" data-staff-id="{{ u.pk }}" role="menuitem"><i data-lucide="user-x" class="h-3.5 w-3.5"></i> Deactivate</button>
+                  {% else %}
+                  <button type="button" data-staff-action="activate" data-staff-id="{{ u.pk }}" role="menuitem"><i data-lucide="user-check" class="h-3.5 w-3.5"></i> Activate</button>
+                  {% endif %}
+                  <button type="button" data-staff-action="reset_password" data-staff-id="{{ u.pk }}" role="menuitem"><i data-lucide="key-round" class="h-3.5 w-3.5"></i> Reset password</button>
                   {% endif %}
                   <a href="{% url 'dashboard:attendance' %}" role="menuitem"><i data-lucide="calendar-check" class="h-3.5 w-3.5"></i> Attendance</a>
-                  <a href="{% url 'payroll:management' %}" role="menuitem"><i data-lucide="wallet" class="h-3.5 w-3.5"></i> Payroll</a>
-                  <a href="{% url 'dashboard:orgchart:tree' %}" role="menuitem"><i data-lucide="git-branch" class="h-3.5 w-3.5"></i> Org tree</a>
                   {% if u.pk|stringformat:"s" in manageable_ids %}
                   <a href="{% url 'dashboard:staff_delete' u.pk %}" class="danger" role="menuitem"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i> Remove</a>
                   {% endif %}
@@ -315,7 +394,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="12" class="px-4 py-12 text-center text-sm text-slate-500">
+            <td colspan="13" class="px-4 py-12 text-center text-sm text-slate-500">
               {% if has_active_filters %}No matches. <a href="{% url 'dashboard:staff_list' %}" class="font-semibold text-violet-600">Clear filters</a>
               {% else %}No team members yet.{% if can_create %} <a href="{% url 'dashboard:staff_create' %}" class="font-semibold text-violet-600">Add your first member</a>{% endif %}{% endif %}
             </td>

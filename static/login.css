@@ -222,6 +222,8 @@ html.hrms-login-active body.login-body {
   font-family: inherit;
   font-size: 0.6875rem;
   font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
   color: #94a3b8;
   cursor: pointer;
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;

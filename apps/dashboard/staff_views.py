@@ -90,8 +90,14 @@ class StaffListView(AdminOrHRRequiredMixin, ListView):
         context["dept_label"] = opts["dept_label"]
         context["dept_label_plural"] = opts["dept_label_plural"]
         context["employment_status_choices"] = User.EmploymentStatus.choices
+        context["column_defs"] = [
+            ("empid", "Emp. ID"), ("name", "Employee"), ("role", "Role"), ("grade", "Grade"),
+            ("dept", opts["dept_label"]), ("designation", "Designation"), ("manager", "Manager"),
+            ("email", "Email"), ("phone", "Phone"), ("joined", "Joined"), ("status", "Status"),
+        ]
         context["staff_api"] = reverse("dashboard:staff_api_bulk")
         context["role_display_for"] = role_display_for
+        context["hr_role_label"] = role_display_for(User.Role.HR, org)
         paginator = context.get("paginator")
         context["result_count"] = paginator.count if paginator else 0
         page_staff = context.get("staff") or []
@@ -133,7 +139,8 @@ class StaffDetailView(AdminOrHRRequiredMixin, DetailView):
         ctx.update(get_staff_profile_context(staff))
         ctx.update(get_staff_attendance_detail(staff))
         ctx["can_edit"] = can_manage_staff(self.request.user, staff)
-        ctx["role_label"] = role_display_for(staff.role)
+        ctx["role_label"] = role_display_for(staff.role, staff.organization)
+        ctx["hr_role_label"] = role_display_for(User.Role.HR, staff.organization)
         return ctx
 
 
@@ -177,7 +184,7 @@ class StaffAttendanceSheetView(AdminOrHRRequiredMixin, DetailView):
         last_month_start = last_month_end.replace(day=1)
 
         ctx.update(get_staff_attendance_sheet(staff, start, end))
-        ctx["role_label"] = role_display_for(staff.role)
+        ctx["role_label"] = role_display_for(staff.role, staff.organization)
         ctx["range_from"] = start
         ctx["range_to"] = end
         ctx["preset_this_month"] = {"from": first_this, "to": today}
@@ -208,8 +215,9 @@ class StaffUpdateView(AdminOrHRRequiredMixin, FormView):
         ctx = super().get_context_data(**kwargs)
         staff = self.staff_member
         ctx["staff_member"] = staff
-        ctx["role_label"] = role_display_for(staff.role)
         org = self.request.user.organization
+        ctx["role_label"] = role_display_for(staff.role, org)
+        ctx["hr_role_label"] = role_display_for(User.Role.HR, org)
         if org:
             ctx["dept_label"] = org.department_label
             ctx["dept_label_plural"] = org.department_label_plural
@@ -248,7 +256,7 @@ class StaffDeleteView(AdminOrHRRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["staff_member"] = self.staff_member
-        ctx["role_label"] = role_display_for(self.staff_member.role)
+        ctx["role_label"] = role_display_for(self.staff_member.role, self.staff_member.organization)
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -306,7 +314,18 @@ class StaffExportView(AdminOrHRRequiredMixin, View):
             qs = qs.filter(pk__in=ids)
         else:
             qs = apply_staff_list_filters(qs, request.GET, is_hr_view=request.user.role == User.Role.HR)
-        csv_data = export_staff_csv(qs.order_by("first_name"))
+        ordered = qs.order_by("first_name")
+        if request.GET.get("format") in ("xlsx", "excel"):
+            from apps.dashboard.staff_services import export_staff_xlsx
+
+            data = export_staff_xlsx(ordered, request.user.organization)
+            response = HttpResponse(
+                data,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = 'attachment; filename="staff_export.xlsx"'
+            return response
+        csv_data = export_staff_csv(ordered, request.user.organization)
         response = HttpResponse(csv_data, content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="staff_export.csv"'
         return response

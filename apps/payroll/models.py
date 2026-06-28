@@ -23,10 +23,14 @@ class SalaryComponent(models.Model):
         INCENTIVE = "INCENTIVE", "Incentives"
         OVERTIME = "OVERTIME", "Overtime"
         PF = "PF", "Provident Fund"
+        EMPLOYER_PF = "EMPLOYER_PF", "Employer PF"
         ESI = "ESI", "ESI"
         PT = "PT", "Professional Tax"
         TAX = "TAX", "Income Tax"
         LOAN = "LOAN", "Loan Deduction"
+        ADVANCE = "ADVANCE", "Salary Advance Recovery"
+        NOTICE = "NOTICE", "Notice Period Recovery"
+        LOP = "LOP", "Loss of Pay"
         OTHER = "OTHER", "Other"
 
     class CalcType(models.TextChoices):
@@ -268,6 +272,12 @@ class Payslip(models.Model):
     reimbursements = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
     overtime_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
     leave_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+    employer_pf = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0"),
+        help_text="Employer PF contribution (cost to company; not deducted from net).",
+    )
     attendance_days = models.PositiveSmallIntegerField(default=0)
     working_days = models.PositiveSmallIntegerField(default=0)
     leave_days = models.DecimalField(max_digits=5, decimal_places=1, default=Decimal("0"))
@@ -280,6 +290,8 @@ class Payslip(models.Model):
     bank_reference = models.CharField(max_length=60, blank=True)
     payslip_number = models.CharField(max_length=40, blank=True)
     generated_at = models.DateTimeField(null=True, blank=True)
+    download_count = models.PositiveIntegerField(default=0)
+    last_downloaded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -290,6 +302,51 @@ class Payslip(models.Model):
             ),
         ]
         ordering = ["user__first_name", "user__last_name"]
+
+
+class CompliancePayment(models.Model):
+    """Tracks whether a statutory remittance (PF/ESI/TDS/PT) has been paid for a given period."""
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PAID = "PAID", "Paid"
+
+    REPORT_CHOICES = [
+        ("pf", "PF"),
+        ("esi", "ESI"),
+        ("tds", "TDS"),
+        ("pt", "Professional Tax"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="compliance_payments",
+    )
+    report_type = models.CharField(max_length=10, choices=REPORT_CHOICES)
+    year = models.PositiveSmallIntegerField()
+    month = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="compliance_payments_marked",
+    )
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "report_type", "year", "month"],
+                name="unique_compliance_payment",
+            ),
+        ]
 
 
 class PayslipLine(models.Model):
@@ -456,3 +513,63 @@ class SalaryRevision(models.Model):
         related_name="salary_revisions_approved",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class EmployeeDeduction(models.Model):
+    """Recurring/one-off recovery deducted during payroll (advance, notice, other)."""
+
+    class Type(models.TextChoices):
+        ADVANCE = "ADVANCE", "Salary Advance Recovery"
+        NOTICE = "NOTICE", "Notice Period Recovery"
+        OTHER = "OTHER", "Other Deduction"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="payroll_deductions",
+    )
+    deduction_type = models.CharField(max_length=12, choices=Type.choices, default=Type.OTHER)
+    label = models.CharField(max_length=80, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Per-cycle recovery amount.")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+    is_active = models.BooleanField(default=True)
+    remarks = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_deduction_type_display()} · {self.amount}"
+
+
+class PayrollAuditLog(models.Model):
+    """Audit trail for payroll/deduction activities within an organization."""
+
+    class Action(models.TextChoices):
+        PROCESSED = "PROCESSED", "Payroll processed"
+        CALCULATED = "CALCULATED", "Deductions calculated"
+        VIEWED = "VIEWED", "Deductions viewed"
+        EXPORTED = "EXPORTED", "Report exported"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="payroll_audit_logs",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payroll_actions_performed",
+    )
+    action = models.CharField(max_length=20, choices=Action.choices)
+    summary = models.CharField(max_length=255)
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]

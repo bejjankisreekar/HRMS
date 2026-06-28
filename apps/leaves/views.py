@@ -11,6 +11,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from apps.accounts.models import User
+from apps.accounts.role_labels import STAFF_SELF_SERVICE_ROLES
 from apps.dashboard.mixins import OrganizationRequiredMixin
 from apps.organizations.models import Organization
 from apps.organizations.module_utils import ensure_module, plan_includes_module
@@ -41,6 +42,21 @@ from .services import (
 )
 
 
+def _audit_leave_event(request, action, leave_request, summary):
+    """Record a leave lifecycle event in the team action audit log."""
+    from apps.team.audit import record_team_action
+
+    record_team_action(
+        actor=request.user,
+        action=action,
+        target=leave_request.user,
+        object_id=leave_request.pk,
+        summary=summary,
+        request=request,
+        leave_type=leave_request.leave_type.code,
+    )
+
+
 class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
     template_name = "leaves/leave_management.html"
     paginate_by = 25
@@ -53,10 +69,25 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
         return resp
 
     def get(self, request, *args, **kwargs):
-        if request.GET.get("export") == "csv":
+        export = request.GET.get("export")
+        if export in ("csv", "xlsx"):
             filters = LeaveFilters.from_request(request)
             rows = table_rows(filtered_requests(request.user, filters))
+            if export == "xlsx":
+                from .analytics import export_xlsx
+
+                return export_xlsx(rows)
             return export_csv(rows)
+        if export in ("balances_csv", "balances_xlsx") and request.user.role in (
+            User.Role.ADMIN,
+            User.Role.HR,
+        ):
+            from .analytics import balance_report_rows, export_balance_csv, export_balance_xlsx
+
+            rows = balance_report_rows(request.user)
+            if export == "balances_xlsx":
+                return export_balance_xlsx(rows)
+            return export_balance_csv(rows)
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -76,10 +107,16 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
             return self._cancel(request)
         if action == "add_holiday" and request.user.role in (User.Role.ADMIN, User.Role.HR):
             return self._add_holiday(request, org)
-        if action == "add_leave_type" and request.user.role == User.Role.ADMIN:
+        if action == "add_leave_type" and request.user.role in (User.Role.ADMIN, User.Role.HR):
             return self._add_leave_type(request, org)
+        if action == "edit_leave_type" and request.user.role in (User.Role.ADMIN, User.Role.HR):
+            return self._edit_leave_type(request, org)
+        if action == "toggle_leave_type" and request.user.role in (User.Role.ADMIN, User.Role.HR):
+            return self._toggle_leave_type(request, org)
         if action == "delete_leave_type" and request.user.role == User.Role.ADMIN:
             return self._delete_leave_type(request, org)
+        if action == "adjust_balance" and request.user.role in (User.Role.ADMIN, User.Role.HR):
+            return self._adjust_balance(request, org)
         if action == "delete_holiday" and request.user.role in (User.Role.ADMIN, User.Role.HR):
             return self._delete_holiday(request, org)
         if action == "save_approval_workflow" and request.user.role == User.Role.ADMIN:
@@ -89,8 +126,8 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
         return redirect("leaves:management")
 
     def _apply_leave(self, request, org: Organization):
-        if request.user.role not in (User.Role.HR, User.Role.EMPLOYEE):
-            messages.error(request, "Only HR and employees can apply for leave.")
+        if request.user.role not in STAFF_SELF_SERVICE_ROLES:
+            messages.error(request, "Only HR, managers, and employees can apply for leave.")
             return redirect("leaves:management")
         target_user = request.user
         form = LeaveApplyForm(request.POST, request.FILES, organization=org, user=target_user)
@@ -109,32 +146,67 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
             as_draft=bool(request.POST.get("save_draft")),
         )
         if req:
+            if req.status != LeaveRequest.Status.DRAFT:
+                from apps.team.models import TeamActionAuditLog
+
+                _audit_leave_event(
+                    request,
+                    TeamActionAuditLog.Action.LEAVE_APPLY,
+                    req,
+                    f"{request.user.display_name} applied for {req.leave_type.name}",
+                )
             messages.success(request, msg)
         else:
             messages.error(request, msg)
         return redirect("leaves:management")
 
     def _approve(self, request):
+        from apps.team.models import TeamActionAuditLog
+
         req = get_object_or_404(LeaveRequest, pk=request.POST.get("request_id"), user__organization=request.user.organization)
         if not user_can_act_on_leave(request.user, req):
             messages.error(request, "You are not authorized to approve this request.")
             return redirect("leaves:management")
         msg = approve_leave(req, request.user, request.POST.get("comment", ""))
+        _audit_leave_event(
+            request,
+            TeamActionAuditLog.Action.LEAVE_APPROVE,
+            req,
+            f"Approved leave for {req.user.display_name}",
+        )
         messages.success(request, msg)
         return redirect("leaves:management")
 
     def _reject(self, request):
+        from apps.team.models import TeamActionAuditLog
+
         req = get_object_or_404(LeaveRequest, pk=request.POST.get("request_id"), user__organization=request.user.organization)
         if not user_can_act_on_leave(request.user, req):
             messages.error(request, "You are not authorized to reject this request.")
             return redirect("leaves:management")
         msg = reject_leave(req, request.user, request.POST.get("comment", ""))
+        _audit_leave_event(
+            request,
+            TeamActionAuditLog.Action.LEAVE_REJECT,
+            req,
+            f"Rejected leave for {req.user.display_name}",
+        )
         messages.warning(request, msg)
         return redirect("leaves:management")
 
     def _cancel(self, request):
+        from apps.team.models import TeamActionAuditLog
+
         req = get_object_or_404(LeaveRequest, pk=request.POST.get("request_id"))
+        was_actionable = req.status in (LeaveRequest.Status.PENDING, LeaveRequest.Status.DRAFT)
         msg = cancel_leave(req, request.user)
+        if was_actionable and req.status == LeaveRequest.Status.CANCELLED:
+            _audit_leave_event(
+                request,
+                TeamActionAuditLog.Action.LEAVE_CANCEL,
+                req,
+                f"Cancelled leave for {req.user.display_name}",
+            )
         messages.info(request, msg)
         return redirect("leaves:management")
 
@@ -155,6 +227,69 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
             messages.success(request, f"Added leave type: {lt.name}.")
         else:
             messages.error(request, "Could not add leave type. Check the form.")
+        return redirect("leaves:management")
+
+    def _edit_leave_type(self, request, org: Organization):
+        lt = get_object_or_404(LeaveType, pk=request.POST.get("leave_type_id"), organization=org)
+        form = LeaveTypeForm(request.POST, organization=org, instance=lt)
+        if form.is_valid():
+            lt = form.save()
+            sync_org_staff_balances(org, lt)
+            messages.success(request, f"Updated leave type: {lt.name}.")
+        else:
+            messages.error(request, "Could not update leave type. Check the form.")
+        return redirect("leaves:management")
+
+    def _toggle_leave_type(self, request, org: Organization):
+        lt = get_object_or_404(LeaveType, pk=request.POST.get("leave_type_id"), organization=org)
+        lt.is_active = not lt.is_active
+        lt.save(update_fields=["is_active"])
+        state = "activated" if lt.is_active else "deactivated"
+        messages.success(request, f"Leave type {lt.name} {state}.")
+        return redirect("leaves:management")
+
+    def _adjust_balance(self, request, org: Organization):
+        from decimal import Decimal, InvalidOperation
+
+        from apps.team.audit import record_team_action
+        from apps.team.models import TeamActionAuditLog
+
+        from .models import LeaveBalance
+        from .services import get_balance
+
+        target = get_object_or_404(
+            User, pk=request.POST.get("user_id"), organization=org, is_active=True
+        )
+        lt = get_object_or_404(LeaveType, pk=request.POST.get("leave_type_id"), organization=org)
+        try:
+            delta = Decimal(request.POST.get("adjustment") or "0")
+        except InvalidOperation:
+            messages.error(request, "Invalid adjustment value.")
+            return redirect("leaves:management")
+        reason = (request.POST.get("reason") or "").strip()
+        if not delta:
+            messages.error(request, "Adjustment cannot be zero.")
+            return redirect("leaves:management")
+
+        bal = get_balance(target, lt)
+        bal.adjusted += delta
+        bal.save(update_fields=["adjusted"])
+        record_team_action(
+            actor=request.user,
+            action=TeamActionAuditLog.Action.BALANCE_ADJUST,
+            target=target,
+            object_id=bal.pk,
+            summary=f"Adjusted {lt.name} balance for {target.display_name} by {delta:+}",
+            request=request,
+            reason=reason,
+            leave_type=lt.code,
+            adjustment=str(delta),
+        )
+        messages.success(
+            request,
+            f"Adjusted {lt.name} for {target.display_name} by {delta:+} day(s). "
+            f"Remaining: {bal.remaining}.",
+        )
         return redirect("leaves:management")
 
     def _delete_leave_type(self, request, org: Organization):
@@ -181,15 +316,24 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
         org.leave_approval_require_manager = require_manager
         org.leave_approval_require_hr = require_hr
         org.leave_approval_require_admin = require_admin
+        org.leave_auto_approve_without_manager = (
+            request.POST.get("leave_auto_approve_without_manager") == "on"
+        )
         org.save(
             update_fields=[
                 "leave_approval_require_manager",
                 "leave_approval_require_hr",
                 "leave_approval_require_admin",
+                "leave_auto_approve_without_manager",
                 "updated_at",
             ]
         )
         messages.success(request, "Leave approval workflow updated.")
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        next_url = request.POST.get("next") or ""
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None):
+            return redirect(next_url)
         return redirect("leaves:management")
 
     def get_context_data(self, **kwargs):
@@ -210,9 +354,20 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
 
         year = timezone.localdate().year
         balances = user.leave_balances.filter(year=year).select_related("leave_type")
-        org_leave_types = list(
-            LeaveType.objects.filter(organization=org, is_active=True).order_by("sort_order", "name")
-        )
+        # Admin/HR manage the policy panel, so they also see deactivated types.
+        types_qs = LeaveType.objects.filter(organization=org)
+        if user.role not in (User.Role.ADMIN, User.Role.HR):
+            types_qs = types_qs.filter(is_active=True)
+        org_leave_types = list(types_qs.order_by("sort_order", "name"))
+
+        edit_type_obj = None
+        edit_type_form = None
+        if user.role in (User.Role.ADMIN, User.Role.HR) and self.request.GET.get("edit_type"):
+            edit_type_obj = LeaveType.objects.filter(
+                organization=org, pk=self.request.GET["edit_type"]
+            ).first()
+            if edit_type_obj:
+                edit_type_form = LeaveTypeForm(organization=org, instance=edit_type_obj)
         org_holidays = list(
             Holiday.objects.filter(organization=org).order_by("date")
         )
@@ -257,8 +412,12 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
                 "cal_month": cal_month,
                 "pending_approvals": pending_for_me,
                 "is_approver": user_is_configured_approver(user),
-                "can_apply_leave": user.role in (User.Role.HR, User.Role.EMPLOYEE),
+                "can_apply_leave": user.role in STAFF_SELF_SERVICE_ROLES,
                 "is_admin": user.role == User.Role.ADMIN,
+                "is_hr": user.role == User.Role.HR,
+                "can_manage_types": user.role in (User.Role.ADMIN, User.Role.HR),
+                "edit_type_obj": edit_type_obj,
+                "edit_type_form": edit_type_form,
                 "can_manage_calendar": user.role in (User.Role.ADMIN, User.Role.HR),
                 "org_leave_types": org_leave_types,
                 "today": timezone.localdate(),
@@ -272,11 +431,11 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
 
 
 class ApplyLeaveAccessMixin(OrganizationRequiredMixin):
-    """HR and employees only — not org admins applying on behalf."""
+    """HR, managers, and employees only — not org admins applying on behalf."""
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.role not in (User.Role.HR, User.Role.EMPLOYEE):
-            messages.error(request, "Only HR and employees can apply for leave.")
+        if request.user.role not in STAFF_SELF_SERVICE_ROLES:
+            messages.error(request, "Only HR, managers, and employees can apply for leave.")
             return redirect("leaves:management")
         org = request.user.organization
         if org:
@@ -336,6 +495,14 @@ class ApplyLeaveView(ApplyLeaveAccessMixin, TemplateView):
             messages.success(request, msg)
             return redirect("leaves:management")
 
+        from apps.team.models import TeamActionAuditLog
+
+        _audit_leave_event(
+            request,
+            TeamActionAuditLog.Action.LEAVE_APPLY,
+            req,
+            f"{request.user.display_name} applied for {req.leave_type.name}",
+        )
         return redirect("leaves:apply_success", pk=req.pk)
 
     def get_context_data(self, **kwargs):

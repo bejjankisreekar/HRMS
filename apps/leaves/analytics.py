@@ -71,11 +71,15 @@ def filtered_requests(viewer: User, filters: LeaveFilters):
         team = team.filter(work_location__iexact=filters.branch)
     team_ids = list(team.values_list("pk", flat=True))
 
-    qs = LeaveRequest.objects.filter(
-        user_id__in=team_ids,
-        start_date__lte=filters.date_to,
-        end_date__gte=filters.date_from,
-    ).select_related("user", "user__department", "leave_type", "reviewed_by")
+    qs = (
+        LeaveRequest.objects.filter(
+            user_id__in=team_ids,
+            start_date__lte=filters.date_to,
+            end_date__gte=filters.date_from,
+        )
+        .select_related("user", "user__department", "leave_type", "reviewed_by")
+        .prefetch_related("approvals")
+    )
 
     if filters.leave_type_id:
         qs = qs.filter(leave_type_id=filters.leave_type_id)
@@ -290,6 +294,7 @@ def table_rows(qs) -> list[dict]:
                 "days": req.total_days,
                 "status": req.status,
                 "status_display": req.get_status_display(),
+                "stage": req.current_stage_label,
                 "applied_at": req.applied_at,
                 "approved_by": req.reviewed_by.choice_label if req.reviewed_by else "—",
                 "reason": req.reason[:80] + ("…" if len(req.reason) > 80 else ""),
@@ -353,4 +358,142 @@ def export_csv(rows: list[dict]) -> HttpResponse:
         )
     resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = 'attachment; filename="leave_report.csv"'
+    return resp
+
+
+_REPORT_HEADER = [
+    "Employee ID",
+    "Name",
+    "Department",
+    "Leave Type",
+    "Start",
+    "End",
+    "Days",
+    "Status",
+    "Applied",
+    "Approved By",
+    "Reason",
+]
+
+
+def export_xlsx(rows: list[dict]) -> HttpResponse:
+    """Excel (.xlsx) version of the leave report export."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Leave report"
+    ws.append(_REPORT_HEADER)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    for r in rows:
+        ws.append(
+            [
+                r["employee_id"],
+                r["employee_name"],
+                r["department"],
+                r["leave_type"],
+                r["start_date"],
+                r["end_date"],
+                float(r["days"]),
+                r["status_display"],
+                r["applied_at"].replace(tzinfo=None) if r["applied_at"] else None,
+                r["approved_by"],
+                r["reason"],
+            ]
+        )
+    out = io.BytesIO()
+    wb.save(out)
+    resp = HttpResponse(
+        out.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = 'attachment; filename="leave_report.xlsx"'
+    return resp
+
+
+def balance_report_rows(viewer: User) -> list[dict]:
+    """Per-user × leave-type balance rows for the viewer's leave team."""
+    from django.utils import timezone
+
+    from .models import LeaveBalance
+
+    year = timezone.localdate().year
+    team_ids = list(leave_team_for(viewer).values_list("pk", flat=True))
+    rows = []
+    qs = (
+        LeaveBalance.objects.filter(user_id__in=team_ids, year=year)
+        .select_related("user", "user__department", "leave_type")
+        .order_by("user__first_name", "user__last_name", "leave_type__name")
+    )
+    for bal in qs:
+        rows.append(
+            {
+                "employee_id": bal.user.employee_id or "—",
+                "employee_name": bal.user.choice_label,
+                "department": bal.user.department_name or "—",
+                "leave_type": bal.leave_type.name,
+                "year": bal.year,
+                "allocated": bal.allocated,
+                "carried_forward": bal.carried_forward,
+                "adjusted": bal.adjusted,
+                "used": bal.used,
+                "remaining": bal.remaining,
+            }
+        )
+    return rows
+
+
+_BALANCE_HEADER = [
+    "Employee ID",
+    "Name",
+    "Department",
+    "Leave Type",
+    "Year",
+    "Allocated",
+    "Carried Forward",
+    "Adjusted",
+    "Used",
+    "Remaining",
+]
+
+
+def export_balance_csv(rows: list[dict]) -> HttpResponse:
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(_BALANCE_HEADER)
+    for r in rows:
+        w.writerow([r[k] for k in (
+            "employee_id", "employee_name", "department", "leave_type", "year",
+            "allocated", "carried_forward", "adjusted", "used", "remaining",
+        )])
+    resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename="leave_balances.csv"'
+    return resp
+
+
+def export_balance_xlsx(rows: list[dict]) -> HttpResponse:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Leave balances"
+    ws.append(_BALANCE_HEADER)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    for r in rows:
+        ws.append([
+            r["employee_id"], r["employee_name"], r["department"], r["leave_type"],
+            r["year"], float(r["allocated"]), float(r["carried_forward"]),
+            float(r["adjusted"]), float(r["used"]), float(r["remaining"]),
+        ])
+    out = io.BytesIO()
+    wb.save(out)
+    resp = HttpResponse(
+        out.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = 'attachment; filename="leave_balances.xlsx"'
     return resp

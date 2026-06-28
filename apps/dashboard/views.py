@@ -16,6 +16,7 @@ from apps.accounts.hierarchy import (
     staff_list_for,
 )
 from apps.accounts.models import User
+from apps.accounts.role_labels import role_display_for
 from apps.organizations.models import Organization
 from apps.attendance.forms import RegularizationRequestForm
 from apps.attendance.models import AttendanceRecord, AttendanceRegularizationRequest, WorkShift
@@ -134,8 +135,14 @@ class ProfessionalAdminDashboardView(AdminRequiredMixin, TemplateView):
     template_name = "dashboard/professional_admin.html"
 
     def get_context_data(self, **kwargs):
+        from .attendance_overview import attendance_overview_widget
+
         context = super().get_context_data(**kwargs)
         context.update(get_professional_dashboard_context(self.request.user))
+        try:
+            context["attendance_overview"] = attendance_overview_widget(self.request.user)
+        except Exception:
+            context["attendance_overview"] = None
         return context
 
 
@@ -158,6 +165,16 @@ class EmployeeDashboardView(OrganizationRequiredMixin, TemplateView):
 class SettingsView(OrganizationRequiredMixin, TemplateView):
     template_name = "dashboard/settings.html"
 
+    def post(self, request, *args, **kwargs):
+        """Admin-only: save the org's configured HR role display label."""
+        org = request.user.organization
+        if request.user.role != User.Role.ADMIN or not org:
+            return redirect("dashboard:settings")
+        org.hr_role_display_name = (request.POST.get("hr_role_display_name") or "").strip()[:50]
+        org.save(update_fields=["hr_role_display_name", "updated_at"])
+        messages.success(request, f"Saved. The HR role is now shown as '{org.hr_label}'.")
+        return redirect("dashboard:settings")
+
     def get_context_data(self, **kwargs):
         from apps.organizations.models import Department
         from apps.organizations.module_utils import plan_includes_module
@@ -175,6 +192,99 @@ class SettingsView(OrganizationRequiredMixin, TemplateView):
             context["plan_has_leave"] = plan_includes_module(org, "leave")
             context["plan_has_payroll"] = plan_includes_module(org, "payroll")
         return context
+
+
+class FinancialYearSettingsView(AdminRequiredMixin, TemplateView):
+    """Admin: configure financial year start month, timezone, currency, date format, week start."""
+
+    template_name = "dashboard/financial_year_settings.html"
+
+    _SAVE_FIELDS = ["fy_start_month", "timezone", "currency", "week_start_day", "date_format"]
+
+    def post(self, request, *args, **kwargs):
+        from apps.organizations.models import Organization
+        org = request.user.organization
+        if not org:
+            return redirect("dashboard:settings")
+
+        fy_month = request.POST.get("fy_start_month", "").strip()
+        try:
+            fy_month = int(fy_month)
+            if not 1 <= fy_month <= 12:
+                raise ValueError
+            org.fy_start_month = fy_month
+        except (ValueError, TypeError):
+            messages.error(request, "Invalid financial year start month.")
+            return redirect("dashboard:financial_year_settings")
+
+        org.timezone = (request.POST.get("timezone") or "Asia/Kolkata").strip()[:64]
+        org.currency = (request.POST.get("currency") or "INR").strip()[:16]
+
+        week_start = request.POST.get("week_start_day", "").strip()
+        if week_start in dict(Organization.WeekStartDay.choices):
+            org.week_start_day = week_start
+
+        date_fmt = request.POST.get("date_format", "").strip()
+        if date_fmt in dict(Organization.DateFormat.choices):
+            org.date_format = date_fmt
+
+        org.save(update_fields=self._SAVE_FIELDS + ["updated_at"])
+        messages.success(request, "Financial year settings saved.")
+        return redirect("dashboard:financial_year_settings")
+
+    def get_context_data(self, **kwargs):
+        import calendar as cal
+        from apps.organizations.financial_year import get_current_financial_year
+        from apps.organizations.models import Organization
+
+        ctx = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        ctx["organization"] = org
+
+        month_choices = [(i, cal.month_name[i]) for i in range(1, 13)]
+        ctx["month_choices"] = month_choices
+        ctx["week_start_choices"] = Organization.WeekStartDay.choices
+        ctx["date_format_choices"] = Organization.DateFormat.choices
+
+        common_timezones = [
+            "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Asia/Tokyo",
+            "Europe/London", "Europe/Paris", "Europe/Berlin",
+            "America/New_York", "America/Chicago", "America/Los_Angeles",
+            "America/Sao_Paulo", "Africa/Cairo", "Australia/Sydney",
+            "Pacific/Auckland",
+        ]
+        ctx["common_timezones"] = common_timezones
+
+        common_currencies = [
+            ("INR", "₹ Indian Rupee"), ("USD", "$ US Dollar"), ("EUR", "€ Euro"),
+            ("GBP", "£ British Pound"), ("AED", "د.إ UAE Dirham"),
+            ("SGD", "S$ Singapore Dollar"), ("AUD", "A$ Australian Dollar"),
+            ("CAD", "C$ Canadian Dollar"), ("JPY", "¥ Japanese Yen"),
+            ("BRL", "R$ Brazilian Real"), ("ZAR", "R South African Rand"),
+        ]
+        ctx["common_currencies"] = common_currencies
+
+        if org:
+            try:
+                ctx["current_fy"] = get_current_financial_year(org)
+            except Exception:
+                ctx["current_fy"] = None
+
+        return ctx
+
+
+class SetFinancialYearView(LoginRequiredMixin, View):
+    """POST-only: persist the selected Financial Year in the user's session."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            start_year = int(request.POST.get("fy_start_year", ""))
+            if 2000 <= start_year <= 2100:
+                request.session["selected_fy_start_year"] = start_year
+        except (ValueError, TypeError):
+            pass
+        next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        return redirect(next_url)
 
 
 class ModuleSettingsView(AdminRequiredMixin, TemplateView):
@@ -222,6 +332,7 @@ class StaffCreateView(AdminOrHRRequiredMixin, FormView):
         context.update(get_staff_create_context(org, self.request.user))
         context["organization"] = org
         context["is_hr_creator"] = self.request.user.role == User.Role.HR
+        context["hr_role_label"] = role_display_for(User.Role.HR, org)
         context["dept_label"] = org.department_label
         context["dept_label_plural"] = org.department_label_plural
         return context
@@ -294,6 +405,7 @@ class AttendanceBaseMixin:
             "month_label": on_date.strftime("%B %Y"),
             "attendance_mode": attendance_mode,
             "is_status_based": attendance_mode == Organization.AttendanceMode.STATUS_BASED,
+            "hr_role_label": role_display_for(User.Role.HR, org),
         }
 
     def _self_attendance_context(self, user, on_date):

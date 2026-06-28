@@ -41,6 +41,19 @@ class AdminOrHRRequiredMixin(OrganizationRequiredMixin, UserPassesTestMixin):
         return redirect("dashboard:home")
 
 
+class TeamLeadRequiredMixin(OrganizationRequiredMixin, UserPassesTestMixin):
+    """Anyone who may manage a team: a user with active direct reports."""
+
+    def test_func(self):
+        from apps.accounts.hierarchy import is_manager
+
+        return is_manager(self.request.user)
+
+    def handle_no_permission(self):
+        messages.error(self.request, "You do not manage a team.")
+        return redirect("dashboard:home")
+
+
 class SuperAdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """Restrict views to platform super administrators."""
 

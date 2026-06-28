@@ -22,6 +22,11 @@ from django.urls import Resolver404, include, path, re_path, resolve
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.views import LandingPageView
+from apps.leaves.api import (
+    LeaveTypeDetailView,
+    LeaveTypeListCreateView,
+    LeaveWorkflowSettingsView,
+)
 
 
 def custom_page_not_found(request, exception=None):
@@ -55,6 +60,16 @@ urlpatterns = [
     path("", include("apps.lifecycle.urls")),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/team/", include("apps.team.urls")),
+    path("api/payroll/", include("apps.payroll.api_urls")),
+    path("api/leaves/", include("apps.leaves.api_urls")),
+    path("api/leave-types/", LeaveTypeListCreateView.as_view(), name="api_leave_types"),
+    path("api/leave-types/<uuid:pk>/", LeaveTypeDetailView.as_view(), name="api_leave_type_detail"),
+    path(
+        "api/settings/leave-workflow/",
+        LeaveWorkflowSettingsView.as_view(),
+        name="api_leave_workflow",
+    ),
 ]
 
 if settings.DEBUG:

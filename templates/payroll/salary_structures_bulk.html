@@ -1,0 +1,111 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Bulk Salary Structures · Payroll{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'payroll.css' %}">
+<style>
+  .bsg-wrap { overflow-x: auto; }
+  .bsg-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+  .bsg-table th, .bsg-table td { padding: 6px 8px; white-space: nowrap; font-size: 12px; border-bottom: 1px solid rgba(148,163,184,.18); }
+  .bsg-table thead th { position: sticky; top: 0; z-index: 2; background: var(--pr-glass-bg, #fff); }
+  .bsg-sticky { position: sticky; left: 0; z-index: 3; background: var(--pr-glass-bg, #fff); box-shadow: 1px 0 0 rgba(148,163,184,.25); }
+  .dark .bsg-table thead th, .dark .bsg-sticky { background: #0f172a; }
+  .bsg-input { width: 92px; border: 1px solid rgba(148,163,184,.35); border-radius: 6px; padding: 3px 6px; text-align: right; background: transparent; }
+  .bsg-ded thead, .bsg-ded { color: #fb7185; }
+</style>
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:salary_structures' as ss %}
+  {% include "dashboard/_back_button.html" with back_url=ss back_label="Salary Structures" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-5 pb-10">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex flex-col gap-2">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="table-2" class="h-7 w-7 text-white"></i></div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Bulk Salary Structures</h1>
+          <p class="mt-1.5 text-sm text-violet-100/90">{{ organization.name }} · edit CTC and every earning/deduction for all employees, then save once. Editing a cell sets it to a fixed amount.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" id="bsgForm">
+    {% csrf_token %}
+    <div class="pr-glass overflow-hidden">
+      <div class="flex items-center justify-between border-b border-white/10 px-5 py-3">
+        <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ rows|length }} employee(s)</p>
+        <button type="submit" class="pr-btn-primary text-xs py-2"><i data-lucide="save" class="h-4 w-4"></i> Save all</button>
+      </div>
+      <div class="bsg-wrap">
+        <table class="bsg-table">
+          <thead>
+            <tr>
+              <th class="bsg-sticky text-left">Employee</th>
+              <th class="text-right">CTC</th>
+              {% for c in columns %}
+              <th class="text-right {% if c.kind == 'DEDUCTION' %}bsg-ded{% endif %}">{{ c.label }}</th>
+              {% endfor %}
+              <th class="text-right">Gross</th>
+              <th class="text-right">Total Ded.</th>
+              <th class="text-right">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr data-row="{{ r.uid }}">
+              <td class="bsg-sticky text-left">
+                <div class="font-medium text-slate-900 dark:text-white">{{ r.name }}</div>
+                <div class="text-[10px] text-slate-500">{{ r.emp_id }} · {{ r.department }}</div>
+              </td>
+              <td class="text-right"><input type="number" step="0.01" min="0" class="bsg-input" name="ctc_{{ r.uid }}" value="{{ r.ctc|floatformat:2 }}"></td>
+              {% for cell in r.cells %}
+              <td class="text-right">
+                <input type="number" step="0.01" min="0" class="bsg-input"
+                       data-kind="{{ cell.kind }}" data-uid="{{ r.uid }}"
+                       name="c_{{ r.uid }}_{{ cell.code }}" value="{{ cell.value|floatformat:2 }}">
+              </td>
+              {% endfor %}
+              <td class="text-right font-semibold text-emerald-500" data-total="gross" data-uid="{{ r.uid }}">₹{{ r.gross|floatformat:0 }}</td>
+              <td class="text-right font-semibold text-rose-400" data-total="ded" data-uid="{{ r.uid }}">₹{{ r.total_deductions|floatformat:0 }}</td>
+              <td class="text-right font-bold text-violet-300" data-total="net" data-uid="{{ r.uid }}">₹{{ r.net|floatformat:0 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="20" class="py-16 text-center text-slate-500">No employees to show.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  // Live-recompute Gross / Total Deductions / Net per row as cells change.
+  function fmt(v) { return "₹" + Math.round(v).toLocaleString("en-IN"); }
+  function recompute(uid) {
+    var gross = 0, ded = 0;
+    document.querySelectorAll('input[data-uid="' + uid + '"]').forEach(function (inp) {
+      var v = parseFloat(inp.value) || 0;
+      if (inp.dataset.kind === "DEDUCTION") ded += v; else gross += v;
+    });
+    var g = document.querySelector('[data-total="gross"][data-uid="' + uid + '"]');
+    var d = document.querySelector('[data-total="ded"][data-uid="' + uid + '"]');
+    var n = document.querySelector('[data-total="net"][data-uid="' + uid + '"]');
+    if (g) g.textContent = fmt(gross);
+    if (d) d.textContent = fmt(ded);
+    if (n) n.textContent = fmt(Math.max(0, gross - ded));
+  }
+  document.querySelectorAll('input[data-uid]').forEach(function (inp) {
+    inp.addEventListener("input", function () { recompute(inp.dataset.uid); });
+  });
+})();
+</script>
+{% endblock %}

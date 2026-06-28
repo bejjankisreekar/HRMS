@@ -13,6 +13,30 @@ from django.views.generic import TemplateView
 from apps.accounts.models import User
 from apps.dashboard.mixins import OrganizationRequiredMixin
 from apps.organizations.module_utils import ensure_module, plan_includes_module
+from apps.organizations.financial_year import payroll_month_choices, get_current_financial_year
+
+
+def _get_period_months(org):
+    """Return FY-aware payroll month choices for the period selector."""
+    try:
+        return payroll_month_choices(org, n_years=2)
+    except Exception:
+        today = timezone.localdate()
+        return [
+            {"month": i, "year": today.year, "label": f"{calendar.month_name[i]} {today.year}"}
+            for i in range(1, 13)
+        ]
+
+
+def _get_period_years(months):
+    """Deduplicated years from period_months, most recent first."""
+    seen, result = set(), []
+    for m in months:
+        y = m["year"]
+        if y not in seen:
+            seen.add(y)
+            result.append(y)
+    return result
 
 from .analytics import (
     PayrollFilters,
@@ -26,6 +50,7 @@ from .analytics import (
     get_current_run,
     pending_reimbursements,
     recent_revisions,
+    recent_runs,
     salary_components_panel,
     structures_panel,
     table_rows,
@@ -88,9 +113,18 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
             pk=request.GET.get("payslip"),
             user__organization=request.user.organization,
         )
-        if request.user.role == User.Role.EMPLOYEE and slip.user_id != request.user.pk:
+        # Only ADMIN/HR (finance) may view other people's payslips. Managers and
+        # employees are restricted to their own — a manager has no payroll access
+        # to their team's payslips.
+        if request.user.role not in (User.Role.ADMIN, User.Role.HR) and slip.user_id != request.user.pk:
             messages.error(request, "You can only view your own payslip.")
             return redirect("payroll:management")
+        # Track distribution: opening a payslip counts as a download.
+        from django.db.models import F
+
+        Payslip.objects.filter(pk=slip.pk).update(
+            download_count=F("download_count") + 1, last_downloaded_at=timezone.now()
+        )
         return render(
             request,
             "payroll/payslip_preview.html",
@@ -120,8 +154,22 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
             return self._reject_reimbursement(request)
         if action == "salary_revision" and user.role == User.Role.ADMIN:
             return self._salary_revision(request)
+        if action == "save_payroll_policy" and user.role == User.Role.ADMIN:
+            return self._save_payroll_policy(request, org)
 
         messages.error(request, "Invalid action.")
+        return self._redirect_back(request)
+
+    def _save_payroll_policy(self, request, org):
+        from apps.organizations.models import Organization
+
+        policy = request.POST.get("payroll_lop_policy")
+        if policy in Organization.PayrollLopPolicy.values:
+            org.payroll_lop_policy = policy
+            org.save(update_fields=["payroll_lop_policy", "updated_at"])
+            messages.success(request, "Payroll pay policy updated.")
+        else:
+            messages.error(request, "Invalid payroll policy.")
         return self._redirect_back(request)
 
     def _filters_from_request(self, request) -> PayrollFilters:
@@ -133,9 +181,17 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
         return PayrollFilters.from_request(request)
 
     def _run_payroll(self, request, org):
+        from .models import PayrollAuditLog
+        from .services import record_payroll_action
+
         filters = self._filters_from_request(request)
         run = get_or_create_payroll_run(org, filters.year, filters.month)
         msg = process_payroll_run(run, request.user)
+        record_payroll_action(
+            org, request.user, PayrollAuditLog.Action.PROCESSED,
+            f"Payroll processed for {run.period_label}",
+            period=run.period_label, request=request, employees=run.employee_count,
+        )
         messages.success(request, msg)
         return self._redirect_back(request)
 
@@ -225,6 +281,8 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
         return self._redirect_back(request)
 
     def get_context_data(self, **kwargs):
+        from .compliance import can_view_compliance
+
         context = super().get_context_data(**kwargs)
         user = self.request.user
         org = user.organization
@@ -265,11 +323,32 @@ class PayrollManagementView(OrganizationRequiredMixin, TemplateView):
                 "recent_revisions": recent_revisions(org),
                 "reimbursement_form": ReimbursementForm(),
                 "is_admin": is_admin,
+                "can_access_compliance": can_view_compliance(user),
                 "is_finance": is_finance,
                 "can_process": is_finance,
                 "can_employee_claim": user.role in (User.Role.HR, User.Role.EMPLOYEE),
                 "today": timezone.localdate(),
                 "month_choices": [(i, calendar.month_name[i]) for i in range(1, 13)],
+                "period_months": (_pm := _get_period_months(org)),
+                "period_years": _get_period_years(_pm),
+                "lop_policy": getattr(org, "payroll_lop_policy", ""),
+                "lop_policy_choices": org.PayrollLopPolicy.choices,
+                "run_history": [
+                    {
+                        "year": r.year,
+                        "month": r.month,
+                        "period_label": r.period_label,
+                        "employee_count": r.employee_count,
+                        # Expense totals shown positive (DB signs preserved).
+                        "gross": abs(r.total_gross),
+                        "deductions": abs(r.total_deductions),
+                        "net": abs(r.total_net),
+                        "status_display": r.get_status_display(),
+                    }
+                    for r in recent_runs(org)
+                ]
+                if is_finance
+                else [],
             }
         )
         return context
@@ -309,6 +388,36 @@ class SalaryStructuresView(OrganizationRequiredMixin, TemplateView):
                 "is_admin": user.role == User.Role.ADMIN,
             }
         )
+        return context
+
+
+class BulkSalaryStructureView(OrganizationRequiredMixin, TemplateView):
+    """Edit every employee's salary components in one grid (Admin/HR)."""
+
+    template_name = "payroll/salary_structures_bulk.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role not in (
+            User.Role.ADMIN,
+            User.Role.HR,
+        ):
+            messages.error(request, "Only Admin and HR can manage salary structures.")
+            return redirect("payroll:management")
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from .salary_grid import save_bulk_salary
+
+        count = save_bulk_salary(request.user, request.POST)
+        messages.success(request, f"Salary structures updated for {count} employee(s).")
+        return redirect("payroll:salary_structures_bulk")
+
+    def get_context_data(self, **kwargs):
+        from .salary_grid import bulk_salary_grid
+
+        context = super().get_context_data(**kwargs)
+        context["organization"] = self.request.user.organization
+        context.update(bulk_salary_grid(self.request.user))
         return context
 
 
@@ -402,10 +511,15 @@ class EmployeeFinancialsView(OrganizationRequiredMixin, TemplateView):
         salary = get_active_salary(emp)
         seed_employee_components(salary)
         components = list(salary.components.all().order_by("sort_order"))
+        org_cat_map = {
+            sc.code: sc.category
+            for sc in SalaryComponent.objects.filter(organization=emp.organization, is_active=True)
+        }
         comp_json = [
             {
                 "id": str(c.pk), "code": c.code, "label": c.label,
                 "kind": c.kind, "mode": c.mode, "value": float(c.value),
+                "category": org_cat_map.get(c.code, ""),
             }
             for c in components
         ]
@@ -417,9 +531,21 @@ class EmployeeFinancialsView(OrganizationRequiredMixin, TemplateView):
                 "breakdown": compute_employee_breakdown(salary),
                 "components_json": comp_json,
                 "salary_type_choices": EmployeeSalary.SalaryType.choices,
-                "revisions": SalaryRevision.objects.filter(user=emp)
-                .select_related("approved_by")
-                .order_by("-effective_date", "-created_at")[:10],
+                "revisions": self._revision_rows(emp),
             }
         )
         return context
+
+    def _revision_rows(self, emp) -> list[dict]:
+        rows = []
+        qs = (
+            SalaryRevision.objects.filter(user=emp)
+            .select_related("approved_by")
+            .order_by("-effective_date", "-created_at")[:10]
+        )
+        for rev in qs:
+            pct = None
+            if rev.previous_ctc:
+                pct = round((rev.new_ctc - rev.previous_ctc) / rev.previous_ctc * 100, 1)
+            rows.append({"rev": rev, "pct": pct})
+        return rows

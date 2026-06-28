@@ -23,6 +23,9 @@
       <p class="text-xs uppercase tracking-widest text-violet-600 dark:text-violet-400">{{ organization.name }}</p>
       <h1 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Payslip</h1>
       <p class="text-sm text-slate-600 dark:text-slate-400">{{ payslip.payslip_number }} · {{ payslip.payroll_run.period_label }}</p>
+      {% if payslip.working_days %}
+      <p class="mt-1 text-xs text-slate-500">Paid days: {{ payslip.attendance_days }} / {{ payslip.working_days }}{% if payslip.leave_deduction %} · Loss of pay ₹{{ payslip.leave_deduction|floatformat:0 }}{% endif %}</p>
+      {% endif %}
     </header>
     <div class="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
       <div>
@@ -55,9 +58,6 @@
           <li class="flex justify-between text-slate-700 dark:text-slate-300"><span>{{ line.label }}</span><span>₹{{ line.amount }}</span></li>
           {% endif %}
           {% endfor %}
-          {% if payslip.leave_deduction %}
-          <li class="flex justify-between text-slate-700 dark:text-slate-300"><span>Leave / absent</span><span>₹{{ payslip.leave_deduction }}</span></li>
-          {% endif %}
         </ul>
       </div>
     </div>

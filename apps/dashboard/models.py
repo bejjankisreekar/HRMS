@@ -37,3 +37,34 @@ class DashboardNotification(models.Model):
 
     def __str__(self) -> str:
         return f"{self.title} ({'read' if self.is_read else 'unread'})"
+
+
+class SavedStaffFilter(models.Model):
+    """A named, reusable filter set for the employee directory (per user + org)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="saved_staff_filters",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_staff_filters",
+    )
+    name = models.CharField(max_length=80)
+    query = models.CharField(max_length=1000, blank=True)  # the filter querystring
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "name"],
+                name="unique_saved_staff_filter_per_user_name",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name

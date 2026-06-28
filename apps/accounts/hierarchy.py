@@ -134,13 +134,13 @@ def attendance_team_for(user: User) -> QuerySet[User]:
         return User.objects.none()
     base = org_active_users(user.organization)
     if user.role == User.Role.ADMIN:
-        return base.filter(role__in=[User.Role.HR, User.Role.EMPLOYEE]).order_by(
-            "role", "first_name", "last_name"
-        )
+        return base.filter(
+            role__in=[User.Role.HR, User.Role.EMPLOYEE]
+        ).order_by("role", "first_name", "last_name")
     if user.role == User.Role.HR:
-        return base.filter(Q(role=User.Role.EMPLOYEE, assigned_hr=user) | Q(pk=user.pk)).order_by(
-            "first_name", "last_name"
-        )
+        return base.filter(
+            Q(role=User.Role.EMPLOYEE, assigned_hr=user) | Q(pk=user.pk)
+        ).order_by("first_name", "last_name")
     return User.objects.none()
 
 
@@ -154,6 +154,17 @@ def direct_reports_for(user: User) -> QuerySet[User]:
 
 def has_direct_reports(user: User) -> bool:
     return direct_reports_for(user).exists()
+
+
+def is_manager(user: User) -> bool:
+    """Whether the user may access team-management features.
+
+    True for any user with active direct reports — leading a team is a
+    capability derived from the reporting hierarchy, not a role.
+    """
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return has_direct_reports(user)
 
 
 def attendance_visible_team_for(user: User) -> QuerySet[User]:
