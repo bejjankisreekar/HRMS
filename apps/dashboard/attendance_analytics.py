@@ -71,7 +71,7 @@ class AnalyticsFilters:
     sort: str = "-date"
 
     @classmethod
-    def from_request(cls, request) -> AnalyticsFilters:
+    def from_request(cls, request, fy: dict | None = None) -> AnalyticsFilters:
         today = timezone.localdate()
         preset = (request.GET.get("range") or "custom").strip()
         preset_dates = _preset_range(preset, today)
@@ -79,8 +79,14 @@ class AnalyticsFilters:
             date_from, date_to = preset_dates
         else:
             preset = "custom"
-            date_from = parse_attendance_date(request.GET.get("from") or str(today.replace(day=1)))
-            date_to = parse_attendance_date(request.GET.get("to") or str(today))
+            if fy:
+                default_from = str(fy["date_from"])
+                default_to = str(min(today, fy["date_to"]))
+            else:
+                default_from = str(today.replace(day=1))
+                default_to = str(today)
+            date_from = parse_attendance_date(request.GET.get("from") or default_from)
+            date_to = parse_attendance_date(request.GET.get("to") or default_to)
         if date_from > date_to:
             date_from, date_to = date_to, date_from
         granularity = (request.GET.get("view") or "monthly").strip().lower()
@@ -982,7 +988,8 @@ def export_rows_xlsx(rows: list[dict]) -> HttpResponse:
 
 
 def get_analytics_context(manager: User, request, use_cache: bool = True) -> dict:
-    filters = AnalyticsFilters.from_request(request)
+    from apps.organizations.fy_utils import get_selected_fy
+    filters = AnalyticsFilters.from_request(request, fy=get_selected_fy(request))
     cache_key = f"att_analytics:{manager.organization_id}:{manager.pk}:{filters.cache_key_suffix()}"
     cached = None
     if use_cache and request.method == "GET" and not request.GET.get("export"):

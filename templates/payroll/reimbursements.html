@@ -1,0 +1,74 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Reimbursements · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="receipt" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Reimbursements</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">Travel, food, internet, fuel, and medical expense claims — approved claims flow into the next payroll run.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <section class="pr-glass lg:col-span-2">
+      <div class="pr-panel-head"><h3 class="text-sm font-bold text-slate-900 dark:text-white">Claims</h3></div>
+      <div class="pr-table-wrap">
+        <table class="pr-table">
+          <thead><tr><th>Employee</th><th>Category</th><th>Description</th><th class="text-right">Amount</th><th>Status</th>{% if is_finance %}<th class="text-right">Actions</th>{% endif %}</tr></thead>
+          <tbody>
+            {% for c in claims %}
+            <tr>
+              <td>{{ c.user.display_name }}</td>
+              <td>{{ c.get_category_display }}</td>
+              <td>{{ c.description }}</td>
+              <td class="text-right">₹{{ c.amount|floatformat:0|intcomma }}</td>
+              <td><span class="pr-badge {% if c.status == 'APPROVED' or c.status == 'PAID' %}pr-badge--paid{% elif c.status == 'REJECTED' %}pr-badge--failed{% else %}pr-badge--pending{% endif %}">{{ c.get_status_display }}</span></td>
+              {% if is_finance %}
+              <td class="text-right">
+                {% if c.status == 'PENDING' %}
+                <form method="post" style="display:inline;">{% csrf_token %}<input type="hidden" name="action" value="approve"><input type="hidden" name="reimbursement_id" value="{{ c.pk }}">
+                  <button type="submit" class="pr-btn-ghost" style="padding:.3rem .6rem;"><i data-lucide="check" class="h-3.5 w-3.5"></i></button></form>
+                <form method="post" style="display:inline;">{% csrf_token %}<input type="hidden" name="action" value="reject"><input type="hidden" name="reimbursement_id" value="{{ c.pk }}">
+                  <button type="submit" class="pr-btn-ghost" style="padding:.3rem .6rem;"><i data-lucide="x" class="h-3.5 w-3.5"></i></button></form>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-slate-500">No reimbursement claims yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if can_claim %}
+    <section class="pr-glass p-5">
+      <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3">Submit a claim</h3>
+      <form method="post" enctype="multipart/form-data" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        <div><label class="pr-filter-label">Category</label>{{ form.category }}</div>
+        <div><label class="pr-filter-label">Amount</label>{{ form.amount }}</div>
+        <div><label class="pr-filter-label">Description</label>{{ form.description }}</div>
+        <div><label class="pr-filter-label">Receipt</label>{{ form.receipt }}</div>
+        <button type="submit" class="pr-btn-primary w-full justify-center"><i data-lucide="send" class="h-4 w-4"></i> Submit claim</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

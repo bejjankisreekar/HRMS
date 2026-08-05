@@ -700,6 +700,26 @@ def compute_employee_breakdown(salary, factor: Decimal = Decimal("1")) -> dict:
             "total_deductions": ded_total, "net": earn_total - ded_total, "custom": True}
 
 
+def payslip_breakdown(payslip) -> dict:
+    """Earnings/deductions from an actually-processed payslip's own lines — the real
+    figures for that period, as opposed to compute_employee_breakdown()'s projection
+    from the current salary structure."""
+    earnings, deductions = [], []
+    for line in payslip.lines.all():
+        row = {"label": line.label, "amount": line.amount}
+        if line.line_type == SalaryComponent.ComponentType.EARNING:
+            earnings.append(row)
+        else:
+            deductions.append(row)
+    return {
+        "earnings": earnings,
+        "deductions": deductions,
+        "gross": payslip.gross_salary,
+        "total_deductions": payslip.total_deductions,
+        "net": payslip.net_salary,
+    }
+
+
 def employee_payslip_lines(salary, factor: Decimal = Decimal("1")) -> list[dict]:
     """Payslip lines (process_payroll_run format) from per-employee components."""
     bd = compute_employee_breakdown(salary, factor)

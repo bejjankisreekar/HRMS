@@ -1,3 +1,20 @@
+{% if group.collapsible %}
+<div class="hrms-nav-group hrms-nav-group--collapsible" data-nav-group="{{ group.id }}"
+     {% for item in group.items %}{% if item.is_active %}data-expanded="true"{% endif %}{% endfor %}>
+  <button type="button" class="hrms-nav-group__header" data-nav-group-toggle data-sidebar-tooltip="{{ group.title }}" title="{{ group.title }}">
+    <span class="hrms-nav-item__icon"><i data-lucide="wallet" class="h-[18px] w-[18px]"></i></span>
+    <span class="hrms-nav-group__title" data-sidebar-label>{{ group.title }}</span>
+    <span class="hrms-nav-group__chevron" data-sidebar-label aria-hidden="true"><i data-lucide="chevron-down" class="h-4 w-4"></i></span>
+  </button>
+  <div class="hrms-nav-group__items--collapsible">
+    <div class="hrms-nav-group__items--collapsible-inner">
+      {% for item in group.items %}
+        {% include "dashboard/sidebar/_item.html" with item=item %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% else %}
 <div class="hrms-nav-group" data-nav-group="{{ group.id }}">
   <div class="hrms-nav-group__items">
     {% for item in group.items %}
@@ -5,3 +22,4 @@
     {% endfor %}
   </div>
 </div>
+{% endif %}

@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     'apps.leads',
     'apps.grades',
     'apps.team',
+    'apps.documents.apps.DocumentsConfig',
+    'apps.ruleengine.apps.RuleEngineConfig',
 ]
 
 MIDDLEWARE = [

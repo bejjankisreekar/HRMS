@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block extra_head %}
-<meta name="description" content="HRMS Suite — Enterprise cloud HR platform for attendance, payroll, leave, and analytics. Start your free trial today.">
+<meta name="description" content="{% block meta_description %}HRMS Suite — Enterprise cloud HR platform for attendance, payroll, leave, and analytics. Start your free trial today.{% endblock %}">
 <meta name="keywords" content="HRMS, HR software, payroll, attendance, leave management, employee management">
 <meta property="og:title" content="{% block og_title %}HRMS Suite — Modern Enterprise HR Platform{% endblock %}">
 <meta property="og:description" content="Run HR, payroll, attendance and leave from one premium dashboard.">

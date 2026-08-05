@@ -15,6 +15,7 @@ from apps.accounts.role_labels import STAFF_SELF_SERVICE_ROLES
 from apps.dashboard.mixins import OrganizationRequiredMixin
 from apps.organizations.models import Organization
 from apps.organizations.module_utils import ensure_module, plan_includes_module
+from apps.organizations.fy_utils import get_selected_fy
 
 from .apply_utils import build_apply_preview, get_apply_leave_context, leave_request_reference
 
@@ -71,7 +72,8 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         export = request.GET.get("export")
         if export in ("csv", "xlsx"):
-            filters = LeaveFilters.from_request(request)
+            fy = get_selected_fy(request)
+            filters = LeaveFilters.from_request(request, fy=fy)
             rows = table_rows(filtered_requests(request.user, filters))
             if export == "xlsx":
                 from .analytics import export_xlsx
@@ -84,7 +86,7 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
         ):
             from .analytics import balance_report_rows, export_balance_csv, export_balance_xlsx
 
-            rows = balance_report_rows(request.user)
+            rows = balance_report_rows(request.user, fy=get_selected_fy(request))
             if export == "balances_xlsx":
                 return export_balance_xlsx(rows)
             return export_balance_csv(rows)
@@ -343,17 +345,24 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
         if user.role != User.Role.ADMIN:
             ensure_balances_for_user(user)
 
-        filters = LeaveFilters.from_request(self.request)
+        fy = get_selected_fy(self.request)
+        filters = LeaveFilters.from_request(self.request, fy=fy)
         qs = filtered_requests(user, filters)
         paginator = Paginator(table_rows(qs), self.paginate_by)
         page = paginator.get_page(self.request.GET.get("page") or 1)
 
         charts = build_charts(user, filters)
-        cal_year = int(self.request.GET.get("cal_year") or timezone.localdate().year)
+        cal_year = int(self.request.GET.get("cal_year") or (fy["start_year"] if fy else timezone.localdate().year))
         cal_month = int(self.request.GET.get("cal_month") or timezone.localdate().month)
 
-        year = timezone.localdate().year
+        from .models import AttendanceLeaveDeduction
+        year = fy["start_year"] if fy else timezone.localdate().year
         balances = user.leave_balances.filter(year=year).select_related("leave_type")
+        attendance_deductions = (
+            AttendanceLeaveDeduction.objects.filter(user=user, leave_balance__year=year)
+            .select_related("leave_balance__leave_type")
+            .order_by("-attendance_date")[:50]
+        )
         # Admin/HR manage the policy panel, so they also see deactivated types.
         types_qs = LeaveType.objects.filter(organization=org)
         if user.role not in (User.Role.ADMIN, User.Role.HR):
@@ -421,6 +430,7 @@ class LeaveManagementView(OrganizationRequiredMixin, TemplateView):
                 "can_manage_calendar": user.role in (User.Role.ADMIN, User.Role.HR),
                 "org_leave_types": org_leave_types,
                 "today": timezone.localdate(),
+                "attendance_deductions": attendance_deductions,
                 "view_mode": self.request.GET.get("view", "dashboard"),
                 "calendar_weeks": calendar.monthcalendar(cal_year, cal_month),
                 "month_name": calendar.month_name[cal_month],

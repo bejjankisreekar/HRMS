@@ -15,7 +15,7 @@ from apps.accounts.role_labels import STAFF_SELF_SERVICE_ROLES
 from apps.organizations.models import Organization
 
 from .approval_policy import build_approval_chain_steps
-from .models import Holiday, LeaveApproval, LeaveBalance, LeaveRequest, LeaveType
+from .models import AttendanceLeaveDeduction, Holiday, LeaveApproval, LeaveBalance, LeaveRequest, LeaveType
 from .notifications import (
     dismiss_leave_notifications,
     notify_leave_cancelled,
@@ -207,6 +207,24 @@ def calculate_leave_days(
     return days
 
 
+def get_fy_year_for_date(org: Organization, d: date) -> int:
+    """Return the FY start_year that contains the given date for the org.
+
+    Tries DB-based FinancialYear records first, falls back to calculation.
+    """
+    try:
+        from apps.organizations.models import FinancialYear
+        fy = FinancialYear.objects.filter(
+            organization=org, start_date__lte=d, end_date__gte=d
+        ).order_by("-start_date").first()
+        if fy:
+            return fy.start_date.year
+    except Exception:
+        pass
+    from apps.organizations.financial_year import get_fy
+    return get_fy(org, d)["start_year"]
+
+
 def _allocated_for_type(leave_type: LeaveType) -> Decimal:
     if leave_type.annual_quota is None:
         return Decimal("0")
@@ -214,9 +232,10 @@ def _allocated_for_type(leave_type: LeaveType) -> Decimal:
 
 
 def ensure_balances_for_user(user: User, year: int | None = None) -> None:
-    year = year or timezone.localdate().year
     if not user.organization_id:
         return
+    if year is None:
+        year = get_fy_year_for_date(user.organization, timezone.localdate())
     for lt in LeaveType.objects.filter(organization=user.organization, is_active=True):
         if not lt.is_applicable_to(user):
             continue
@@ -230,7 +249,7 @@ def ensure_balances_for_user(user: User, year: int | None = None) -> None:
 
 def sync_org_staff_balances(organization: Organization, leave_type: LeaveType | None = None) -> None:
     """Create/update balance rows for all HR/employees when policies are added."""
-    year = timezone.localdate().year
+    year = get_fy_year_for_date(organization, timezone.localdate())
     staff = User.objects.filter(
         organization=organization,
         is_active=True,
@@ -251,7 +270,8 @@ def sync_org_staff_balances(organization: Organization, leave_type: LeaveType | 
 
 
 def get_balance(user: User, leave_type: LeaveType, year: int | None = None) -> LeaveBalance:
-    year = year or timezone.localdate().year
+    if year is None:
+        year = get_fy_year_for_date(user.organization, timezone.localdate())
     ensure_balances_for_user(user, year)
     bal, _ = LeaveBalance.objects.get_or_create(
         user=user,
@@ -404,6 +424,12 @@ def submit_leave_request(
     )
     if not as_draft:
         create_approval_chain(req)
+        try:
+            from apps.ruleengine.hooks import on_leave_requested
+
+            on_leave_requested(req)
+        except Exception:
+            pass
         if req.status == LeaveRequest.Status.APPROVED:
             return req, "Leave request auto-approved."
         notify_leave_submitted(req)
@@ -476,3 +502,101 @@ def cancel_leave(leave_request: LeaveRequest, user: User) -> str:
     if was_pending:
         notify_leave_cancelled(leave_request)
     return "Leave cancelled."
+
+
+# ── Absent attendance → leave balance deduction ───────────────────────────────
+
+def apply_absent_deduction(record) -> None:
+    """Deduct leave balance when an attendance record is marked Absent/Half-Day.
+
+    Cascades through the org's priority list of leave types: deducts from the first
+    type that has remaining balance, then splits into the next type if that one is
+    exhausted, continuing until the full day (or 0.5 for half-day) is covered or
+    all configured leave types are exhausted.
+
+    Called from the AttendanceRecord post_save signal after reverse_absent_deduction
+    so it is always idempotent.
+    """
+    from apps.attendance.models import AttendanceRecord
+
+    org = getattr(record.user, "organization", None)
+    if not org:
+        return
+
+    policy = getattr(org, "absent_attendance_policy", "NONE")
+    if policy == "NONE":
+        return
+
+    if record.status == AttendanceRecord.Status.ABSENT:
+        total_days = Decimal("1.0")
+    elif record.status == AttendanceRecord.Status.HALF_DAY:
+        total_days = Decimal("0.5")
+    else:
+        return
+
+    year = get_fy_year_for_date(org, record.date)
+
+    if policy == "LOP":
+        leave_type = LeaveType.objects.filter(
+            organization=org, code="loss-of-pay"
+        ).first()
+        if not leave_type:
+            return
+        priority_ids = [str(leave_type.pk)]
+    else:  # LEAVE
+        priority_ids = list(getattr(org, "absent_leave_type_priorities", None) or [])
+        if not priority_ids:
+            return
+
+    # Fetch all leave types in one query preserving priority order
+    lt_map = {
+        str(lt.pk): lt
+        for lt in LeaveType.objects.filter(pk__in=priority_ids, organization=org)
+    }
+
+    remaining = total_days
+    with transaction.atomic():
+        for lt_id in priority_ids:
+            if remaining <= Decimal("0"):
+                break
+            leave_type = lt_map.get(lt_id)
+            if not leave_type:
+                continue
+            bal = get_balance(record.user, leave_type, year)
+            available = bal.remaining  # property: allocated - used
+            if available <= Decimal("0"):
+                continue
+            deduct = min(available, remaining)
+            AttendanceLeaveDeduction.objects.create(
+                attendance_record_id=record.pk,
+                user=record.user,
+                leave_balance=bal,
+                days=deduct,
+                attendance_date=record.date,
+            )
+            bal.used = bal.used + deduct
+            bal.save(update_fields=["used"])
+            remaining -= deduct
+
+
+def reverse_absent_deduction(record_id) -> None:
+    """Undo all absent deductions for the given AttendanceRecord PK.
+
+    A single absence can produce multiple deduction rows (one per leave type when
+    the day is split across the priority chain), so we reverse all of them.
+    """
+    deductions = list(
+        AttendanceLeaveDeduction.objects.filter(
+            attendance_record_id=record_id
+        ).select_related("leave_balance")
+    )
+    if not deductions:
+        return
+    with transaction.atomic():
+        for deduction in deductions:
+            bal = deduction.leave_balance
+            bal.used = max(Decimal("0"), bal.used - deduction.days)
+            bal.save(update_fields=["used"])
+        AttendanceLeaveDeduction.objects.filter(
+            attendance_record_id=record_id
+        ).delete()

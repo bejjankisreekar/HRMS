@@ -12,13 +12,14 @@ from apps.organizations.models import Department, Organization
 from .attendance_utils import get_team_attendance_rows, summarize_team_rows
 
 
-def get_org_admin_dashboard_data(admin: User) -> dict:
+def get_org_admin_dashboard_data(admin: User, fy: dict | None = None) -> dict:
     org: Organization | None = admin.organization
     if not org:
         return {}
 
     today = timezone.localdate()
     month_start = today.replace(day=1)
+    fy_start = fy["date_from"] if fy else month_start
 
     org_users = User.objects.filter(organization=org).exclude(role=User.Role.SUPER_ADMIN)
     active = org_users.filter(is_active=True)
@@ -31,7 +32,7 @@ def get_org_admin_dashboard_data(admin: User) -> dict:
         "total_active": active.count(),
         "inactive": org_users.filter(is_active=False).count(),
         "unassigned_hr": employees_qs.filter(assigned_hr__isnull=True).count(),
-        "joined_this_month": org_users.filter(date_joined__date__gte=month_start).count(),
+        "joined_this_month": org_users.filter(date_joined__date__gte=fy_start).count(),
     }
 
     team_rows = get_team_attendance_rows(admin, today)

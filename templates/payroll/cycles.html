@@ -1,0 +1,41 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras %}
+{% block title %}Payroll Cycles · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="repeat" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Payroll Cycles</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">Configure how often payroll runs and the key cutoff dates.</p>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" class="pr-glass p-6 max-w-2xl space-y-4">
+    {% csrf_token %}
+    <div>
+      <label class="pr-filter-label">Frequency</label>
+      {{ form.frequency }}
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="pr-filter-label">Payroll processing day (of month)</label>{{ form.payroll_day }}</div>
+      <div><label class="pr-filter-label">Salary credit day</label>{{ form.salary_day }}</div>
+      <div><label class="pr-filter-label">Attendance cutoff day</label>{{ form.attendance_cutoff_day }}</div>
+      <div><label class="pr-filter-label">Leave cutoff day</label>{{ form.leave_cutoff_day }}</div>
+      <div><label class="pr-filter-label">Approval deadline day</label>{{ form.approval_deadline_day }}</div>
+    </div>
+    <button type="submit" class="pr-btn-primary"><i data-lucide="save" class="h-4 w-4"></i> Save cycle configuration</button>
+  </form>
+</div>
+{% endblock %}

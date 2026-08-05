@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from apps.subscriptions.models import (
     AddOnCatalog,
+    BillingSettings,
     FeatureCategory,
     FeatureDefinition,
     FeatureType,
     Plan,
     PlanFeature,
 )
-
-YEARLY_SAVINGS_PERCENT = 17
 
 # Plan slug shown as "Most popular" on marketing site
 FEATURED_PLAN_SLUG = "growth"
@@ -222,7 +221,7 @@ def get_pricing_page_context() -> dict:
         "comparison_features": comparison_features,
         "pricing_matrix": matrix,
         "pricing_addons": get_marketing_addons(),
-        "yearly_savings_percent": YEARLY_SAVINGS_PERCENT,
+        "yearly_savings_percent": BillingSettings.get_solo().yearly_discount_percent,
         # Static content retained
         "pricing_faq": _PRICING_FAQ,
         "trust_items": _TRUST_ITEMS,

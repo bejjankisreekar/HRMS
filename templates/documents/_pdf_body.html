@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { margin: 2cm 2.5cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 11pt; color: #1a1a2e; line-height: 1.7; }
+  .header { border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .org-logo { max-height: 60px; max-width: 180px; }
+  .org-name { font-size: 16pt; font-weight: bold; color: #4f46e5; }
+  .org-meta { font-size: 9pt; color: #64748b; margin-top: 2px; }
+  .doc-title { font-size: 13pt; font-weight: bold; text-align: center; margin: 20px 0 10px; color: #1e1b4b; text-transform: uppercase; letter-spacing: 1px; }
+  .date-line { text-align: right; color: #64748b; font-size: 9.5pt; margin-bottom: 18px; }
+  .body-content p { margin: 0 0 12px; }
+  .body-content strong { color: #1e1b4b; }
+  .body-content ul, .body-content ol { margin: 8px 0 12px 20px; }
+  .sig-block { margin-top: 48px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+  .sig-row { display: flex; justify-content: space-between; margin-top: 32px; }
+  .sig-col { width: 44%; }
+  .sig-line { border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 9pt; color: #64748b; }
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e2e8f0; padding: 6px 0; font-size: 8pt; color: #94a3b8; text-align: center; }
+  .confidential { font-size: 8pt; color: #94a3b8; text-align: center; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    {% if logo_src %}
+      <img src="{{ logo_src }}" class="org-logo" alt="{{ org.name }}">
+    {% else %}
+      <div class="org-name">{{ org.name }}</div>
+    {% endif %}
+    <div class="org-meta">{{ org.city }}{% if org.city and org.state %}, {% endif %}{{ org.state }}{% if org.official_email %} · {{ org.official_email }}{% endif %}{% if org.official_phone %} · {{ org.official_phone }}{% endif %}</div>
+  </div>
+  <div style="text-align:right;">
+    <div class="org-name" style="font-size:11pt;">{{ org.name }}</div>
+    {% if org.gst_number %}<div class="org-meta">GST: {{ org.gst_number }}</div>{% endif %}
+    {% if org.registration_number %}<div class="org-meta">Reg: {{ org.registration_number }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="doc-title">{{ template_type }}</div>
+<div class="date-line">Date: {{ generated_date }}</div>
+
+<div class="body-content">
+  {{ body|safe }}
+</div>
+
+{% if include_signature %}
+<div class="sig-block">
+  <div class="sig-row">
+    <div class="sig-col">
+      <div class="sig-line">Authorised Signatory<br>{{ org.name }}</div>
+    </div>
+    <div class="sig-col" style="text-align:right;">
+      <div class="sig-line">Employee Acknowledgement<br>{{ employee.display_name }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="confidential">This document is confidential and intended solely for the named recipient.</div>
+
+<div class="footer">{{ org.name }} · Generated on {{ generated_date }}</div>
+</body>
+</html>

@@ -1,8 +1,8 @@
 {% extends "dashboard/_shell.html" %}
-{% load static %}
+{% load static static_extras %}
 {% block title %}Payroll Management · HRMS{% endblock %}
 {% block dashboard_extra_head %}
-<link rel="stylesheet" href="{% static 'payroll.css' %}">
+<link rel="stylesheet" href="{% static_v 'payroll.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script>window.PAYROLL_CHARTS = {{ charts_json|safe }};</script>
 <script src="{% static 'payroll.js' %}" defer></script>

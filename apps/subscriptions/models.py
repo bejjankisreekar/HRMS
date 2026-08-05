@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
 from django.db import models
@@ -78,6 +78,33 @@ class Plan(models.Model):
     @property
     def monthly_mrr_contribution(self) -> Decimal:
         return self.monthly_price_inr
+
+
+class BillingSettings(models.Model):
+    """Platform-wide billing config — single row (id=1). Edited from Super Admin."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    yearly_discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("17"))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Billing settings"
+        verbose_name_plural = "Billing settings"
+
+    def save(self, *args, **kwargs):
+        self.id = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls) -> "BillingSettings":
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
+
+    def compute_yearly_price(self, monthly_price_inr: Decimal) -> Decimal:
+        """Yearly price = monthly × 12, discounted by yearly_discount_percent, rounded to the nearest rupee."""
+        factor = (Decimal("100") - self.yearly_discount_percent) / Decimal("100")
+        yearly = Decimal(monthly_price_inr) * 12 * factor
+        return yearly.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
 class Coupon(models.Model):
@@ -356,6 +383,10 @@ class NavigationItem(models.Model):
     url_name = models.CharField(max_length=120)
     query_string = models.CharField(max_length=200, blank=True)
     feature_key = models.CharField(max_length=60, blank=True)
+    group_label = models.CharField(
+        max_length=40, blank=True,
+        help_text="When set, items sharing this label render as a collapsible sidebar section instead of a flat item.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     is_visible = models.BooleanField(default=True)
     audience = models.CharField(max_length=20, choices=MenuAudience.choices, default=MenuAudience.ADMIN)
@@ -484,6 +515,10 @@ class PlanMenuItem(models.Model):
     url_name = models.CharField(max_length=120)
     query_string = models.CharField(max_length=200, blank=True)
     feature_key = models.CharField(max_length=60, blank=True)
+    group_label = models.CharField(
+        max_length=40, blank=True,
+        help_text="When set, items sharing this label render as a collapsible sidebar section instead of a flat item.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     is_enabled = models.BooleanField(default=True)
     audience = models.CharField(max_length=20, choices=MenuAudience.choices, default=MenuAudience.ADMIN)

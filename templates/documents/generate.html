@@ -1,0 +1,150 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Generate Document · HRMS{% endblock %}
+
+{% block dashboard_extra_head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+<style>
+.gen-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.5rem;}
+.dark .gen-card{background:#1e293b;border-color:#334155;}
+.gen-label{display:block;font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:.35rem;}
+.gen-input{width:100%;border:1px solid #e2e8f0;border-radius:.5rem;padding:.5rem .75rem;font-size:.875rem;background:#fff;color:#0f172a;transition:border-color .12s;}
+.gen-input:focus{outline:none;border-color:#818cf8;}
+.dark .gen-input{background:#0f172a;border-color:#334155;color:#e2e8f0;}
+.dark .gen-input:focus{border-color:#6366f1;}
+.tmpl-card{border:2px solid #e2e8f0;border-radius:.75rem;padding:.875rem 1rem;cursor:pointer;transition:all .12s;}
+.tmpl-card:hover,.tmpl-card.selected{border-color:#6366f1;background:#f5f3ff;}
+.dark .tmpl-card{border-color:#334155;}
+.dark .tmpl-card:hover,.dark .tmpl-card.selected{border-color:#6366f1;background:#1e1b4b30;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6" x-data="genForm()">
+
+  <div class="flex items-center gap-3">
+    <a href="{% url 'documents:management' %}" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+      <i data-lucide="arrow-left" class="h-5 w-5"></i>
+    </a>
+    <h1 class="text-xl font-bold text-slate-900 dark:text-white">Generate Document</h1>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ msg }}</div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+
+    <!-- Step 1: Select Template -->
+    <div class="gen-card space-y-4 mb-4">
+      <h2 class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">1</span>
+        Select Template
+      </h2>
+
+      <div class="flex gap-2 flex-wrap mb-2">
+        {% for val, label in template_types %}
+        <button type="button" @click="filterType='{{ val }}'" :class="filterType==='{{ val }}'?'bg-indigo-600 text-white':'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'" class="rounded-lg px-3 py-1 text-xs font-medium">{{ label }}</button>
+        {% endfor %}
+        <button type="button" @click="filterType=''" :class="filterType===''?'bg-indigo-600 text-white':'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'" class="rounded-lg px-3 py-1 text-xs font-medium">All</button>
+      </div>
+
+      <input type="hidden" name="template" :value="selectedTemplate">
+      <div class="grid gap-2 sm:grid-cols-2">
+        {% for tmpl in templates %}
+        <div class="tmpl-card"
+          :class="selectedTemplate==='{{ tmpl.pk }}'?'selected':''"
+          x-show="filterType==='' || filterType==='{{ tmpl.template_type }}'"
+          @click="selectedTemplate='{{ tmpl.pk }}'">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wide text-indigo-500">{{ tmpl.get_template_type_display }}</span>
+              <p class="font-semibold text-slate-900 dark:text-white text-sm mt-0.5">{{ tmpl.name }}</p>
+              {% if tmpl.description %}<p class="text-xs text-slate-400 mt-0.5">{{ tmpl.description }}</p>{% endif %}
+            </div>
+            <div x-show="selectedTemplate==='{{ tmpl.pk }}'" class="shrink-0 ml-2">
+              <i data-lucide="check-circle-2" class="h-5 w-5 text-indigo-600"></i>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="col-span-2 text-center text-sm text-slate-500 py-6">No active templates. <a href="{% url 'documents:template_create' %}" class="text-indigo-600 underline">Create one</a>.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Step 2: Select Employee -->
+    {% if employees|length > 1 %}
+    <div class="gen-card space-y-3 mb-4">
+      <h2 class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">2</span>
+        Select Employee
+      </h2>
+      <div>
+        <label class="gen-label">Employee</label>
+        <select name="employee" class="gen-input">
+          <option value="">Choose employee…</option>
+          {% for emp in employees %}
+          <option value="{{ emp.pk }}" {% if preselect_employee == emp.pk|stringformat:'s' %}selected{% endif %}>
+            {{ emp.display_name }}{% if emp.employee_id %} ({{ emp.employee_id }}){% endif %} – {{ emp.designation|default:emp.get_role_display }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% else %}
+    <input type="hidden" name="employee" value="{{ employees.0.pk }}">
+    {% endif %}
+
+    <!-- Step 3: Extra context (shown for certain types) -->
+    <div class="gen-card space-y-4 mb-4">
+      <h2 class="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">{% if employees|length > 1 %}3{% else %}2{% endif %}</span>
+        Additional Details <span class="text-xs font-normal text-slate-400 ml-2">(leave blank if not applicable)</span>
+      </h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label class="gen-label">Last Working Day</label>
+          <input type="date" name="last_working_day" class="gen-input">
+        </div>
+        <div>
+          <label class="gen-label">Effective Date</label>
+          <input type="date" name="effective_date" class="gen-input">
+        </div>
+        <div>
+          <label class="gen-label">New Salary (₹ per annum)</label>
+          <input type="number" name="new_salary" class="gen-input" placeholder="e.g. 800000">
+        </div>
+        <div>
+          <label class="gen-label">New Designation</label>
+          <input type="text" name="new_designation" class="gen-input" placeholder="e.g. Senior Engineer">
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <a href="{% url 'documents:management' %}" class="rounded-lg border border-slate-200 dark:border-slate-600 px-5 py-2 text-sm font-medium text-slate-600 dark:text-slate-300">Cancel</a>
+      <button type="submit" class="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="!selectedTemplate">
+        <i data-lucide="file-plus" class="inline h-4 w-4 mr-1"></i>Generate &amp; Download
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+function genForm() {
+  return {
+    selectedTemplate: '{{ preselect_template|default:'' }}',
+    filterType: '',
+    init() {
+      {% if preselect_template %}
+      // Find the type of preselected template and set filter
+      {% endif %}
+    }
+  };
+}
+</script>
+{% endblock %}

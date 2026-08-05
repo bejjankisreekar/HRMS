@@ -1,8 +1,8 @@
 {% extends "dashboard/_shell.html" %}
-{% load static %}
+{% load static static_extras %}
 {% block title %}Bulk Salary Structures · Payroll{% endblock %}
 {% block dashboard_extra_head %}
-<link rel="stylesheet" href="{% static 'payroll.css' %}">
+<link rel="stylesheet" href="{% static_v 'payroll.css' %}">
 <style>
   .bsg-wrap { overflow-x: auto; }
   .bsg-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }

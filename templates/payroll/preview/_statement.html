@@ -1,0 +1,69 @@
+{# Statement payslip preview — 4-column table, amount in words, signatures.
+   Context: payslip, organization, line_pairs, net_in_words. #}
+<article class="pr-glass p-8 text-slate-900 dark:text-slate-100">
+  <div class="text-center">
+    <h1 class="text-xl font-bold">Payslip</h1>
+    <p class="text-sm">{{ organization.name }}</p>
+    {% if organization.address %}<p class="text-xs text-slate-500">{{ organization.address }}</p>{% endif %}
+  </div>
+
+  <div class="mt-6 grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+    <div class="flex"><span class="w-36 text-slate-500">Date of Joining</span><span>: {% if payslip.user.date_of_joining %}{{ payslip.user.date_of_joining|date:"Y-m-d" }}{% else %}{{ payslip.user.date_joined|date:"Y-m-d" }}{% endif %}</span></div>
+    <div class="flex"><span class="w-36 text-slate-500">Employee name</span><span>: {{ payslip.user.display_name }}</span></div>
+    <div class="flex"><span class="w-36 text-slate-500">Pay Period</span><span>: {{ payslip.payroll_run.period_label }}</span></div>
+    <div class="flex"><span class="w-36 text-slate-500">Designation</span><span>: {{ payslip.user.designation|default:"—" }}</span></div>
+    <div class="flex"><span class="w-36 text-slate-500">Worked Days</span><span>: {{ payslip.attendance_days }}</span></div>
+    <div class="flex"><span class="w-36 text-slate-500">Department</span><span>: {{ payslip.user.department_name|default:"—" }}</span></div>
+  </div>
+
+  <table class="mt-6 w-full border border-slate-400 text-sm dark:border-white/30">
+    <thead>
+      <tr class="bg-slate-200 text-center dark:bg-white/10">
+        <th class="border border-slate-400 px-3 py-1.5 dark:border-white/30">Earnings</th>
+        <th class="border border-slate-400 px-3 py-1.5 dark:border-white/30">Amount</th>
+        <th class="border border-slate-400 px-3 py-1.5 dark:border-white/30">Deductions</th>
+        <th class="border border-slate-400 px-3 py-1.5 dark:border-white/30">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e, d in line_pairs %}
+      <tr>
+        <td class="border-x border-slate-400 px-3 py-1 dark:border-white/30">{% if e %}{{ e.label }}{% endif %}</td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right dark:border-white/30">{% if e %}{{ e.amount|floatformat:"-2" }}{% endif %}</td>
+        <td class="border-x border-slate-400 px-3 py-1 dark:border-white/30">{% if d %}{{ d.label }}{% endif %}</td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right dark:border-white/30">{% if d %}{{ d.amount|floatformat:"-2" }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+      <tr class="border-t border-slate-400 dark:border-white/30">
+        <td class="border-x border-slate-400 px-3 py-1 text-right font-semibold dark:border-white/30">Total Earnings</td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right dark:border-white/30">{{ payslip.gross_salary|floatformat:"-2" }}</td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right font-semibold dark:border-white/30">Total Deductions</td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right dark:border-white/30">{{ payslip.total_deductions|floatformat:"-2" }}</td>
+      </tr>
+      <tr>
+        <td class="border-x border-slate-400 px-3 py-1 dark:border-white/30"></td>
+        <td class="border-x border-slate-400 px-3 py-1 dark:border-white/30"></td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right font-semibold dark:border-white/30">Net Pay</td>
+        <td class="border-x border-slate-400 px-3 py-1 text-right dark:border-white/30">{{ payslip.net_salary|floatformat:"-2" }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="mt-6 text-center">
+    <p>{{ payslip.net_salary|floatformat:"-2" }}</p>
+    <p class="text-sm">{{ net_in_words }}</p>
+  </div>
+
+  <div class="mt-12 grid grid-cols-2 gap-8 text-sm">
+    <div>
+      <p>Employer Signature</p>
+      <div class="mt-10 border-t border-slate-500"></div>
+    </div>
+    <div>
+      <p>Employee Signature</p>
+      <div class="mt-10 border-t border-slate-500"></div>
+    </div>
+  </div>
+
+  <p class="mt-10 text-center text-sm text-slate-600 dark:text-slate-400">This is system generated payslip</p>
+</article>

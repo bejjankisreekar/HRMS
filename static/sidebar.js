@@ -81,4 +81,40 @@
     }
   });
 
+  /* Collapsible nav groups (e.g. Payroll section) */
+  function navGroupStorageKey(groupId) {
+    return `hrms-nav-group-expanded:${groupId}`;
+  }
+
+  document.querySelectorAll("[data-nav-group-toggle]").forEach((btn) => {
+    const group = btn.closest("[data-nav-group]");
+    if (!group) return;
+    const groupId = group.getAttribute("data-nav-group");
+    const stored = window.localStorage.getItem(navGroupStorageKey(groupId));
+    const expanded = stored !== null ? stored === "1" : group.hasAttribute("data-expanded");
+    if (expanded) {
+      group.setAttribute("data-expanded", "true");
+    } else {
+      group.removeAttribute("data-expanded");
+    }
+    btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+  });
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-nav-group-toggle]");
+    if (!btn) return;
+    e.preventDefault();
+    const group = btn.closest("[data-nav-group]");
+    if (!group) return;
+    const groupId = group.getAttribute("data-nav-group");
+    const isExpanded = group.getAttribute("data-expanded") === "true";
+    if (isExpanded) {
+      group.removeAttribute("data-expanded");
+    } else {
+      group.setAttribute("data-expanded", "true");
+    }
+    btn.setAttribute("aria-expanded", isExpanded ? "false" : "true");
+    window.localStorage.setItem(navGroupStorageKey(groupId), isExpanded ? "0" : "1");
+  });
+
 })();

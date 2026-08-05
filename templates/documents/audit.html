@@ -1,0 +1,54 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Document Audit Log · HRMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-6">
+
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <a href="{% url 'documents:management' %}" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+        <i data-lucide="arrow-left" class="h-5 w-5"></i>
+      </a>
+      <h1 class="text-xl font-bold text-slate-900 dark:text-white">Document Audit Log</h1>
+    </div>
+  </div>
+
+  <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 dark:bg-slate-800">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Action</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actor</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Summary</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">IP</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+        {% for log in logs %}
+        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold
+              {% if 'GENERATE' in log.action %}bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400
+              {% elif 'DELETE' in log.action %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+              {% elif 'EDIT' in log.action or 'RESTORE' in log.action %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+              {% else %}bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300{% endif %}">
+              {{ log.get_action_display }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
+            {{ log.actor.display_name|default:"System" }}
+          </td>
+          <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{{ log.summary }}</td>
+          <td class="px-4 py-3 text-slate-400 text-xs">{{ log.ip_address|default:"–" }}</td>
+          <td class="px-4 py-3 text-slate-500 text-xs">{{ log.created_at|date:"d M Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No audit events yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

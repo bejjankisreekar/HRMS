@@ -138,7 +138,8 @@ class ProfessionalAdminDashboardView(AdminRequiredMixin, TemplateView):
         from .attendance_overview import attendance_overview_widget
 
         context = super().get_context_data(**kwargs)
-        context.update(get_professional_dashboard_context(self.request.user))
+        from apps.organizations.fy_utils import get_selected_fy
+        context.update(get_professional_dashboard_context(self.request.user, fy=get_selected_fy(self.request)))
         try:
             context["attendance_overview"] = attendance_overview_widget(self.request.user)
         except Exception:
@@ -273,19 +274,6 @@ class FinancialYearSettingsView(AdminRequiredMixin, TemplateView):
         return ctx
 
 
-class SetFinancialYearView(LoginRequiredMixin, View):
-    """POST-only: persist the selected Financial Year in the user's session."""
-
-    def post(self, request, *args, **kwargs):
-        try:
-            start_year = int(request.POST.get("fy_start_year", ""))
-            if 2000 <= start_year <= 2100:
-                request.session["selected_fy_start_year"] = start_year
-        except (ValueError, TypeError):
-            pass
-        next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
-        return redirect(next_url)
-
 
 class ModuleSettingsView(AdminRequiredMixin, TemplateView):
     """Admin: enable or disable leave and payroll modules for the org."""
@@ -318,6 +306,73 @@ class ModuleSettingsView(AdminRequiredMixin, TemplateView):
             org.save(update_fields=updates)
             messages.success(request, "HR module settings saved.")
         return redirect("dashboard:module_settings")
+
+
+class StaffEmailCheckView(AdminOrHRRequiredMixin, View):
+    """AJAX: check if an email is already in use and return the existing user's info."""
+
+    def get(self, request, *args, **kwargs):
+        from django.http import JsonResponse
+        email = request.GET.get("email", "").lower().strip()
+        if not email:
+            return JsonResponse({"exists": False})
+        org = request.user.organization
+        exclude_pk = request.GET.get("exclude")  # current user pk when editing
+        qs = User.objects.filter(email__iexact=email, organization=org)
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        user = qs.select_related().first()
+        if not user:
+            return JsonResponse({"exists": False})
+        return JsonResponse({
+            "exists": True,
+            "name": user.display_name or user.get_full_name() or user.email,
+            "employee_id": user.employee_id or "",
+        })
+
+
+class StaffQuickCreateView(AdminOrHRRequiredMixin, View):
+    """AJAX endpoint: create Department / Job Grade / Designation inline from staff create form."""
+
+    def post(self, request, *args, **kwargs):
+        from django.http import JsonResponse
+        from apps.organizations.models import Department
+        from apps.grades.models import Grade, GradeStatus, Designation
+
+        kind = kwargs.get("kind")
+        org = request.user.organization
+        name = request.POST.get("name", "").strip()
+        if not name:
+            return JsonResponse({"ok": False, "error": "Name is required."})
+
+        try:
+            if kind == "department":
+                obj, created = Department.objects.get_or_create(
+                    organization=org, name=name,
+                    defaults={"is_active": True},
+                )
+                return JsonResponse({"ok": True, "id": str(obj.pk), "name": obj.name, "created": created})
+
+            elif kind == "job-grade":
+                obj = Grade.objects.create(
+                    organization=org,
+                    name=name,
+                    status=GradeStatus.ACTIVE,
+                )
+                return JsonResponse({"ok": True, "id": str(obj.pk), "name": obj.name, "created": True})
+
+            elif kind == "designation":
+                obj = Designation.objects.create(
+                    organization=org,
+                    name=name,
+                    status=GradeStatus.ACTIVE,
+                )
+                return JsonResponse({"ok": True, "id": str(obj.pk), "name": obj.name, "created": True})
+
+        except Exception as exc:
+            return JsonResponse({"ok": False, "error": str(exc)})
+
+        return JsonResponse({"ok": False, "error": "Unknown type."})
 
 
 class StaffCreateView(AdminOrHRRequiredMixin, FormView):
@@ -816,8 +871,9 @@ class AttendanceSettingsView(AdminRequiredMixin, TemplateView):
         from apps.organizations.models import Organization
 
         org = request.user.organization
+        action = request.POST.get("action")
 
-        if request.POST.get("action") == "save_mode":
+        if action == "save_mode":
             mode = request.POST.get("attendance_mode")
             if mode not in Organization.AttendanceMode.values:
                 mode = Organization.AttendanceMode.TIME_BASED
@@ -829,6 +885,31 @@ class AttendanceSettingsView(AdminRequiredMixin, TemplateView):
             )
             return redirect("dashboard:attendance_settings")
 
+        if action == "save_absent_policy":
+            from apps.leaves.models import LeaveType
+            policy = request.POST.get("absent_attendance_policy", "NONE")
+            if policy not in Organization.AbsentAttendancePolicy.values:
+                policy = "NONE"
+            org.absent_attendance_policy = policy
+
+            # Ordered list from the priority builder (hidden inputs: leave_priority_ids[])
+            raw_ids = request.POST.getlist("leave_priority_ids[]")
+            if policy == "LEAVE" and raw_ids:
+                valid_pks = set(
+                    str(pk) for pk in LeaveType.objects.filter(
+                        pk__in=raw_ids, organization=org
+                    ).values_list("pk", flat=True)
+                )
+                org.absent_leave_type_priorities = [
+                    pid for pid in raw_ids if pid in valid_pks
+                ]
+            else:
+                org.absent_leave_type_priorities = []
+
+            org.save(update_fields=["absent_attendance_policy", "absent_leave_type_priorities", "updated_at"])
+            messages.success(request, "Absent attendance policy saved.")
+            return redirect("dashboard:attendance_settings")
+
         org.hr_self_in_mark_attendance = request.POST.get("hr_self_in_mark_attendance") == "on"
         org.save(update_fields=["hr_self_in_mark_attendance", "updated_at"])
         label = "shown" if org.hr_self_in_mark_attendance else "hidden"
@@ -836,8 +917,30 @@ class AttendanceSettingsView(AdminRequiredMixin, TemplateView):
         return redirect("dashboard:attendance_settings")
 
     def get_context_data(self, **kwargs):
+        from apps.leaves.models import LeaveType
         context = super().get_context_data(**kwargs)
-        context["organization"] = self.request.user.organization
+        org = self.request.user.organization
+        context["organization"] = org
+        context["absent_policy_choices"] = org.AbsentAttendancePolicy.choices
+
+        all_leave_types = list(
+            LeaveType.objects.filter(organization=org, is_active=True)
+            .order_by("sort_order", "name")
+        )
+        # Build the saved priority list as ordered dicts for template rendering
+        lt_map = {str(lt.pk): lt for lt in all_leave_types}
+        saved_ids = list(org.absent_leave_type_priorities or [])
+        priority_list = [
+            {"id": pid, "name": lt_map[pid].name, "quota": lt_map[pid].annual_quota}
+            for pid in saved_ids
+            if pid in lt_map
+        ]
+        # Available = those not yet in the priority list
+        used_ids = set(saved_ids)
+        available_types = [lt for lt in all_leave_types if str(lt.pk) not in used_ids]
+
+        context["priority_list"] = priority_list
+        context["leave_types_for_absent"] = available_types
         return context
 
 

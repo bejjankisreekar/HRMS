@@ -257,6 +257,110 @@ def clone_shift(shift: WorkShift) -> WorkShift:
     )
 
 
+@transaction.atomic
+def reassign_shift(
+    *,
+    organization: Organization,
+    user: User,
+    new_shift: WorkShift,
+    scope: str,
+    date_from: date | None,
+    date_to: date | None,
+    assigned_by: User,
+    reason: str = "",
+) -> "ShiftChange":
+    """Change an employee's shift for a week, month, custom range, or permanently.
+
+    Scope semantics:
+    - WEEK / MONTH / CUSTOM: creates ShiftAssignment rows for each day in the range.
+    - PERMANENT: updates user.work_shift (the default) and removes conflicting future
+      date-specific assignments so the new default takes effect immediately.
+    """
+    from apps.shifts.models import ShiftChange
+    from django.utils import timezone as tz
+
+    old_shift = get_effective_shift(user)
+
+    if scope == ShiftChange.Scope.PERMANENT:
+        # Update the employee's default shift
+        User.objects.filter(pk=user.pk).update(work_shift=new_shift)
+        user.work_shift = new_shift
+        # Optionally wipe future explicit assignments that contradict the new default
+        today = tz.localdate()
+        ShiftAssignment.objects.filter(user=user, date__gte=today).delete()
+    else:
+        if not date_from or not date_to:
+            raise ValueError("date_from and date_to are required for non-permanent scope.")
+        d = date_from
+        while d <= date_to:
+            ShiftAssignment.objects.update_or_create(
+                user=user,
+                date=d,
+                defaults={
+                    "organization": organization,
+                    "shift": new_shift,
+                    "status": ShiftAssignment.Status.SCHEDULED,
+                    "assigned_by": assigned_by,
+                    "notes": reason,
+                },
+            )
+            d += timedelta(days=1)
+
+    change = ShiftChange.objects.create(
+        organization=organization,
+        user=user,
+        old_shift=old_shift,
+        new_shift=new_shift,
+        scope=scope,
+        date_from=date_from,
+        date_to=date_to,
+        reason=reason,
+        assigned_by=assigned_by,
+    )
+
+    _notify_shift_change(user, change)
+    return change
+
+
+def _notify_shift_change(user: User, change: "ShiftChange") -> None:
+    from apps.dashboard.notification_service import send_notification
+    from apps.shifts.models import ShiftChange
+    from django.urls import reverse
+
+    old_name = change.old_shift.name if change.old_shift else "—"
+    new_name = change.new_shift.name
+
+    if change.scope == ShiftChange.Scope.PERMANENT:
+        period = "for your entire employment"
+    elif change.scope == ShiftChange.Scope.WEEK:
+        period = f"for this week ({change.date_from:%d %b} – {change.date_to:%d %b})"
+    elif change.scope == ShiftChange.Scope.MONTH:
+        period = f"for {change.date_from:%B %Y}"
+    else:
+        period = f"from {change.date_from:%d %b} to {change.date_to:%d %b %Y}"
+
+    try:
+        url = reverse("dashboard:attendance")
+    except Exception:
+        url = "/"
+
+    send_notification(
+        user,
+        channels=("in_app",),
+        source_key=f"shift_change:{change.pk}",
+        title="Shift changed",
+        message=f"Your shift has been changed from {old_name} to {new_name} {period}.",
+        url=url,
+        icon="clock",
+        notification_type="shift",
+        force_unread=True,
+    )
+
+    from django.utils import timezone as tz
+    from apps.shifts.models import ShiftChange as SC
+    SC.objects.filter(pk=change.pk).update(notified_at=tz.now())
+
+
 def sync_overtime_from_attendance(user: User, on_date: date) -> OvertimeRecord | None:
     from apps.dashboard.attendance_analytics import compute_overtime_minutes
 

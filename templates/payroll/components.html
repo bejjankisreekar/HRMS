@@ -1,0 +1,128 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras %}
+{% block title %}Salary Components · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="puzzle" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Salary Components</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">Reusable earning &amp; deduction components used across salary structures and payslips.</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="pr-glass">
+    <div class="pr-panel-head flex items-center justify-between">
+      <h3 class="text-sm font-bold text-slate-900 dark:text-white">Components</h3>
+      <button type="button" class="pr-btn-primary" style="padding:.4rem .8rem;" onclick="openComponentModal()"><i data-lucide="plus" class="h-4 w-4"></i> Add component</button>
+    </div>
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Calculation</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+        <tbody>
+          {% for c in components %}
+          <tr>
+            <td>{{ c.name }}<br><span class="text-xs text-slate-400 font-mono">{{ c.code }}</span></td>
+            <td><span class="pr-component-chip">{{ c.get_component_type_display }}</span></td>
+            <td>{{ c.get_category_display }}</td>
+            <td>{{ c.get_calc_type_display }}{% if c.calc_type == "FIXED" %}: ₹{{ c.default_amount }}{% else %}: {{ c.default_percent }}%{% endif %}</td>
+            <td>{% if c.is_active %}<span class="pr-badge pr-badge--paid">Active</span>{% else %}<span class="pr-badge pr-badge--failed">Inactive</span>{% endif %}</td>
+            <td class="text-right">
+              <button type="button" class="pr-btn-ghost" style="padding:.3rem .6rem;" onclick="editComponent('{{ c.pk }}','{{ c.name|escapejs }}','{{ c.code }}','{{ c.component_type }}','{{ c.category }}','{{ c.calc_type }}','{{ c.default_amount }}','{{ c.default_percent }}',{{ c.is_taxable|yesno:'true,false' }},{{ c.is_statutory|yesno:'true,false' }},{{ c.is_active|yesno:'true,false' }})"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>
+              {% if c.is_active %}
+              <form method="post" style="display:inline;">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="component_id" value="{{ c.pk }}">
+                <button type="submit" class="pr-btn-ghost" style="padding:.3rem .6rem;"><i data-lucide="ban" class="h-3.5 w-3.5"></i></button></form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-slate-500">No components yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- Add / Edit component modal -->
+<div id="component-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" onclick="if(event.target===this)closeComponentModal()">
+  <div class="pr-glass w-full max-w-lg max-h-[90vh] overflow-y-auto p-5" role="dialog" aria-modal="true" aria-labelledby="form-title">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-bold text-slate-900 dark:text-white" id="form-title">Add component</h3>
+      <button type="button" class="pr-btn-ghost" style="padding:.3rem .5rem;" onclick="closeComponentModal()" aria-label="Close"><i data-lucide="x" class="h-4 w-4"></i></button>
+    </div>
+    <form method="post" id="component-form" class="space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="component_id" id="f-id" value="">
+      <div><label class="pr-filter-label">Name</label>{{ form.name }}</div>
+      <div><label class="pr-filter-label">Code</label>{{ form.code }}</div>
+      <div><label class="pr-filter-label">Type</label>{{ form.component_type }}</div>
+      <div><label class="pr-filter-label">Category</label>{{ form.category }}</div>
+      <div><label class="pr-filter-label">Calculation Method</label>{{ form.calc_type }}</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="pr-filter-label">Flat Amount</label>{{ form.default_amount }}</div>
+        <div><label class="pr-filter-label">Percentage</label>{{ form.default_percent }}</div>
+      </div>
+      <div class="flex items-center gap-4 text-xs">
+        <label class="flex items-center gap-1.5">{{ form.is_taxable }} Taxable</label>
+        <label class="flex items-center gap-1.5">{{ form.is_statutory }} Statutory</label>
+        <label class="flex items-center gap-1.5">{{ form.is_active }} Active</label>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="submit" class="pr-btn-primary flex-1 justify-center"><i data-lucide="save" class="h-4 w-4"></i> Save component</button>
+        <button type="button" class="pr-btn-ghost justify-center" onclick="closeComponentModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openComponentModal() {
+  document.getElementById('form-title').textContent = 'Add component';
+  document.getElementById('component-form').reset();
+  document.getElementById('f-id').value = '';
+  showComponentModal();
+}
+function showComponentModal() {
+  const m = document.getElementById('component-modal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+  if (window.lucide) lucide.createIcons();
+}
+function closeComponentModal() {
+  const m = document.getElementById('component-modal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+function editComponent(id, name, code, ctype, cat, calc, amt, pct, taxable, statutory, active) {
+  document.getElementById('form-title').textContent = 'Edit component';
+  document.getElementById('f-id').value = id;
+  const f = document.getElementById('component-form');
+  f.querySelector('[name=name]').value = name;
+  f.querySelector('[name=code]').value = code;
+  f.querySelector('[name=component_type]').value = ctype;
+  f.querySelector('[name=category]').value = cat;
+  f.querySelector('[name=calc_type]').value = calc;
+  f.querySelector('[name=default_amount]').value = amt;
+  f.querySelector('[name=default_percent]').value = pct;
+  f.querySelector('[name=is_taxable]').checked = taxable;
+  f.querySelector('[name=is_statutory]').checked = statutory;
+  f.querySelector('[name=is_active]').checked = active;
+  showComponentModal();
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeComponentModal();
+});
+</script>
+{% endblock %}

@@ -36,10 +36,6 @@
       <div class="flex flex-wrap gap-2">
         <a href="{% url 'dashboard:attendance' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Mark attendance</a>
         <a href="{% url 'attendance:employee_chart' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30"><i data-lucide="bar-chart-3" class="inline h-3.5 w-3.5"></i> Employee Attendance Chart</a>
-        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30"><i data-lucide="download" class="inline h-3.5 w-3.5"></i> CSV</a>
-        <a href="?{{ filter_query }}&export=xlsx" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Excel</a>
-        <button type="button" id="btnExportPdf" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">PDF</button>
-        <button type="button" id="btnPrint" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Print</button>
       </div>
     </div>
   </div>

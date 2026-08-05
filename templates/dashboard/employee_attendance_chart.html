@@ -30,73 +30,71 @@
           <p class="mt-1.5 max-w-2xl text-sm text-violet-100/90">Attendance % per employee for {{ filters.period }} · {{ working_days }} working days.</p>
         </div>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30"><i data-lucide="download" class="inline h-3.5 w-3.5"></i> Export CSV</a>
-        <a href="?{{ filter_query }}&export=xlsx" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export Excel</a>
+      <div class="flex flex-wrap justify-end gap-2">
         <button type="button" onclick="window.print()" class="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50">Export PDF</button>
       </div>
     </div>
   </div>
 
   <!-- Filters -->
-  <form method="get" class="ar-glass ar-no-print p-5">
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Month</label>
-        <select name="month" class="ar-input">
+  <form method="get" class="ar-glass ar-no-print p-3">
+    <div class="flex flex-wrap items-end gap-2">
+      <div class="w-28">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">Month</label>
+        <select name="month" class="ar-input text-xs">
           {% for num, name in filter_options.months %}
           <option value="{{ num }}" {% if filters.month == num %}selected{% endif %}>{{ name }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Year</label>
-        <select name="year" class="ar-input">
+      <div class="w-20">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">Year</label>
+        <select name="year" class="ar-input text-xs">
           {% for y in filter_options.years %}
           <option value="{{ y }}" {% if filters.year == y %}selected{% endif %}>{{ y }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Department</label>
-        <select name="department" class="ar-input">
+      <div class="w-32">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">Department</label>
+        <select name="department" class="ar-input text-xs">
           <option value="">All</option>
           {% for d in filter_options.departments %}
           <option value="{{ d.pk }}" {% if filters_get.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Designation</label>
-        <input type="text" name="designation" value="{{ filters.designation }}" placeholder="Any" class="ar-input">
+      <div class="w-28">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">Designation</label>
+        <input type="text" name="designation" value="{{ filters.designation }}" placeholder="Any" class="ar-input text-xs">
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Employee</label>
-        <select name="employee" class="ar-input">
+      <div class="w-36">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">Employee</label>
+        <select name="employee" class="ar-input text-xs">
           <option value="">All</option>
           {% for e in filter_options.employees %}
           <option value="{{ e.pk }}" {% if filters_get.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.choice_label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Attendance status</label>
-        <select name="status" class="ar-input">
+      <div class="w-28">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500">Status</label>
+        <select name="status" class="ar-input text-xs">
           <option value="">All</option>
           {% for val, label in filter_options.statuses %}
           <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-xs text-slate-500">Include approved leave in %</label>
-        <select name="include_leave" class="ar-input">
+      <div class="w-24">
+        <label class="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500" title="Include approved leave in %">Incl. leave</label>
+        <select name="include_leave" class="ar-input text-xs">
           <option value="yes" {% if filters.include_leave %}selected{% endif %}>Yes</option>
           <option value="no" {% if not filters.include_leave %}selected{% endif %}>No</option>
         </select>
       </div>
       <div class="flex items-end gap-2">
-        <button type="submit" class="ar-btn-primary">Apply</button>
+        <button type="submit" class="ar-btn-primary text-xs">Apply</button>
         <a href="{% url 'attendance:employee_chart' %}" class="ar-btn-ghost text-xs">Reset</a>
       </div>
     </div>

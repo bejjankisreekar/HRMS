@@ -13,7 +13,14 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from apps.dashboard.mixins import SuperAdminRequiredMixin
-from apps.subscriptions.models import FeatureControlAuditLog, FeatureDefinition, Plan, Subscription, SubscriptionStatus
+from apps.subscriptions.models import (
+    BillingSettings,
+    FeatureControlAuditLog,
+    FeatureDefinition,
+    Plan,
+    Subscription,
+    SubscriptionStatus,
+)
 from apps.subscriptions.services.feature_control import (
     invalidate_org_entitlements_for_all,
     log_feature_action,
@@ -151,6 +158,7 @@ def _matrix_context() -> dict:
             "org_count": total_orgs,
             "category_count": len(groups),
         },
+        "yearly_discount_percent": BillingSettings.get_solo().yearly_discount_percent,
     }
 
 
@@ -234,6 +242,10 @@ class PlanFeatureMatrixAPIView(SuperAdminRequiredMixin, View):
                 old_values["monthly_price_inr"] = plan.monthly_price_inr
                 new_values["monthly_price_inr"] = new_price
                 plan.monthly_price_inr = new_price
+                new_yearly = BillingSettings.get_solo().compute_yearly_price(new_price)
+                old_values["yearly_price_inr"] = plan.yearly_price_inr
+                new_values["yearly_price_inr"] = new_yearly
+                plan.yearly_price_inr = new_yearly
 
             if not new_values:
                 return JsonResponse({"ok": False, "error": "Nothing to save"}, status=400)
@@ -254,6 +266,7 @@ class PlanFeatureMatrixAPIView(SuperAdminRequiredMixin, View):
                     "ok": True,
                     "plan_id": str(plan.pk),
                     "monthly_price_inr": float(plan.monthly_price_inr),
+                    "yearly_price_inr": float(plan.yearly_price_inr),
                     "employee_limit": plan.employee_limit,
                     "storage_limit_mb": plan.storage_limit_mb,
                     "employee_label": _employee_label(plan.employee_limit),

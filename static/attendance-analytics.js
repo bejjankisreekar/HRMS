@@ -241,7 +241,4 @@
       <p class="mt-4 text-[11px] text-slate-500">GPS, facial recognition, and device logs — integration ready.</p>
     `;
   }
-
-  document.getElementById("btnPrint")?.addEventListener("click", () => window.print());
-  document.getElementById("btnExportPdf")?.addEventListener("click", () => window.print());
 })();

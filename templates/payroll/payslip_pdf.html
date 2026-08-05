@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { margin: 1.6cm 2cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.5; }
+  .header { border-bottom: 2px solid #4f46e5; padding-bottom: 10px; margin-bottom: 16px; }
+  .org-logo { max-height: 50px; max-width: 160px; }
+  .org-name { font-size: 15pt; font-weight: bold; color: #4f46e5; }
+  .doc-title { font-size: 12pt; font-weight: bold; text-align: right; color: #1e1b4b; text-transform: uppercase; letter-spacing: 1px; }
+  .period { font-size: 10pt; text-align: right; color: #64748b; }
+  table.meta { width: 100%; margin-bottom: 14px; border-collapse: collapse; }
+  table.meta td { padding: 3px 4px; font-size: 9.5pt; vertical-align: top; }
+  table.meta .label { color: #64748b; width: 28%; }
+  table.lines { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  table.lines th { background: #ede9fe; color: #4f46e5; text-align: left; padding: 6px 8px; font-size: 9.5pt; }
+  table.lines td { padding: 5px 8px; font-size: 9.5pt; border-bottom: 1px solid #f1f5f9; }
+  table.lines td.amount, table.lines th.amount { text-align: right; }
+  .totals-row td { font-weight: bold; border-top: 1px solid #cbd5e1; }
+  .net-box { margin-top: 10px; padding: 10px 14px; background: #ede9fe; border-radius: 4px; }
+  .net-box .net-label { font-size: 10pt; color: #4f46e5; }
+  .net-box .net-value { font-size: 15pt; font-weight: bold; color: #1e1b4b; }
+  .bank-block { margin-top: 14px; font-size: 9.5pt; }
+  .bank-block .label { color: #64748b; }
+  .sig-block { margin-top: 36px; }
+  .sig-line { border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 8.5pt; color: #64748b; width: 45%; }
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e2e8f0; padding: 6px 0; font-size: 8pt; color: #94a3b8; text-align: center; }
+  .confidential { font-size: 8pt; color: #94a3b8; text-align: center; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<table style="width:100%; border-collapse:collapse;">
+  <tr>
+    <td style="width:60%;">
+      {% if logo_src %}
+        <img src="{{ logo_src }}" class="org-logo" alt="{{ org.name }}">
+      {% else %}
+        <div class="org-name">{{ org.name }}</div>
+      {% endif %}
+    </td>
+    <td style="width:40%; text-align:right;">
+      <div class="doc-title">Payslip</div>
+      <div class="period">{{ payslip.payroll_run.period_label }}</div>
+      {% if payslip.payslip_number %}<div class="period">No. {{ payslip.payslip_number }}</div>{% endif %}
+    </td>
+  </tr>
+</table>
+<div class="header"></div>
+
+<table class="meta">
+  <tr>
+    <td class="label">Employee Name</td><td>{{ employee.display_name }}</td>
+    <td class="label">Employee ID</td><td>{{ employee.employee_id|default:"—" }}</td>
+  </tr>
+  <tr>
+    <td class="label">Department</td><td>{{ employee.department_name|default:"—" }}</td>
+    <td class="label">Designation</td><td>{{ employee.designation|default:"—" }}</td>
+  </tr>
+  <tr>
+    <td class="label">Working Days</td><td>{{ payslip.working_days }}</td>
+    <td class="label">Days Paid</td><td>{{ payslip.attendance_days }}</td>
+  </tr>
+  <tr>
+    <td class="label">PAN</td><td>{{ employee.pan_number|default:"—" }}</td>
+    <td class="label">PF / UAN</td><td>{{ employee.pf_account_number|default:"—" }} / {{ employee.uan_number|default:"—" }}</td>
+  </tr>
+</table>
+
+<table class="lines">
+  <tr><th>Earnings</th><th class="amount">Amount</th></tr>
+  {% for line in earnings %}
+  <tr><td>{{ line.label }}</td><td class="amount">{{ line.amount }}</td></tr>
+  {% endfor %}
+  <tr class="totals-row"><td>Gross Earnings</td><td class="amount">{{ payslip.gross_salary }}</td></tr>
+</table>
+
+<table class="lines">
+  <tr><th>Deductions</th><th class="amount">Amount</th></tr>
+  {% for line in deductions %}
+  <tr><td>{{ line.label }}</td><td class="amount">{{ line.amount }}</td></tr>
+  {% endfor %}
+  <tr class="totals-row"><td>Total Deductions</td><td class="amount">{{ payslip.total_deductions }}</td></tr>
+</table>
+
+<table class="lines">
+  <tr><th>Employer Contributions</th><th class="amount">Amount</th></tr>
+  <tr><td>Employer PF</td><td class="amount">{{ payslip.employer_pf }}</td></tr>
+  {% if payslip.reimbursements %}<tr><td>Reimbursements</td><td class="amount">{{ payslip.reimbursements }}</td></tr>{% endif %}
+</table>
+
+<div class="net-box">
+  <span class="net-label">Net Pay:</span>
+  <span class="net-value">{{ payslip.net_salary }}</span>
+</div>
+
+<div class="bank-block">
+  <span class="label">Bank:</span> {{ employee.bank_name|default:"—" }} &nbsp;
+  <span class="label">Account:</span> {{ employee.bank_account_number|default:"—" }} &nbsp;
+  <span class="label">IFSC:</span> {{ employee.ifsc_code|default:"—" }}
+</div>
+
+<div class="sig-block">
+  <div class="sig-line">Authorised Signatory — {{ org.name }}<br>(Digitally generated, signature not required)</div>
+</div>
+
+<div class="confidential">This payslip is confidential and intended solely for {{ employee.display_name }}.</div>
+<div class="footer">{{ org.name }} · Generated on {{ generated_date }}</div>
+</body>
+</html>

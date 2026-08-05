@@ -1,0 +1,183 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}{% if rule %}Edit rule{% else %}New rule{% endif %} · Rule Engine · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<script src="{% static 'ruleengine.js' %}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'ruleengine:management' as rm %}
+  {% include "dashboard/_back_button.html" with back_url=rm back_label="Rule Engine" %}
+</div>
+{% endblock %}
+
+{% block content %}
+{{ rule_data|json_script:"builder-rule-data" }}
+{{ facts_data|json_script:"builder-facts-data" }}
+{{ actions_data|json_script:"builder-actions-data" }}
+{{ operators_data|json_script:"builder-operators-data" }}
+{{ triggers_data|json_script:"builder-triggers-data" }}
+{{ statuses_data|json_script:"builder-statuses-data" }}
+<div
+  class="mx-auto w-full max-w-4xl space-y-6"
+  x-data="ruleBuilder(readBuilderConfig('{{ rule.id|default:"" }}'))"
+  x-init="init()"
+>
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight text-gray-900">{% if rule %}Edit rule{% else %}New rule{% endif %}</h1>
+    <p class="mt-1 text-sm text-gray-500">Build an IF / THEN rule from existing facts, conditions and actions — no code required.</p>
+  </div>
+
+  <template x-if="error">
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" x-text="error"></div>
+  </template>
+
+  <!-- Basics -->
+  <div class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Basics</h2>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <label class="text-xs font-medium text-gray-600">Rule name</label>
+        <input type="text" x-model="rule.name" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. Deduct half day after 3 lates">
+      </div>
+      <div class="sm:col-span-2">
+        <label class="text-xs font-medium text-gray-600">Description</label>
+        <textarea x-model="rule.description" rows="2" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600">Trigger</label>
+        <select x-model="rule.trigger_event" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Select a trigger…</option>
+          {% for value, label in triggers_data %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600">Priority (lower runs first)</label>
+        <input type="number" x-model.number="rule.priority" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600">Status</label>
+        <select x-model="rule.status" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          {% for value, label in statuses_data %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex items-center gap-2 pt-6">
+        <input type="checkbox" x-model="rule.is_test_mode" id="is_test_mode" class="h-4 w-4 rounded border-gray-300">
+        <label for="is_test_mode" class="text-sm text-gray-700">Test mode (evaluate &amp; log only — never mutate real data)</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conditions -->
+  <div class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">IF conditions</h2>
+      <button type="button" @click="addGroup()" class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+        <i data-lucide="plus" class="h-3.5 w-3.5"></i> Add OR group
+      </button>
+    </div>
+    <p class="text-xs text-gray-500">Conditions within a group all must match (AND). Any group matching is enough to trigger the rule (OR).</p>
+
+    <template x-for="(group, gi) in rule.conditions" :key="gi">
+      <div class="rounded-xl border border-dashed border-gray-300 p-4">
+        <div class="mb-2 flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-500" x-text="gi === 0 ? 'Group 1' : 'OR — Group ' + (gi + 1)"></span>
+          <button type="button" @click="removeGroup(gi)" class="text-xs text-red-500 hover:underline">Remove group</button>
+        </div>
+        <div class="space-y-2">
+          <template x-for="(cond, ci) in group" :key="ci">
+            <div class="flex flex-wrap items-center gap-2">
+              <span x-show="ci > 0" class="text-xs font-semibold text-gray-400">AND</span>
+              <select x-model="cond.field" x-init="$nextTick(() => { $el.value = cond.field })" @change="cond.operator = (operatorsFor(cond.field)[0] || {}).value || 'EQUALS'; cond.value = ''; cond.value2 = ''" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                <template x-for="f in facts" :key="f.key">
+                  <option :value="f.key" x-text="f.label"></option>
+                </template>
+              </select>
+              <select x-model="cond.operator" x-init="$nextTick(() => { $el.value = cond.operator })" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                <template x-for="op in operatorsFor(cond.field)" :key="op.value">
+                  <option :value="op.value" x-text="op.label"></option>
+                </template>
+              </select>
+              <template x-if="isEnumField(cond.field)">
+                <select x-model="cond.value" x-init="$nextTick(() => { $el.value = cond.value })" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                  <template x-for="choice in factByKey(cond.field).choices" :key="choice[0]">
+                    <option :value="choice[0]" x-text="choice[1]"></option>
+                  </template>
+                </select>
+              </template>
+              <template x-if="!isEnumField(cond.field)">
+                <input type="text" x-model="cond.value" placeholder="value" class="w-32 rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+              </template>
+              <template x-if="cond.operator === 'BETWEEN'">
+                <input type="text" x-model="cond.value2" placeholder="and…" class="w-32 rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+              </template>
+              <button type="button" @click="removeCondition(gi, ci)" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500">
+                <i data-lucide="x" class="h-4 w-4"></i>
+              </button>
+            </div>
+          </template>
+        </div>
+        <button type="button" @click="addCondition(gi)" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+          <i data-lucide="plus" class="h-3.5 w-3.5"></i> Add AND condition
+        </button>
+      </div>
+    </template>
+  </div>
+
+  <!-- Actions -->
+  <div class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">THEN actions</h2>
+      <button type="button" @click="addAction()" class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+        <i data-lucide="plus" class="h-3.5 w-3.5"></i> Add action
+      </button>
+    </div>
+
+    <template x-for="(action, ai) in rule.actions" :key="ai">
+      <div class="rounded-xl border border-dashed border-gray-300 p-4">
+        <div class="mb-2 flex items-center justify-between">
+          <select x-model="action.type" x-init="$nextTick(() => { $el.value = action.type })" @change="onActionTypeChange(action)" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm font-medium">
+            <template x-for="a in actionDefs" :key="a.key">
+              <option :value="a.key" x-text="a.label"></option>
+            </template>
+          </select>
+          <button type="button" @click="removeAction(ai)" class="text-xs text-red-500 hover:underline">Remove action</button>
+        </div>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <template x-for="field in paramFields(action.type)" :key="field.key">
+            <div>
+              <label class="text-xs font-medium text-gray-600" x-text="field.key"></label>
+              <template x-if="paramInputKind(field.type) === 'enum'">
+                <select x-model="action.params[field.key]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                  <template x-for="opt in enumOptions(field.type)" :key="opt">
+                    <option :value="opt" x-text="opt"></option>
+                  </template>
+                </select>
+              </template>
+              <template x-if="paramInputKind(field.type) !== 'enum'">
+                <input :type="paramInputKind(field.type)" x-model="action.params[field.key]" class="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="!rule.actions.length">
+      <p class="text-sm text-gray-400">No actions yet — add at least one so the rule does something when it matches.</p>
+    </template>
+  </div>
+
+  <div class="flex items-center justify-end gap-3">
+    <a href="{% url 'ruleengine:management' %}" class="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Cancel</a>
+    <button type="button" @click="save()" :disabled="saving" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+      <i data-lucide="save" class="h-4 w-4"></i> <span x-text="saving ? 'Saving…' : 'Save rule'"></span>
+    </button>
+  </div>
+</div>
+{% endblock %}

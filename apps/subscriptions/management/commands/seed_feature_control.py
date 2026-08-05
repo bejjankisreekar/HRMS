@@ -80,6 +80,7 @@ WORKFLOWS = [
 DEPENDENCIES = {
     "payroll_basic": ["employees", "attendance"],
     "payroll_advanced": ["employees", "attendance", "payroll_basic"],
+    "payroll_growth": ["employees", "attendance", "payroll_basic", "payroll_advanced"],
     "performance": ["employees"],
     "shifts": ["attendance"],
     "projects": ["employees"],
@@ -145,7 +146,7 @@ class Command(BaseCommand):
             for role, default in (
                 ("ADMIN", True),
                 ("HR", True),
-                ("EMPLOYEE", feat.key in ("attendance", "leave", "payroll_basic", "employee_self_service", "dashboard")),
+                ("EMPLOYEE", feat.key in ("attendance", "leave", "payroll_basic", "payroll_growth", "employee_self_service", "dashboard")),
             ):
                 FeatureRolePermission.objects.update_or_create(
                     feature=feat, role=role, defaults={"is_allowed": default}
@@ -158,7 +159,8 @@ class Command(BaseCommand):
             if not plan:
                 continue
             for order, row in enumerate(menus):
-                label, icon, url_name, feature_key, query, active_views, roles = row
+                label, icon, url_name, feature_key, query, active_views, roles, *rest = row
+                group_label = rest[0] if rest else ""
                 for role in roles:
                     NavigationItem.objects.create(
                         plan=plan,
@@ -167,6 +169,7 @@ class Command(BaseCommand):
                         url_name=url_name,
                         query_string=query or "",
                         feature_key=feature_key or "",
+                        group_label=group_label,
                         sort_order=order,
                         is_visible=True,
                         audience=role,

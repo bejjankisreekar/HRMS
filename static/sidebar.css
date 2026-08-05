@@ -265,6 +265,95 @@ html:not(.dark) .hrms-sidebar-search__input:focus {
   gap: 0.2rem;
 }
 
+/* Collapsible nav group (e.g. Payroll section) */
+.hrms-nav-group--collapsible {
+  margin: 0.15rem 0;
+}
+
+.hrms-nav-group__header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--hrms-sidebar-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hrms-nav-group__header:hover {
+  background: var(--hrms-sidebar-hover-bg);
+  color: var(--hrms-sidebar-text-active);
+}
+
+.hrms-nav-group__title {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.hrms-nav-group__chevron {
+  display: flex;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.hrms-nav-group--collapsible[data-expanded="true"] .hrms-nav-group__chevron {
+  transform: rotate(180deg);
+}
+
+.hrms-nav-group__items--collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 0.22s ease;
+  padding-left: 0.35rem;
+  margin-left: 0.65rem;
+  border-left: 1px solid var(--hrms-sidebar-border);
+}
+
+.hrms-nav-group__items--collapsible > * {
+  min-height: 0;
+}
+
+.hrms-nav-group__items--collapsible-inner {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-top: 0.2rem;
+}
+
+.hrms-nav-group--collapsible[data-expanded="true"] .hrms-nav-group__items--collapsible {
+  grid-template-rows: 1fr;
+}
+
+body.sidebar-collapsed .hrms-nav-group__header {
+  justify-content: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+body.sidebar-collapsed .hrms-nav-group__title,
+body.sidebar-collapsed .hrms-nav-group__chevron {
+  display: none;
+}
+
+body.sidebar-collapsed .hrms-nav-group__items--collapsible {
+  grid-template-rows: 1fr;
+  padding-left: 0;
+  margin-left: 0;
+  border-left: none;
+}
+
 /* Nav items */
 .hrms-nav-item {
   position: relative;

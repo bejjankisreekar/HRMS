@@ -402,6 +402,19 @@
         <p class="text-sm text-slate-500">No leave types configured by admin yet.</p>
         {% endfor %}
       </div>
+      {% if attendance_deductions %}
+      <div class="mt-5 border-t border-white/10 pt-4">
+        <p class="mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">Absent deductions</p>
+        <div class="space-y-2 max-h-40 overflow-y-auto">
+          {% for ded in attendance_deductions %}
+          <div class="flex justify-between text-xs">
+            <span class="text-slate-400">{{ ded.attendance_date|date:"d M" }} · {{ ded.leave_balance.leave_type.name }}</span>
+            <span class="font-semibold text-rose-400">−{{ ded.days }}d</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </section>
     {% endif %}
 

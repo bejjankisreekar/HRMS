@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { margin: 1.4cm 1.8cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9pt; color: #1a1a2e; line-height: 1.35; }
+  .top { border-bottom: 1.5px solid #334155; padding-bottom: 6px; margin-bottom: 8px; }
+  .org-name { font-size: 13pt; font-weight: bold; color: #334155; }
+  .org-logo { max-height: 38px; max-width: 130px; }
+  .doc-title { font-size: 10pt; font-weight: bold; text-align: right; color: #334155; text-transform: uppercase; letter-spacing: 1px; }
+  .period { font-size: 8.5pt; text-align: right; color: #64748b; }
+  table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  table.meta td { padding: 2px 4px; font-size: 8.5pt; }
+  table.meta .label { color: #64748b; }
+  table.main { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  table.main th { background-color: #334155; color: #ffffff; text-align: left; padding: 4px 8px; font-size: 8.5pt; }
+  table.main th.amount { text-align: right; }
+  table.main td { padding: 3px 8px; font-size: 8.5pt; border-bottom: 1px solid #f1f5f9; }
+  table.main td.amount { text-align: right; }
+  table.main td.section { background-color: #f1f5f9; font-weight: bold; color: #334155; }
+  table.main tr.subtotal td { font-weight: bold; border-top: 1px solid #cbd5e1; }
+  table.main tr.net td { background-color: #334155; color: #ffffff; font-weight: bold; font-size: 10pt; }
+  .bank { margin-top: 8px; font-size: 8pt; color: #475569; }
+  .bank .label { color: #94a3b8; }
+  .footer { margin-top: 14px; font-size: 7.5pt; color: #94a3b8; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <table style="width:100%; border-collapse:collapse;">
+    <tr>
+      <td style="width:60%; vertical-align:middle;">
+        {% if logo_src %}<img src="{{ logo_src }}" class="org-logo" alt="{{ org.name }}">{% else %}<span class="org-name">{{ org.name }}</span>{% endif %}
+      </td>
+      <td style="width:40%; vertical-align:middle;">
+        <div class="doc-title">Payslip</div>
+        <div class="period">{{ payslip.payroll_run.period_label }}{% if payslip.payslip_number %} · No. {{ payslip.payslip_number }}{% endif %}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<table class="meta">
+  <tr>
+    <td class="label">Employee:</td><td>{{ employee.display_name }} ({{ employee.employee_id|default:"—" }})</td>
+    <td class="label">Dept / Desig:</td><td>{{ employee.department_name|default:"—" }} · {{ employee.designation|default:"—" }}</td>
+  </tr>
+  <tr>
+    <td class="label">Days Paid:</td><td>{{ payslip.attendance_days }} / {{ payslip.working_days }}</td>
+    <td class="label">PAN:</td><td>{{ employee.pan_number|default:"—" }}</td>
+  </tr>
+</table>
+
+<table class="main">
+  <tr><th>Description</th><th class="amount">Amount</th></tr>
+
+  <tr><td class="section" colspan="2">Earnings</td></tr>
+  {% for line in earnings %}
+  <tr><td>{{ line.label }}</td><td class="amount">{{ line.amount }}</td></tr>
+  {% endfor %}
+  <tr class="subtotal"><td>Gross Earnings</td><td class="amount">{{ payslip.gross_salary }}</td></tr>
+
+  <tr><td class="section" colspan="2">Deductions</td></tr>
+  {% for line in deductions %}
+  <tr><td>{{ line.label }}</td><td class="amount">{{ line.amount }}</td></tr>
+  {% endfor %}
+  <tr class="subtotal"><td>Total Deductions</td><td class="amount">{{ payslip.total_deductions }}</td></tr>
+
+  <tr class="net"><td>Net Pay</td><td class="amount">{{ payslip.net_salary }}</td></tr>
+</table>
+
+<div class="bank">
+  <span class="label">Bank:</span> {{ employee.bank_name|default:"—" }} &nbsp;·&nbsp;
+  <span class="label">A/C:</span> {{ employee.bank_account_number|default:"—" }} &nbsp;·&nbsp;
+  <span class="label">IFSC:</span> {{ employee.ifsc_code|default:"—" }}
+</div>
+
+<div class="footer">{{ org.name }} · Generated on {{ generated_date }} · Confidential · Digitally generated, signature not required.</div>
+</body>
+</html>

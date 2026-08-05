@@ -1,0 +1,50 @@
+{# Classic payslip preview — two-column (default). Context: payslip, organization. #}
+<article class="pr-glass p-8">
+  <header class="border-b border-slate-200 pb-6 dark:border-white/10">
+    <p class="text-xs uppercase tracking-widest text-violet-600 dark:text-violet-400">{{ organization.name }}</p>
+    <h1 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Payslip</h1>
+    <p class="text-sm text-slate-600 dark:text-slate-400">{{ payslip.payslip_number }} · {{ payslip.payroll_run.period_label }}</p>
+    {% if payslip.working_days %}
+    <p class="mt-1 text-xs text-slate-500">Paid days: {{ payslip.attendance_days }} / {{ payslip.working_days }}{% if payslip.leave_deduction %} · Loss of pay ₹{{ payslip.leave_deduction|floatformat:0 }}{% endif %}</p>
+    {% endif %}
+  </header>
+  <div class="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
+    <div>
+      <p class="text-slate-500">Employee</p>
+      <p class="font-semibold text-slate-900 dark:text-white">{{ payslip.user.choice_label }}</p>
+      <p class="text-slate-600 dark:text-slate-400">{{ payslip.user.employee_id }} · {{ payslip.user.department_name }}</p>
+    </div>
+    <div>
+      <p class="text-slate-500">Bank</p>
+      <p class="text-slate-900 dark:text-white">{{ payslip.user.bank_name|default:"—" }}</p>
+      <p class="text-slate-600 dark:text-slate-400">{{ payslip.user.bank_account_number|default:"" }}</p>
+    </div>
+  </div>
+  <div class="mt-8 grid gap-6 sm:grid-cols-2">
+    <div>
+      <h2 class="text-xs font-semibold uppercase text-emerald-600">Earnings</h2>
+      <ul class="mt-3 space-y-2 text-sm">
+        {% for line in payslip.lines.all %}
+        {% if line.line_type == 'EARNING' %}
+        <li class="flex justify-between text-slate-700 dark:text-slate-300"><span>{{ line.label }}</span><span>₹{{ line.amount }}</span></li>
+        {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h2 class="text-xs font-semibold uppercase text-rose-600">Deductions</h2>
+      <ul class="mt-3 space-y-2 text-sm">
+        {% for line in payslip.lines.all %}
+        {% if line.line_type == 'DEDUCTION' %}
+        <li class="flex justify-between text-slate-700 dark:text-slate-300"><span>{{ line.label }}</span><span>₹{{ line.amount }}</span></li>
+        {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="mt-8 rounded-xl bg-violet-50 border border-violet-200 p-4 flex justify-between items-center dark:bg-violet-500/10 dark:border-violet-500/20">
+    <span class="font-semibold text-slate-900 dark:text-white">Net salary</span>
+    <span class="text-2xl font-bold text-violet-700 dark:text-violet-300">₹{{ payslip.net_salary|floatformat:2 }}</span>
+  </div>
+  <p class="mt-6 text-[10px] text-slate-500 text-center">Computer-generated payslip · HRMS Payroll</p>
+</article>

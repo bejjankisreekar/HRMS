@@ -19,6 +19,22 @@ from .services import get_or_create_payroll_run, process_payroll_run
 YEAR, MONTH = 2026, 3  # March 2026 — has working days under the default Sat/Sun policy
 
 
+def _grant_payroll_features(org):
+    """Test DB has no seeded Plan/FeatureDefinition catalog by default — create the
+    minimal rows so PlanFeatureRequiredMixin-gated payroll pages don't 403 in tests."""
+    from apps.subscriptions.models import FeatureDefinition, Plan, PlanFeature, Subscription
+    from apps.subscriptions.services.feature_control import invalidate_org_entitlements
+
+    plan, _ = Plan.objects.get_or_create(slug="growth", defaults={"name": "Growth"})
+    for key in ("payroll_basic", "payroll_advanced", "payroll_growth"):
+        feat, _ = FeatureDefinition.objects.get_or_create(
+            key=key, defaults={"name": key, "is_active": True, "is_globally_enabled": True}
+        )
+        PlanFeature.objects.get_or_create(plan=plan, feature=feat, defaults={"is_enabled": True})
+    Subscription.objects.get_or_create(organization=org, defaults={"plan": plan})
+    invalidate_org_entitlements(org)
+
+
 def _make_org(name, code, **flags) -> Organization:
     return Organization.objects.create(
         name=name, organization_code=code, code=code.lower(), schema_name=code.lower(), **flags
@@ -640,3 +656,171 @@ class PayrollReportsTests(TestCase):
     def test_button_on_payroll_page(self):
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("payroll:management")), "Payroll Reports")
+
+
+class PayrollNewPagesTests(TestCase):
+    """Phase 1 sidebar restructure: smoke-test every new dedicated page renders,
+    RBAC blocks the right roles, and the core workflow actions still work."""
+
+    def setUp(self):
+        self.org = _make_org("NewPageCo", "NPC")
+        _grant_payroll_features(self.org)
+        self.admin = _make_user(self.org, "admin@npc.com", User.Role.ADMIN)
+        self.hr = _make_user(self.org, "hr@npc.com", User.Role.HR)
+        self.emp = _make_user(self.org, "emp@npc.com", User.Role.EMPLOYEE, employee_id="E1")
+        _salary(self.emp)
+
+    def test_admin_hr_pages_render(self):
+        self.client.force_login(self.admin)
+        for name in (
+            "payroll:dashboard", "payroll:cycles", "payroll:runs", "payroll:payslips",
+            "payroll:components", "payroll:tax_management", "payroll:loans",
+            "payroll:reimbursements", "payroll:revisions", "payroll:settings",
+            "payroll:form16", "payroll:bonuses", "payroll:overtime",
+            "payroll:arrears", "payroll:final_settlement",
+        ):
+            resp = self.client.get(reverse(name))
+            self.assertEqual(resp.status_code, 200, f"{name} did not render for admin")
+
+    def test_employee_my_salary_redirects_to_dashboard(self):
+        # My Salary was merged into the Payroll Dashboard; the old URL redirects.
+        self.client.force_login(self.emp)
+        resp = self.client.get(reverse("payroll:my_salary"))
+        self.assertRedirects(resp, reverse("payroll:dashboard"))
+
+    def test_employee_dashboard_embeds_salary_breakdown(self):
+        self.client.force_login(self.emp)
+        resp = self.client.get(reverse("payroll:dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Salary revision history")
+
+    def test_employee_blocked_from_admin_only_pages(self):
+        self.client.force_login(self.emp)
+        for name in ("payroll:cycles", "payroll:components", "payroll:tax_management", "payroll:revisions"):
+            resp = self.client.get(reverse(name))
+            self.assertNotEqual(resp.status_code, 200, f"{name} should not be reachable by an employee")
+
+    def test_admin_dashboard_has_no_salary_breakdown(self):
+        # The embedded salary structure is employee-only; finance roles keep charts.
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("payroll:dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Salary revision history")
+
+    def test_run_workflow_via_runs_page(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:runs"), {"action": "run_payroll", "year": YEAR, "month": MONTH})
+        run = PayrollRun.objects.get(organization=self.org, year=YEAR, month=MONTH)
+        self.assertEqual(run.status, PayrollRun.Status.REVIEW)
+        self.client.post(reverse("payroll:runs"), {"action": "approve_payroll", "year": YEAR, "month": MONTH})
+        run.refresh_from_db()
+        self.assertEqual(run.status, PayrollRun.Status.APPROVED)
+        self.client.post(reverse("payroll:runs"), {"action": "mark_paid", "year": YEAR, "month": MONTH})
+        run.refresh_from_db()
+        self.assertEqual(run.status, PayrollRun.Status.PAID)
+        self.client.post(reverse("payroll:runs"), {"action": "lock_payroll", "year": YEAR, "month": MONTH})
+        run.refresh_from_db()
+        self.assertEqual(run.status, PayrollRun.Status.LOCKED)
+
+    def test_bank_file_export(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:runs"), {"action": "run_payroll", "year": YEAR, "month": MONTH})
+        resp = self.client.get(reverse("payroll:runs"), {"export": "bank", "year": YEAR, "month": MONTH})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+
+    def test_payslip_pdf_download(self):
+        self.client.force_login(self.admin)
+        run = get_or_create_payroll_run(self.org, YEAR, MONTH)
+        process_payroll_run(run, self.admin)
+        slip = Payslip.objects.get(payroll_run=run, user=self.emp)
+        resp = self.client.get(reverse("payroll:payslips"), {"payslip": str(slip.pk)})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+
+    def test_employee_cannot_download_others_payslip(self):
+        run = get_or_create_payroll_run(self.org, YEAR, MONTH)
+        process_payroll_run(run, self.admin)
+        slip = Payslip.objects.get(payroll_run=run, user=self.emp)
+        other = _make_user(self.org, "other@npc.com", User.Role.EMPLOYEE, employee_id="E2")
+        _salary(other)
+        self.client.force_login(other)
+        resp = self.client.get(reverse("payroll:payslips"), {"payslip": str(slip.pk)})
+        self.assertNotEqual(resp.status_code, 200)
+
+    def test_salary_component_create(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:components"), {
+            "name": "Night Allowance", "code": "night-allow", "component_type": "EARNING",
+            "category": "OTHER", "calc_type": "FIXED", "default_amount": "500", "default_percent": "0",
+            "is_taxable": "on", "is_active": "on",
+        })
+        from .models import SalaryComponent
+
+        self.assertTrue(SalaryComponent.objects.filter(organization=self.org, code="night-allow").exists())
+
+    def test_loan_apply_and_approve(self):
+        self.client.force_login(self.emp)
+        self.client.post(reverse("payroll:loans"), {
+            "action": "apply", "principal": "10000", "interest_rate": "0",
+            "tenure_months": "6", "emi_amount": "1700", "start_date": "2026-01-01",
+        })
+        loan = EmployeeLoan.objects.get(user=self.emp)
+        self.assertEqual(loan.status, EmployeeLoan.Status.PENDING)
+
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:loans"), {"action": "approve", "loan_id": str(loan.pk)})
+        loan.refresh_from_db()
+        self.assertEqual(loan.status, EmployeeLoan.Status.ACTIVE)
+        self.assertEqual(loan.approved_by, self.admin)
+
+    def test_reimbursement_claim_and_approve(self):
+        self.client.force_login(self.emp)
+        self.client.post(reverse("payroll:reimbursements"), {
+            "action": "add", "category": "TRAVEL", "amount": "500", "description": "Taxi fare",
+        })
+        from .models import Reimbursement
+
+        claim = Reimbursement.objects.get(user=self.emp)
+        self.assertEqual(claim.status, Reimbursement.Status.PENDING)
+
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:reimbursements"), {"action": "approve", "reimbursement_id": str(claim.pk)})
+        claim.refresh_from_db()
+        self.assertEqual(claim.status, Reimbursement.Status.APPROVED)
+
+    def test_cycle_config_save(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:cycles"), {
+            "frequency": "MONTHLY", "payroll_day": "20", "salary_day": "1",
+            "attendance_cutoff_day": "18", "leave_cutoff_day": "18", "approval_deadline_day": "19",
+        })
+        from .models import PayrollCycleConfig
+
+        cfg = PayrollCycleConfig.objects.get(organization=self.org)
+        self.assertEqual(cfg.payroll_day, 20)
+
+    def test_settings_save(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("payroll:settings"), {
+            "currency": "INR", "decimal_precision": "2", "rounding_rule": "NEAREST",
+            "payroll_lop_policy": "STRICT",
+        })
+        from .models import PayrollSettings
+
+        self.assertTrue(PayrollSettings.objects.filter(organization=self.org).exists())
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.payroll_lop_policy, "STRICT")
+
+    def test_grade_fk_on_salary_structure(self):
+        """SalaryStructure.grade is now a FK to grades.Grade (was a free-text CharField)."""
+        from apps.grades.models import Grade
+
+        from .models import SalaryStructure
+
+        grade = Grade.objects.create(organization=self.org, name="L3")
+        structure = SalaryStructure.objects.create(
+            organization=self.org, name="L3 Structure", code="l3", grade=grade,
+        )
+        structure.refresh_from_db()
+        self.assertEqual(structure.grade, grade)

@@ -34,10 +34,16 @@ class LeaveFilters:
     search: str = ""
 
     @classmethod
-    def from_request(cls, request):
+    def from_request(cls, request, fy: dict | None = None):
         today = timezone.localdate()
-        date_from = _parse_date(request.GET.get("from"), today.replace(day=1))
-        date_to = _parse_date(request.GET.get("to"), today)
+        if fy:
+            default_from = fy["date_from"]
+            default_to = min(today, fy["date_to"])
+        else:
+            default_from = today.replace(day=1)
+            default_to = today
+        date_from = _parse_date(request.GET.get("from"), default_from)
+        date_to = _parse_date(request.GET.get("to"), default_to)
         if date_from > date_to:
             date_from, date_to = date_to, date_from
         return cls(
@@ -413,13 +419,16 @@ def export_xlsx(rows: list[dict]) -> HttpResponse:
     return resp
 
 
-def balance_report_rows(viewer: User) -> list[dict]:
+def balance_report_rows(viewer: User, fy: dict | None = None) -> list[dict]:
     """Per-user × leave-type balance rows for the viewer's leave team."""
     from django.utils import timezone
 
     from .models import LeaveBalance
 
-    year = timezone.localdate().year
+    if fy:
+        year = fy["start_year"]
+    else:
+        year = timezone.localdate().year
     team_ids = list(leave_team_for(viewer).values_list("pk", flat=True))
     rows = []
     qs = (

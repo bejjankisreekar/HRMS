@@ -227,23 +227,37 @@
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {# Department #}
               <div class="se-field">
-                <label class="se-label" for="id_department">{{ dept_label|default:"Department" }}</label>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <label class="se-label !mb-0" for="id_department">{{ dept_label|default:"Department" }}</label>
+                  <button type="button" onclick="qcOpen('department','{{ dept_label|default:'Department' }}')"
+                          class="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3v10M3 8h10"/></svg>New
+                  </button>
+                </div>
                 {{ form.department }}
-                {% if not is_hr_creator %}
-                <p class="se-hint">
-                  <a href="{% url 'dashboard:departments' %}" class="text-violet-600 hover:underline dark:text-violet-400">
-                    Manage {{ dept_label_plural|default:"departments"|lower }}
-                  </a>
-                </p>
-                {% endif %}
               </div>
+              {# Job Grade #}
               <div class="se-field">
-                <label class="se-label" for="id_job_grade">Job grade</label>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <label class="se-label !mb-0" for="id_job_grade">Job grade</label>
+                  <button type="button" onclick="qcOpen('job-grade','Job grade')"
+                          class="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3v10M3 8h10"/></svg>New
+                  </button>
+                </div>
                 {{ form.job_grade }}
               </div>
+              {# Designation (catalog) #}
               <div class="se-field">
-                <label class="se-label" for="id_org_designation">Designation (catalog)</label>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <label class="se-label !mb-0" for="id_org_designation">Designation (catalog)</label>
+                  <button type="button" onclick="qcOpen('designation','Designation')"
+                          class="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3v10M3 8h10"/></svg>New
+                  </button>
+                </div>
                 {{ form.org_designation }}
               </div>
               <div class="se-field">
@@ -482,6 +496,10 @@
                 <label class="se-label se-label--req" for="id_email">Work email</label>
                 {{ form.email }}
                 {% if form.email.errors %}<p class="se-error">{{ form.email.errors.0 }}</p>{% endif %}
+                <p id="email-dup-hint" class="hidden mt-1 flex items-start gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+                  <svg class="mt-0.5 h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>
+                  <span id="email-dup-text"></span>
+                </p>
               </div>
             </div>
             <div class="se-field mt-4">
@@ -673,4 +691,132 @@
   </div>
 
 </div>
+
+{# ── Quick-create modal (Department / Job Grade / Designation) ── #}
+<div id="qc-backdrop"
+     onclick="qcClose()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;">
+  <div onclick="event.stopPropagation()"
+       style="background:var(--qc-bg,#fff);border-radius:1rem;padding:1.5rem;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative;">
+    <button type="button" onclick="qcClose()"
+            style="position:absolute;top:.75rem;right:.75rem;background:none;border:none;cursor:pointer;color:#94a3b8;line-height:1;">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+    <h3 id="qc-title" style="font-size:.9375rem;font-weight:700;color:var(--qc-text,#0f172a);margin:0 0 1rem;">New item</h3>
+    <label style="display:block;font-size:.8125rem;font-weight:600;color:#64748b;margin-bottom:.35rem;">Name <span style="color:#ef4444">*</span></label>
+    <input id="qc-name" type="text" autocomplete="off"
+           style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:.6rem;padding:.55rem .75rem;font-size:.875rem;outline:none;transition:border-color .15s;"
+           onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();qcSubmit()}">
+    <p id="qc-error" style="display:none;font-size:.75rem;color:#ef4444;margin:.4rem 0 0;"></p>
+    <div style="margin-top:1rem;display:flex;gap:.75rem;justify-content:flex-end;">
+      <button type="button" onclick="qcClose()"
+              style="padding:.5rem 1rem;border-radius:.6rem;border:1.5px solid #e2e8f0;background:none;font-size:.8125rem;font-weight:600;color:#64748b;cursor:pointer;">
+        Cancel
+      </button>
+      <button type="button" id="qc-submit" onclick="qcSubmit()"
+              style="padding:.5rem 1.25rem;border-radius:.6rem;border:none;background:#7c3aed;color:#fff;font-size:.8125rem;font-weight:700;cursor:pointer;">
+        Create
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var selectMap = {
+    'department':  'id_department',
+    'job-grade':   'id_job_grade',
+    'designation': 'id_org_designation',
+  };
+  var currentKind = null;
+  var csrfToken = '{{ csrf_token }}';
+
+  if (document.documentElement.classList.contains('dark')) {
+    document.documentElement.style.setProperty('--qc-bg',   '#1e293b');
+    document.documentElement.style.setProperty('--qc-text', '#f1f5f9');
+  }
+
+  window.qcOpen = function (kind, label) {
+    currentKind = kind;
+    document.getElementById('qc-title').textContent = 'New ' + label;
+    document.getElementById('qc-name').value = '';
+    document.getElementById('qc-error').style.display = 'none';
+    var backdrop = document.getElementById('qc-backdrop');
+    backdrop.style.display = 'flex';
+    setTimeout(function () { document.getElementById('qc-name').focus(); }, 60);
+  };
+
+  window.qcClose = function () {
+    document.getElementById('qc-backdrop').style.display = 'none';
+    currentKind = null;
+  };
+
+  window.qcSubmit = function () {
+    var name = document.getElementById('qc-name').value.trim();
+    var errEl = document.getElementById('qc-error');
+    if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; return; }
+
+    var btn = document.getElementById('qc-submit');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    var url = '{% url "dashboard:staff_quick_create" "KIND" %}'.replace('KIND', currentKind);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'name=' + encodeURIComponent(name),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      btn.disabled = false;
+      btn.textContent = 'Create';
+      if (!data.ok) { errEl.textContent = data.error || 'Could not create.'; errEl.style.display = 'block'; return; }
+      var sel = document.getElementById(selectMap[currentKind]);
+      var opt = new Option(data.name, data.id, true, true);
+      sel.appendChild(opt);
+      sel.value = data.id;
+      qcClose();
+    })
+    .catch(function () {
+      btn.disabled = false;
+      btn.textContent = 'Create';
+      errEl.textContent = 'Network error. Try again.';
+      errEl.style.display = 'block';
+    });
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && currentKind) qcClose();
+  });
+})();
+
+// ── Email duplicate warning ──────────────────────────────────────────────────
+(function () {
+  var emailInput = document.getElementById('id_email');
+  var hint = document.getElementById('email-dup-hint');
+  var hintText = document.getElementById('email-dup-text');
+  if (!emailInput || !hint) return;
+
+  emailInput.addEventListener('blur', function () {
+    var email = emailInput.value.trim();
+    if (!email) { hint.classList.add('hidden'); return; }
+    fetch('{% url "dashboard:staff_check_email" %}?email=' + encodeURIComponent(email), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.exists) {
+        var label = data.name;
+        if (data.employee_id) label += ' · ' + data.employee_id;
+        hintText.textContent = 'This email is already registered to ' + label + '.';
+        hint.classList.remove('hidden');
+      } else {
+        hint.classList.add('hidden');
+      }
+    })
+    .catch(function () { hint.classList.add('hidden'); });
+  });
+})();
+</script>
 {% endblock %}

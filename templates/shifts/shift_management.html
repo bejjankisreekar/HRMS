@@ -31,14 +31,13 @@
           <i data-lucide="plus" class="inline h-3.5 w-3.5"></i> Create shift
         </button>
         <button type="button" data-open-modal="assign-shift" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Assign shift</button>
+        <a href="{% url 'shifts:reassign' %}" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30 inline-flex items-center gap-1.5">
+          <i data-lucide="repeat-2" class="h-3.5 w-3.5"></i> Reassign shift
+        </a>
         <a href="#weekly-scheduler" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Weekly scheduler</a>
-        {% if can_manage %}
-        <form method="post" class="inline">{% csrf_token %}
-          <input type="hidden" name="action" value="auto_schedule">
-          <button type="submit" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Auto schedule</button>
-        </form>
-        {% endif %}
-        <a href="?{{ filter_query }}&export=csv" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30">Export</a>
+        <button type="button" data-open-modal="export-shift" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/30 inline-flex items-center gap-1.5">
+          <i data-lucide="download" class="h-3.5 w-3.5"></i> Export
+        </button>
       </div>
       {% endif %}
     </div>
@@ -193,31 +192,206 @@
 
 {% if can_manage %}
 <div id="modal-create-shift" class="sh-modal" hidden>
-  <div class="sh-modal-panel">
-    <h3 class="text-lg font-semibold text-white">Create shift</h3>
-    <form method="post" class="mt-4 grid gap-3 sm:grid-cols-2">{% csrf_token %}
-      <input type="hidden" name="action" value="create_shift">
-      {% for field in shift_form %}
-      <div class="{% if field.name == 'description' or field.name == 'weekly_off_list' %}sm:col-span-2{% endif %}">
-        <label class="sh-filter-label text-slate-400">{{ field.label }}</label>
-        {{ field }}
+  <div class="sh-modal-panel" style="display:flex;flex-direction:column;padding:0;overflow:hidden">
+    {# Sticky header — always visible #}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0">
+      <h3 class="text-lg font-semibold text-white">Create shift</h3>
+      <button type="button" data-close-modal style="display:flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:.5rem;border:none;background:transparent;color:#94a3b8;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,.1)';this.style.color='#fff'" onmouseout="this.style.background='transparent';this.style.color='#94a3b8'">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    {# Scrollable body #}
+    <div style="overflow-y:auto;padding:1.25rem">
+      <form method="post" class="grid gap-3 sm:grid-cols-2">{% csrf_token %}
+        <input type="hidden" name="action" value="create_shift">
+        {% for field in shift_form %}
+        <div class="{% if field.name == 'description' or field.name == 'weekly_off_list' %}sm:col-span-2{% endif %}">
+          <label class="sh-filter-label text-slate-400">{{ field.label }}</label>
+          {% if field.name == 'weekly_off_list' %}
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.35rem">
+            {% for checkbox in field %}
+            <label style="display:inline-flex;align-items:center;gap:.35rem;border:1.5px solid rgba(255,255,255,.1);border-radius:.5rem;padding:.3rem .65rem;cursor:pointer;font-size:.8125rem;color:#cbd5e1;transition:all .15s" class="sh-weekday-chip">
+              {{ checkbox.tag }} {{ checkbox.choice_label }}
+            </label>
+            {% endfor %}
+          </div>
+          {% else %}
+          {{ field }}
+          {% endif %}
+        </div>
+        {% endfor %}
+        <div class="sm:col-span-2 flex gap-2 pt-1">
+          <button type="submit" class="sh-btn-primary">Save</button>
+          <button type="button" class="sh-btn-ghost" data-close-modal>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.sh-weekday-chip:has(input:checked) { border-color: #7c3aed; background: rgba(124,58,237,.15); color: #c4b5fd; }
+.sh-weekday-chip input { accent-color: #7c3aed; width: .85rem; height: .85rem; }
+</style>
+
+<div id="modal-export-shift" class="sh-modal" hidden>
+  <div class="sh-modal-panel" style="max-width:380px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-white">Export shift schedule</h3>
+      <button type="button" data-close-modal class="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition">
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <p class="text-sm text-slate-400 mb-4">Export a CSV with each employee's name, ID, shift, shift time, and date range.</p>
+    <div class="space-y-3">
+      <div>
+        <label class="sh-filter-label text-slate-400 mb-1 block">From</label>
+        <input type="date" id="export-date-from" class="sh-input w-full">
       </div>
-      {% endfor %}
-      <div class="sm:col-span-2 flex gap-2"><button type="submit" class="sh-btn-primary">Save</button><button type="button" class="sh-btn-ghost" data-close-modal>Cancel</button></div>
-    </form>
+      <div>
+        <label class="sh-filter-label text-slate-400 mb-1 block">To</label>
+        <input type="date" id="export-date-to" class="sh-input w-full">
+      </div>
+      <p id="export-date-err" class="text-xs text-red-400 hidden">Please select both dates.</p>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button type="button" onclick="doExportShift()" class="sh-btn-primary flex items-center gap-1.5">
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M2 12h12"/></svg>
+        Download CSV
+      </button>
+      <button type="button" data-close-modal class="sh-btn-ghost">Cancel</button>
+    </div>
   </div>
 </div>
 
 <div id="modal-assign-shift" class="sh-modal" hidden>
-  <div class="sh-modal-panel">
-    <h3 class="text-lg font-semibold text-white">Assign shift</h3>
-    <form method="post" class="mt-4 space-y-3">{% csrf_token %}
+  <div class="sh-modal-panel" style="max-width:460px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-white">Assign shift</h3>
+      <button type="button" data-close-modal class="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition">
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <form method="post" class="space-y-4">{% csrf_token %}
       <input type="hidden" name="action" value="assign_shift">
-      {% for field in assign_form %}
-      <div><label class="sh-filter-label text-slate-400">{{ field.label }}</label>{{ field }}</div>
-      {% endfor %}
-      <button type="submit" class="sh-btn-primary">Assign</button>
+
+      {# Shift field #}
+      <div>
+        <label class="sh-filter-label text-slate-400 mb-1 block">{{ assign_form.shift.label }}</label>
+        {{ assign_form.shift }}
+      </div>
+
+      {# Date field #}
+      <div>
+        <label class="sh-filter-label text-slate-400 mb-1 block">{{ assign_form.date.label }}</label>
+        {{ assign_form.date }}
+      </div>
+
+      {# Notes field #}
+      <div>
+        <label class="sh-filter-label text-slate-400 mb-1 block">Notes</label>
+        {{ assign_form.notes }}
+      </div>
+
+      {# Modern employee multi-select #}
+      <div>
+        <label class="sh-filter-label text-slate-400 mb-1 block">Employees</label>
+        <div class="assign-emp-box">
+          <div class="assign-emp-search-wrap">
+            <svg class="assign-emp-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l3 3"/></svg>
+            <input type="text" class="assign-emp-search" placeholder="Search employees…" oninput="assignEmpFilter(this)">
+          </div>
+          <div class="assign-emp-tags" id="assign-emp-tags"></div>
+          <div class="assign-emp-list" id="assign-emp-list">
+            {% for emp in assign_form.users.field.queryset %}
+            <label class="assign-emp-item" data-name="{{ emp.display_name|lower }}">
+              <input type="checkbox" name="users" value="{{ emp.pk }}" onchange="assignEmpChange()">
+              <span class="assign-emp-avatar">{{ emp.first_name|first|upper }}{{ emp.last_name|first|upper }}</span>
+              <span class="assign-emp-info">
+                <span class="assign-emp-name">{{ emp.display_name }}</span>
+                <span class="assign-emp-sub">{% if emp.employee_id %}{{ emp.employee_id }}{% endif %}{% if emp.department %} · {{ emp.department.name }}{% endif %}</span>
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="assign-emp-footer" id="assign-emp-footer">0 selected</div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button type="submit" class="sh-btn-primary">Assign</button>
+        <button type="button" data-close-modal class="sh-btn-ghost">Cancel</button>
+      </div>
     </form>
+  </div>
+</div>
+
+<style>
+.assign-emp-box { border: 1.5px solid rgba(255,255,255,.12); border-radius: .75rem; overflow: hidden; background: rgba(255,255,255,.03); }
+html:not(.dark) .assign-emp-box { border-color: #e2e8f0; background: #f8fafc; }
+.assign-emp-search-wrap { position: relative; border-bottom: 1px solid rgba(255,255,255,.08); }
+html:not(.dark) .assign-emp-search-wrap { border-bottom-color: #e2e8f0; }
+.assign-emp-search-icon { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); width: .9rem; height: .9rem; color: #64748b; pointer-events: none; }
+.assign-emp-search { width: 100%; box-sizing: border-box; background: transparent; border: none; outline: none; padding: .55rem .75rem .55rem 2.25rem; font-size: .8125rem; color: inherit; }
+.assign-emp-tags { display: flex; flex-wrap: wrap; gap: .35rem; padding: .5rem .75rem; min-height: 0; }
+.assign-emp-tags:empty { display: none; }
+.assign-emp-tag { display: inline-flex; align-items: center; gap: .3rem; background: rgba(124,58,237,.2); border: 1px solid rgba(124,58,237,.4); border-radius: 9999px; padding: .15rem .55rem .15rem .5rem; font-size: .75rem; color: #c4b5fd; font-weight: 600; }
+.assign-emp-tag-x { cursor: pointer; opacity: .7; font-size: .9rem; line-height: 1; }
+.assign-emp-tag-x:hover { opacity: 1; }
+.assign-emp-list { max-height: 200px; overflow-y: auto; }
+.assign-emp-item { display: flex; align-items: center; gap: .65rem; padding: .55rem .75rem; cursor: pointer; transition: background .12s; }
+.assign-emp-item:hover { background: rgba(124,58,237,.08); }
+.assign-emp-item:has(input:checked) { background: rgba(124,58,237,.12); }
+.assign-emp-item input { accent-color: #7c3aed; width: .95rem; height: .95rem; flex-shrink: 0; }
+.assign-emp-avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%; background: linear-gradient(135deg,#7c3aed,#6d28d9); display: flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.assign-emp-info { display: flex; flex-direction: column; min-width: 0; }
+.assign-emp-name { font-size: .8125rem; font-weight: 600; color: var(--sh-text,#f1f5f9); }
+html:not(.dark) .assign-emp-name { color: #0f172a; }
+.assign-emp-sub { font-size: .7rem; color: #94a3b8; }
+.assign-emp-footer { padding: .4rem .75rem; font-size: .75rem; color: #64748b; border-top: 1px solid rgba(255,255,255,.06); text-align: right; }
+html:not(.dark) .assign-emp-footer { border-top-color: #e2e8f0; }
+</style>
+
+{% endif %}
+
+{% if recent_changes and can_manage %}
+<div class="sh-card mt-6">
+  <h3 class="mb-4 text-sm font-semibold text-slate-300">Recent shift changes</h3>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-left">
+      <thead><tr class="text-xs text-slate-400 border-b border-white/10">
+        <th class="pb-2 font-semibold">Employee</th>
+        <th class="pb-2 font-semibold">From</th>
+        <th class="pb-2 font-semibold">To</th>
+        <th class="pb-2 font-semibold">Scope</th>
+        <th class="pb-2 font-semibold">Date range</th>
+        <th class="pb-2 font-semibold">By</th>
+        <th class="pb-2 font-semibold">When</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        {% for ch in recent_changes %}
+        <tr class="text-slate-300">
+          <td class="py-2 pr-4 font-medium text-white">{{ ch.user.display_name }}</td>
+          <td class="py-2 pr-4 text-slate-400">{{ ch.old_shift.name|default:"—" }}</td>
+          <td class="py-2 pr-4 text-violet-300 font-semibold">{{ ch.new_shift.name }}</td>
+          <td class="py-2 pr-4">
+            <span class="rounded-full px-2 py-0.5 text-xs font-semibold
+              {% if ch.scope == 'PERMANENT' %}bg-violet-500/20 text-violet-300
+              {% elif ch.scope == 'WEEK' %}bg-sky-500/20 text-sky-300
+              {% elif ch.scope == 'MONTH' %}bg-emerald-500/20 text-emerald-300
+              {% else %}bg-amber-500/20 text-amber-300{% endif %}">
+              {{ ch.get_scope_display }}
+            </span>
+          </td>
+          <td class="py-2 pr-4 text-slate-400 text-xs">
+            {% if ch.date_from %}{{ ch.date_from|date:"d M" }} – {{ ch.date_to|date:"d M Y" }}{% else %}—{% endif %}
+          </td>
+          <td class="py-2 pr-4 text-slate-400 text-xs">{{ ch.assigned_by.display_name|default:"—" }}</td>
+          <td class="py-2 text-slate-500 text-xs">{{ ch.created_at|date:"d M, H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endif %}
@@ -265,6 +439,66 @@
   document.querySelectorAll("[data-close-modal]").forEach((btn) => {
     btn.addEventListener("click", () => btn.closest(".sh-modal").hidden = true);
   });
+
+  // Export modal — pre-fill current month and handle download
+  (function () {
+    var today = new Date();
+    var firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    var lastDay  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    var fmt = function (d) { return d.toISOString().slice(0, 10); };
+    document.getElementById('export-date-from').value = fmt(firstDay);
+    document.getElementById('export-date-to').value   = fmt(lastDay);
+  })();
+
+  window.doExportShift = function () {
+    var from = document.getElementById('export-date-from').value;
+    var to   = document.getElementById('export-date-to').value;
+    var err  = document.getElementById('export-date-err');
+    if (!from || !to) { err.classList.remove('hidden'); return; }
+    err.classList.add('hidden');
+    window.location.href = '?export=summary&from=' + from + '&to=' + to;
+    document.getElementById('modal-export-shift').hidden = true;
+  };
+
+  // Assign shift — modern employee multi-select
+  window.assignEmpFilter = function (input) {
+    var q = input.value.toLowerCase();
+    document.querySelectorAll('#assign-emp-list .assign-emp-item').forEach(function (item) {
+      item.style.display = !q || item.dataset.name.includes(q) ? '' : 'none';
+    });
+  };
+  window.assignEmpChange = function () {
+    var checked = document.querySelectorAll('#assign-emp-list input:checked');
+    var tagsEl = document.getElementById('assign-emp-tags');
+    var footer = document.getElementById('assign-emp-footer');
+    tagsEl.innerHTML = '';
+    checked.forEach(function (cb) {
+      var item = cb.closest('.assign-emp-item');
+      var name = item.querySelector('.assign-emp-name').textContent;
+      var tag = document.createElement('span');
+      tag.className = 'assign-emp-tag';
+      tag.innerHTML = name + '<span class="assign-emp-tag-x" data-val="' + cb.value + '">×</span>';
+      tag.querySelector('.assign-emp-tag-x').addEventListener('click', function () {
+        var val = this.dataset.val;
+        var target = document.querySelector('#assign-emp-list input[value="' + val + '"]');
+        if (target) { target.checked = false; target.closest('.assign-emp-item').classList.remove('is-checked'); }
+        assignEmpChange();
+      });
+      tagsEl.appendChild(tag);
+    });
+    footer.textContent = checked.length + ' employee' + (checked.length === 1 ? '' : 's') + ' selected';
+  };
+
+  // Reassign shift — show/hide date range based on scope
+  window.reassignScopeChange = function (scope) {
+    var row = document.getElementById("reassign-date-row");
+    if (!row) return;
+    var needsDates = (scope === "CUSTOM");
+    row.style.setProperty("display", needsDates ? "grid" : "none", "important");
+  };
+  // Run on load in case a value is pre-selected
+  var checkedScope = document.querySelector('#reassign-form input[name="scope"]:checked');
+  if (checkedScope) reassignScopeChange(checkedScope.value);
 })();
 </script>
 {% endblock %}

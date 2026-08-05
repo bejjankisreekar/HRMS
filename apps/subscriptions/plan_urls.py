@@ -6,6 +6,7 @@ from .plan_matrix_views import (
     PlanFeatureMatrixView,
 )
 from .plan_views import (
+    BillingSettingsUpdateView,
     PlanCloneView,
     PlanCreateView,
     PlanDetailView,
@@ -23,6 +24,7 @@ urlpatterns = [
     path("list/", LegacyFeatureControlRedirectView.as_view(), name="list"),
     path("api/", PlanFeatureMatrixAPIView.as_view(), name="matrix_api"),
     path("create/", PlanCreateView.as_view(), name="create"),
+    path("billing-settings/", BillingSettingsUpdateView.as_view(), name="billing_settings_update"),
     path("<uuid:pk>/", PlanDetailView.as_view(), name="detail"),
     path("<uuid:pk>/update/", PlanUpdateView.as_view(), name="update"),
     path("<uuid:pk>/clone/", PlanCloneView.as_view(), name="clone"),

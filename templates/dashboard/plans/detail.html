@@ -25,7 +25,9 @@
       {% csrf_token %}
       <label>Plan name<input type="text" name="name" value="{{ plan.name }}" class="pm-input"></label>
       <label>Monthly price (₹)<input type="number" step="0.01" name="monthly_price_inr" value="{{ plan.monthly_price_inr }}" class="pm-input"></label>
-      <label>Yearly price (₹)<input type="number" step="0.01" name="yearly_price_inr" value="{{ plan.yearly_price_inr }}" class="pm-input"></label>
+      <label>Yearly price (₹)<input type="number" step="0.01" value="{{ plan.yearly_price_inr }}" class="pm-input" disabled>
+        <small class="fin-muted">Auto-computed: {{ yearly_discount_percent }}% off monthly×12. Change the discount % on the Plans page.</small>
+      </label>
       <label>Setup fee (₹)<input type="number" step="0.01" name="setup_fee_inr" value="{{ plan.setup_fee_inr }}" class="pm-input"></label>
       <label>Employee limit<input type="number" name="employee_limit" value="{{ plan.employee_limit|default:'' }}" placeholder="Unlimited" class="pm-input"></label>
       <label>Storage limit (MB)<input type="number" name="storage_limit_mb" value="{{ plan.storage_limit_mb|default:'' }}" placeholder="Unlimited" class="pm-input"></label>

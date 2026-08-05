@@ -5,6 +5,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from .payslip_formats import DEFAULT_PAYSLIP_FORMAT, payslip_format_choices
+
 
 class SalaryComponent(models.Model):
     """Earning or deduction line used in salary structures and payslips."""
@@ -85,7 +87,13 @@ class SalaryStructure(models.Model):
         blank=True,
         related_name="salary_structures",
     )
-    grade = models.CharField(max_length=40, blank=True)
+    grade = models.ForeignKey(
+        "grades.Grade",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="salary_structures",
+    )
     monthly_ctc = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
     currency = models.CharField(max_length=3, default="INR")
     is_default = models.BooleanField(default=False)
@@ -439,8 +447,10 @@ class Reimbursement(models.Model):
 
 class EmployeeLoan(models.Model):
     class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending approval"
         ACTIVE = "ACTIVE", "Active"
         CLOSED = "CLOSED", "Closed"
+        REJECTED = "REJECTED", "Rejected"
         DEFAULTED = "DEFAULTED", "Defaulted"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -454,8 +464,16 @@ class EmployeeLoan(models.Model):
     tenure_months = models.PositiveSmallIntegerField(default=12)
     emi_amount = models.DecimalField(max_digits=12, decimal_places=2)
     balance = models.DecimalField(max_digits=12, decimal_places=2)
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
     start_date = models.DateField(default=timezone.localdate)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="loans_approved",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -552,6 +570,9 @@ class PayrollAuditLog(models.Model):
         CALCULATED = "CALCULATED", "Deductions calculated"
         VIEWED = "VIEWED", "Deductions viewed"
         EXPORTED = "EXPORTED", "Report exported"
+        GENERATED = "GENERATED", "Payslip generated"
+        LOAN_APPROVED = "LOAN_APPROVED", "Loan approved"
+        SETTINGS_UPDATED = "SETTINGS_UPDATED", "Payroll settings updated"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -573,3 +594,74 @@ class PayrollAuditLog(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class PayrollCycleConfig(models.Model):
+    """Per-org payroll cycle timing — one row per organization."""
+
+    class Frequency(models.TextChoices):
+        MONTHLY = "MONTHLY", "Monthly"
+        WEEKLY = "WEEKLY", "Weekly"
+        BIWEEKLY = "BIWEEKLY", "Biweekly"
+        SEMI_MONTHLY = "SEMI_MONTHLY", "Semi-monthly"
+        CUSTOM = "CUSTOM", "Custom"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.OneToOneField(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="payroll_cycle_config",
+    )
+    frequency = models.CharField(max_length=15, choices=Frequency.choices, default=Frequency.MONTHLY)
+    payroll_day = models.PositiveSmallIntegerField(
+        default=25, help_text="Day of the month payroll is processed."
+    )
+    salary_day = models.PositiveSmallIntegerField(
+        default=1, help_text="Day of the (following) month salary is credited."
+    )
+    attendance_cutoff_day = models.PositiveSmallIntegerField(default=20)
+    leave_cutoff_day = models.PositiveSmallIntegerField(default=20)
+    approval_deadline_day = models.PositiveSmallIntegerField(default=23)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Payroll cycle · {self.organization}"
+
+
+class PayrollSettings(models.Model):
+    """Per-org payroll behavior settings — one row per organization."""
+
+    class RoundingRule(models.TextChoices):
+        NONE = "NONE", "No rounding"
+        NEAREST = "NEAREST", "Round to nearest rupee"
+        UP = "UP", "Always round up"
+        DOWN = "DOWN", "Always round down"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.OneToOneField(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="payroll_settings",
+    )
+    currency = models.CharField(max_length=3, default="INR")
+    decimal_precision = models.PositiveSmallIntegerField(default=2)
+    rounding_rule = models.CharField(max_length=10, choices=RoundingRule.choices, default=RoundingRule.NEAREST)
+    auto_payroll_enabled = models.BooleanField(default=False)
+    payslip_email_enabled = models.BooleanField(default=True)
+    approval_workflow_enabled = models.BooleanField(default=True)
+    payslip_format = models.CharField(
+        max_length=20,
+        choices=payslip_format_choices,
+        default=DEFAULT_PAYSLIP_FORMAT,
+    )
+    default_salary_structure = models.ForeignKey(
+        SalaryStructure,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Payroll settings · {self.organization}"

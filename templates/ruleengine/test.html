@@ -1,0 +1,110 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Test rules · Rule Engine · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<script src="{% static 'ruleengine.js' %}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'ruleengine:management' as rm %}
+  {% include "dashboard/_back_button.html" with back_url=rm back_label="Rule Engine" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div
+  class="mx-auto w-full max-w-3xl space-y-6"
+  x-data="ruleTester({ ruleId: '{{ request.GET.rule|default:'' }}' })"
+>
+  <div>
+    <h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900">
+      <i data-lucide="flask-conical" class="h-6 w-6 text-indigo-600"></i> Test rules
+    </h1>
+    <p class="mt-1 text-sm text-gray-500">
+      Dry-run against a sample employee — nothing is written to the database. Draft rules can be tested before you activate them.
+    </p>
+  </div>
+
+  <div class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div class="flex flex-wrap gap-4 text-sm">
+      <label class="inline-flex items-center gap-2">
+        <input type="radio" name="mode" value="rule" x-model="mode"> Test one rule
+      </label>
+      <label class="inline-flex items-center gap-2">
+        <input type="radio" name="mode" value="trigger" x-model="mode"> Test all rules for a trigger
+      </label>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <template x-if="mode === 'rule'">
+        <div>
+          <label class="text-xs font-medium text-gray-600">Rule</label>
+          <select x-model="ruleId" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">Select a rule…</option>
+            {% for rule in rules %}
+            <option value="{{ rule.id }}">{{ rule.name }} ({{ rule.get_status_display }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </template>
+      <template x-if="mode === 'trigger'">
+        <div>
+          <label class="text-xs font-medium text-gray-600">Trigger</label>
+          <select x-model="triggerEvent" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">Select a trigger…</option>
+            <option value="ATTENDANCE_MARKED">Attendance marked</option>
+            <option value="LEAVE_REQUESTED">Leave requested</option>
+            <option value="SCHEDULED">Scheduled (batch)</option>
+            <option value="MANUAL">Manual only</option>
+          </select>
+        </div>
+      </template>
+      <div>
+        <label class="text-xs font-medium text-gray-600">Sample employee</label>
+        <select x-model="subjectId" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Select an employee…</option>
+          {% for emp in employees %}
+          <option value="{{ emp.id }}">{{ emp.display_name|default:emp.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <template x-if="error">
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" x-text="error"></div>
+    </template>
+
+    <button type="button" @click="run()" :disabled="running" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+      <i data-lucide="play" class="h-4 w-4"></i> <span x-text="running ? 'Running…' : 'Run test'"></span>
+    </button>
+  </div>
+
+  <template x-if="logs.length">
+    <div class="space-y-3">
+      <template x-for="(log, i) in logs" :key="i">
+        <div class="rounded-2xl border p-4" :class="log.matched ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-gray-900" x-text="log.rule_name"></span>
+            <span class="text-xs font-semibold" :class="log.matched ? 'text-emerald-700' : 'text-gray-500'" x-text="log.matched ? 'Matched' : 'No match'"></span>
+          </div>
+          <div class="mt-2 text-xs text-gray-500">
+            <span class="font-medium">Facts:</span> <span x-text="JSON.stringify(log.facts)"></span>
+          </div>
+          <template x-if="log.actions_result.length">
+            <ul class="mt-2 space-y-1 text-sm">
+              <template x-for="(ar, j) in log.actions_result" :key="j">
+                <li class="flex items-start gap-2">
+                  <span class="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full"
+                        :class="ar.status === 'failed' ? 'bg-red-500' : 'bg-sky-500'"></span>
+                  <span><span class="font-medium" x-text="ar.type"></span> — <span x-text="ar.detail"></span></span>
+                </li>
+              </template>
+            </ul>
+          </template>
+        </div>
+      </template>
+    </div>
+  </template>
+</div>
+{% endblock %}

@@ -25,9 +25,7 @@
         </div>
       </div>
       <div class="dr-hero__actions">
-        <a href="?{{ filter_query }}&export=csv" class="dr-btn dr-btn--ghost"><i data-lucide="file-text" class="h-4 w-4"></i>CSV</a>
-        <a href="?{{ filter_query }}&export=excel" class="dr-btn dr-btn--ghost"><i data-lucide="sheet" class="h-4 w-4"></i>Excel</a>
-        <button type="button" onclick="window.print()" class="dr-btn dr-btn--ghost"><i data-lucide="printer" class="h-4 w-4"></i>Print</button>
+        <a href="?{{ filter_query }}&export=excel" class="dr-btn dr-btn--primary" title="Download attendance register as Excel (.xlsx)" download><i data-lucide="file-spreadsheet" class="h-4 w-4"></i>Download Excel<i data-lucide="download" class="h-4 w-4"></i></a>
       </div>
     </div>
   </header>

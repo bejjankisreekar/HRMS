@@ -50,8 +50,16 @@ html.dark .se-tab-btn:hover {
   box-shadow: 0 2px 8px rgba(124,58,237,0.35);
   border-bottom-color: #7c3aed;
 }
+.se-tab-btn--active:hover {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: #fff !important;
+}
 html.dark .se-tab-btn--active {
   box-shadow: 0 2px 12px rgba(124,58,237,0.5);
+}
+html.dark .se-tab-btn--active:hover {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: #fff !important;
 }
 
 /* Form field wrapper */

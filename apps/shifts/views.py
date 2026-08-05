@@ -1,4 +1,6 @@
+import calendar as _cal
 import json
+from datetime import timedelta
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -17,11 +19,12 @@ from apps.shifts.analytics import (
     build_insights,
     build_summary,
     export_schedule_csv,
+    export_shift_summary_csv,
     filter_options,
     table_rows,
 )
-from apps.shifts.forms import RotationForm, ShiftAssignForm, ShiftSwapForm, WorkShiftManageForm
-from apps.shifts.models import ShiftAssignment, ShiftRotation, ShiftSwapRequest
+from apps.shifts.forms import RotationForm, ShiftAssignForm, ShiftReassignForm, ShiftSwapForm, WorkShiftManageForm
+from apps.shifts.models import ShiftAssignment, ShiftChange, ShiftRotation, ShiftSwapRequest
 from apps.shifts.services import (
     ShiftFilters,
     apply_rotation,
@@ -31,8 +34,93 @@ from apps.shifts.services import (
     build_weekly_grid,
     bulk_assign_shift,
     clone_shift,
+    reassign_shift,
     schedulable_users,
 )
+
+
+class ShiftReassignView(PlanFeatureRequiredMixin, TemplateView):
+    """Dedicated page for reassigning shifts to one or more employees."""
+
+    template_name = "shifts/shift_reassign.html"
+    required_feature = "shifts"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        if request.user.role not in (User.Role.ADMIN, User.Role.HR):
+            messages.error(request, "Access denied.")
+            return redirect("shifts:management")
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        org = request.user.organization
+        user = request.user
+        form = ShiftReassignForm(request.POST, organization=org, viewer=user)
+        if not form.is_valid():
+            context = self.get_context_data(form=form)
+            return self.render_to_response(context)
+
+        cd = form.cleaned_data
+        scope = cd["scope"]
+        today = timezone.localdate()
+
+        if scope == ShiftChange.Scope.WEEK:
+            date_from = today - timedelta(days=today.weekday())
+            date_to = date_from + timedelta(days=6)
+        elif scope == ShiftChange.Scope.MONTH:
+            date_from = today.replace(day=1)
+            last_day = _cal.monthrange(today.year, today.month)[1]
+            date_to = today.replace(day=last_day)
+        elif scope == ShiftChange.Scope.PERMANENT:
+            date_from = date_to = None
+        else:
+            date_from = cd.get("date_from")
+            date_to = cd.get("date_to")
+
+        users_list = list(cd["users"])
+        for employee in users_list:
+            reassign_shift(
+                organization=org,
+                user=employee,
+                new_shift=cd["new_shift"],
+                scope=scope,
+                date_from=date_from,
+                date_to=date_to,
+                assigned_by=user,
+                reason=cd.get("reason") or "",
+            )
+
+        names = ", ".join(u.display_name for u in users_list[:3])
+        if len(users_list) > 3:
+            names += f" +{len(users_list) - 3} more"
+        messages.success(
+            request,
+            f"Shift reassigned for {names}: {cd['new_shift'].name}. Employee(s) notified."
+        )
+        return redirect("shifts:management")
+
+    def get_context_data(self, form=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.user.organization
+        user = self.request.user
+        from apps.organizations.models import Department
+        context["form"] = form or ShiftReassignForm(organization=org, viewer=user)
+        context["recent_changes"] = ShiftChange.objects.filter(
+            organization=org
+        ).select_related("user", "old_shift", "new_shift", "assigned_by")[:20]
+        context["departments"] = Department.objects.filter(
+            organization=org, is_active=True
+        ).order_by("name")
+        from apps.attendance.models import WorkShift as _WS
+        context["active_shifts"] = _WS.objects.filter(
+            organization=org, is_active=True
+        ).order_by("name")
+        context["can_manage"] = True
+        context["page_back_url"] = reverse("shifts:management")
+        context["page_back_label"] = "Shifts"
+        return context
 
 
 class ShiftManagementView(PlanFeatureRequiredMixin, TemplateView):
@@ -48,6 +136,8 @@ class ShiftManagementView(PlanFeatureRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         if request.GET.get("export") == "csv":
             return self._export_csv(request)
+        if request.GET.get("export") == "summary":
+            return self._export_summary(request)
         return super().get(request, *args, **kwargs)
 
     def _export_csv(self, request):
@@ -58,6 +148,24 @@ class ShiftManagementView(PlanFeatureRequiredMixin, TemplateView):
         content = export_schedule_csv(rows)
         resp = HttpResponse(content, content_type="text/csv")
         resp["Content-Disposition"] = 'attachment; filename="shift-schedule.csv"'
+        return resp
+
+    def _export_summary(self, request):
+        from datetime import date
+        org = request.user.organization
+        try:
+            date_from = date.fromisoformat(request.GET.get("from", ""))
+            date_to = date.fromisoformat(request.GET.get("to", ""))
+        except ValueError:
+            messages.error(request, "Invalid date range for export.")
+            return redirect("shifts:management")
+        if date_from > date_to:
+            date_from, date_to = date_to, date_from
+        users = schedulable_users(request.user)
+        content = export_shift_summary_csv(org, users, date_from, date_to)
+        fname = f"shift-summary-{date_from}-to-{date_to}.csv"
+        resp = HttpResponse(content, content_type="text/csv")
+        resp["Content-Disposition"] = f'attachment; filename="{fname}"'
         return resp
 
     def post(self, request, *args, **kwargs):
@@ -81,6 +189,8 @@ class ShiftManagementView(PlanFeatureRequiredMixin, TemplateView):
             return self._reject_swap(request, org, user)
         if action == "create_rotation" and user.role == User.Role.ADMIN:
             return self._create_rotation(request, org)
+        if action == "reassign_shift" and user.role in (User.Role.ADMIN, User.Role.HR):
+            return self._reassign_shift(request, org, user)
 
         messages.error(request, "Invalid action.")
         return self._redirect(request)
@@ -165,6 +275,53 @@ class ShiftManagementView(PlanFeatureRequiredMixin, TemplateView):
         messages.success(request, "Swap request rejected.")
         return self._redirect(request)
 
+    def _reassign_shift(self, request, org, user):
+        form = ShiftReassignForm(request.POST, organization=org, viewer=user)
+        if not form.is_valid():
+            messages.error(request, "Could not reassign shift — " + "; ".join(
+                e for field_errors in form.errors.values() for e in field_errors
+            ))
+            return self._redirect(request)
+
+        cd = form.cleaned_data
+        scope = cd["scope"]
+        today = timezone.localdate()
+
+        # Auto-compute date_from / date_to for WEEK and MONTH scopes
+        if scope == ShiftChange.Scope.WEEK:
+            date_from = today - timedelta(days=today.weekday())
+            date_to = date_from + timedelta(days=6)
+        elif scope == ShiftChange.Scope.MONTH:
+            date_from = today.replace(day=1)
+            last_day = _cal.monthrange(today.year, today.month)[1]
+            date_to = today.replace(day=last_day)
+        elif scope == ShiftChange.Scope.PERMANENT:
+            date_from = date_to = None
+        else:
+            date_from = cd.get("date_from")
+            date_to = cd.get("date_to")
+
+        users_list = list(cd["users"])
+        for employee in users_list:
+            reassign_shift(
+                organization=org,
+                user=employee,
+                new_shift=cd["new_shift"],
+                scope=scope,
+                date_from=date_from,
+                date_to=date_to,
+                assigned_by=user,
+                reason=cd.get("reason") or "",
+            )
+        names = ", ".join(u.display_name for u in users_list[:3])
+        if len(users_list) > 3:
+            names += f" +{len(users_list) - 3} more"
+        messages.success(
+            request,
+            f"Shift reassigned for {names}: {cd['new_shift'].name}. Employee(s) notified."
+        )
+        return redirect("shifts:management")
+
     def _create_rotation(self, request, org):
         form = RotationForm(request.POST, organization=org)
         if form.is_valid():
@@ -217,8 +374,12 @@ class ShiftManagementView(PlanFeatureRequiredMixin, TemplateView):
                 "report_page": page,
                 "shift_form": WorkShiftManageForm(organization=org),
                 "assign_form": ShiftAssignForm(organization=org, viewer=user),
+                "reassign_form": ShiftReassignForm(organization=org, viewer=user),
                 "swap_form": ShiftSwapForm(organization=org, requester=user),
                 "rotation_form": RotationForm(organization=org),
+                "recent_changes": ShiftChange.objects.filter(
+                    organization=org
+                ).select_related("user", "old_shift", "new_shift", "assigned_by")[:20],
                 "can_manage": user.role in (User.Role.ADMIN, User.Role.HR),
                 "is_admin": user.role == User.Role.ADMIN,
                 "filter_query": request.GET.urlencode(),

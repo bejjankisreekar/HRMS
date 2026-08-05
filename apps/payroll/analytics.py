@@ -42,10 +42,20 @@ class PayrollFilters:
     payment_status: str = ""
 
     @classmethod
-    def from_request(cls, request):
+    def from_request(cls, request, fy: dict | None = None):
         today = timezone.localdate()
-        year = _int(request.GET.get("year"), today.year)
-        month = _int(request.GET.get("month"), today.month)
+
+        # Default year/month: clamp today to within the selected FY
+        if fy:
+            fy_start = fy["date_from"]
+            fy_end = fy["date_to"]
+            default_date = max(fy_start, min(today, fy_end))
+            default_year, default_month = default_date.year, default_date.month
+        else:
+            default_year, default_month = today.year, today.month
+
+        year = _int(request.GET.get("year"), default_year)
+        month = _int(request.GET.get("month"), default_month)
         month = max(1, min(12, month))
         return cls(
             year=year,
@@ -100,6 +110,36 @@ def filtered_payslips(viewer: User, filters: PayrollFilters):
     return qs.order_by("user__first_name", "user__last_name")
 
 
+def filtered_payslips_for_fy(viewer: User, fy: dict | None, filters: PayrollFilters):
+    """All payslips across every month of the given financial year, scoped to the
+    viewer's team. Powers the Payslips list, which follows the top-nav FY
+    selector instead of a per-page year/month filter."""
+    org = viewer.organization
+    team = payroll_team_for(viewer)
+    qs = Payslip.objects.filter(user__in=team, payroll_run__organization=org)
+
+    if fy:
+        runs = _filter_runs_by_fy(
+            PayrollRun.objects.filter(organization=org), fy["date_from"], fy["date_to"]
+        )
+        qs = qs.filter(payroll_run__in=runs)
+
+    qs = qs.select_related("user", "user__department", "payroll_run")
+
+    if filters.employee_id:
+        qs = qs.filter(user_id=filters.employee_id)
+    if filters.department:
+        qs = qs.filter(user__department_id=filters.department)
+    if filters.branch:
+        qs = qs.filter(user__work_location__iexact=filters.branch)
+    if filters.payment_status:
+        qs = qs.filter(payment_status=filters.payment_status)
+    if filters.salary_type:
+        qs = qs.filter(user__salary_profiles__salary_type=filters.salary_type)
+
+    return qs.order_by("-payroll_run__year", "-payroll_run__month", "user__first_name", "user__last_name")
+
+
 def build_summary(viewer: User, filters: PayrollFilters) -> dict:
     org = viewer.organization
     run = get_current_run(org, filters)
@@ -147,6 +187,7 @@ def build_summary(viewer: User, filters: PayrollFilters) -> dict:
     # transform at the presentation layer here.
     return {
         "total_payroll": abs(float(agg["net"] or 0)),
+        "gross_salary": abs(float(agg["gross"] or 0)),
         "employees_processed": qs.count() if run else 0,
         "team_total": team_count,
         "pending_payroll": pending_slips,
@@ -162,19 +203,58 @@ def build_summary(viewer: User, filters: PayrollFilters) -> dict:
     }
 
 
-def build_charts(viewer: User, filters: PayrollFilters) -> dict:
+def _filter_runs_by_fy(qs, date_from, date_to):
+    """Filter a PayrollRun queryset to only runs within the FY date range."""
+    from django.db.models import Q
+    if date_from.year == date_to.year:
+        return qs.filter(year=date_from.year, month__gte=date_from.month, month__lte=date_to.month)
+    return qs.filter(
+        Q(year=date_from.year, month__gte=date_from.month)
+        | Q(year__gt=date_from.year, year__lt=date_to.year)
+        | Q(year=date_to.year, month__lte=date_to.month)
+    )
+
+
+def build_charts(viewer: User, filters: PayrollFilters, fy: dict | None = None) -> dict:
     org = viewer.organization
+    team = payroll_team_for(viewer)
     monthly_labels = []
     monthly_values = []
-    for i in range(5, -1, -1):
-        m = filters.month - i
-        y = filters.year
-        while m < 1:
-            m += 12
-            y -= 1
-        monthly_labels.append(calendar.month_abbr[m])
-        run = PayrollRun.objects.filter(organization=org, year=y, month=m).first()
-        monthly_values.append(float(run.total_net) if run else 0)
+
+    def team_net_for(year: int, month: int) -> float:
+        # Scoped to the viewer's team (self for an employee) so payroll trend
+        # data never leaks other employees' figures to a non-finance viewer.
+        total = Payslip.objects.filter(
+            payroll_run__organization=org,
+            payroll_run__year=year,
+            payroll_run__month=month,
+            user__in=team,
+        ).aggregate(s=Sum("net_salary"))["s"]
+        return abs(float(total)) if total else 0.0
+
+    if fy:
+        # Walk every month in the selected FY (up to today)
+        from django.utils import timezone as _tz
+        today = _tz.localdate()
+        d = fy["date_from"].replace(day=1)
+        fy_end = fy["date_to"]
+        while d <= fy_end and d <= today:
+            monthly_labels.append(calendar.month_abbr[d.month])
+            monthly_values.append(team_net_for(d.year, d.month))
+            # advance by one month
+            if d.month == 12:
+                d = d.replace(year=d.year + 1, month=1)
+            else:
+                d = d.replace(month=d.month + 1)
+    else:
+        for i in range(5, -1, -1):
+            m = filters.month - i
+            y = filters.year
+            while m < 1:
+                m += 12
+                y -= 1
+            monthly_labels.append(calendar.month_abbr[m])
+            monthly_values.append(team_net_for(y, m))
 
     dept_labels = []
     dept_values = []
@@ -400,11 +480,12 @@ def approval_steps(run: PayrollRun | None) -> list[PayrollApproval]:
     return list(run.approvals.order_by("step"))
 
 
-def recent_runs(org: Organization, limit: int = 12) -> list[PayrollRun]:
-    """Most recent payroll runs (newest first) for the month-wise history table."""
-    return list(
-        PayrollRun.objects.filter(organization=org).order_by("-year", "-month")[:limit]
-    )
+def recent_runs(org: Organization, fy: dict | None = None, limit: int = 12) -> list[PayrollRun]:
+    """Most recent payroll runs within the selected FY (newest first)."""
+    qs = PayrollRun.objects.filter(organization=org)
+    if fy:
+        qs = _filter_runs_by_fy(qs, fy["date_from"], fy["date_to"])
+    return list(qs.order_by("-year", "-month")[:limit])
 
 
 def recent_revisions(org: Organization, limit: int = 5) -> list[SalaryRevision]:

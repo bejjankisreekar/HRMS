@@ -36,7 +36,7 @@ def _month_labels(months: list[tuple[int, int]]) -> list[str]:
     return [calendar.month_abbr[m] for _, m in months]
 
 
-def get_professional_dashboard_context(admin: User) -> dict:
+def get_professional_dashboard_context(admin: User, fy: dict | None = None) -> dict:
     org: Organization | None = admin.organization
     if not org:
         return {"empty_org": True}
@@ -46,6 +46,8 @@ def get_professional_dashboard_context(admin: User) -> dict:
     month_labels = _month_labels(months)
     thirty_days_ago = today - timedelta(days=30)
     ninety_days_ago = today - timedelta(days=90)
+    fy_start = fy["date_from"] if fy else today.replace(month=1, day=1)
+    fy_end = fy["date_to"] if fy else today
 
     org_users = User.objects.filter(organization=org).exclude(role=User.Role.SUPER_ADMIN)
     employees_qs = org_users.filter(role=User.Role.EMPLOYEE)
@@ -62,7 +64,12 @@ def get_professional_dashboard_context(admin: User) -> dict:
 
     monthly_payroll = Decimal("0")
     if org.payroll_enabled:
-        run = PayrollRun.objects.filter(organization=org, year=today.year, month=today.month).first()
+        # Show the most recent payroll run within the selected FY
+        from apps.payroll.analytics import _filter_runs_by_fy
+        payroll_qs = PayrollRun.objects.filter(organization=org)
+        if fy:
+            payroll_qs = _filter_runs_by_fy(payroll_qs, fy_start, fy_end)
+        run = payroll_qs.order_by("-year", "-month").first()
         if run:
             monthly_payroll = run.total_net
 
@@ -81,17 +88,13 @@ def get_professional_dashboard_context(admin: User) -> dict:
     )
 
     avg_fit = None
-    performance_score = round(attendance_pct / 20, 1)
-    performance_score = min(performance_score, 5.0)
-
-    satisfaction = 4.2 if active_count >= 10 else 4.0
 
     kpis = [
         {
             "id": "employees",
             "label": "Active employees",
             "value": str(active_count),
-            "trend": f"+{org_users.filter(date_joined__date__gte=thirty_days_ago).count()} this month",
+            "trend": f"+{org_users.filter(date_joined__date__gte=fy_start).count()} this FY",
             "trend_up": True,
             "icon": "users",
             "accent": "violet",
@@ -121,7 +124,7 @@ def get_professional_dashboard_context(admin: User) -> dict:
             "id": "payroll",
             "label": "Monthly payroll",
             "value": f"₹{monthly_payroll:,.0f}" if monthly_payroll else "—",
-            "trend": "Current month net",
+            "trend": f"Latest run · {fy['label'] if fy else 'current FY'}",
             "trend_up": True,
             "icon": "wallet",
             "accent": "cyan",
@@ -136,26 +139,6 @@ def get_professional_dashboard_context(admin: User) -> dict:
             "icon": "palmtree",
             "accent": "indigo",
             "url_name": "leaves:management",
-        },
-        {
-            "id": "performance",
-            "label": "Performance score",
-            "value": f"{performance_score}/5",
-            "trend": "Org average",
-            "trend_up": performance_score >= 3.5,
-            "icon": "target",
-            "accent": "amber",
-            "url_name": "#",
-        },
-        {
-            "id": "satisfaction",
-            "label": "Employee satisfaction",
-            "value": f"{satisfaction}/5",
-            "trend": "Pulse survey",
-            "trend_up": satisfaction >= 4,
-            "icon": "heart",
-            "accent": "pink",
-            "url_name": "#",
         },
     ]
 

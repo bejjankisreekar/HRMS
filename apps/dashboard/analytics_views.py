@@ -21,6 +21,7 @@ from .attendance_analytics import (
     get_analytics_context,
 )
 from .mixins import AdminOrHRRequiredMixin
+from apps.organizations.fy_utils import get_selected_fy
 
 
 class AttendanceAnalyticsView(AdminOrHRRequiredMixin, TemplateView):
@@ -32,7 +33,7 @@ class AttendanceAnalyticsView(AdminOrHRRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         export = request.GET.get("export")
         if export in ("csv", "excel", "xlsx"):
-            filters = AnalyticsFilters.from_request(request)
+            filters = AnalyticsFilters.from_request(request, fy=get_selected_fy(request))
             rows = build_table_rows(request.user, filters)
             if export in ("xlsx", "excel"):
                 return export_rows_xlsx(rows)
@@ -86,7 +87,7 @@ class AttendanceReportsDataView(AdminOrHRRequiredMixin, View):
     """JSON payload for the AJAX trend/distribution/department + KPI refresh."""
 
     def get(self, request, *args, **kwargs):
-        filters = AnalyticsFilters.from_request(request)
+        filters = AnalyticsFilters.from_request(request, fy=get_selected_fy(request))
         return JsonResponse(build_trend(request.user, filters))
 
 
@@ -101,7 +102,7 @@ class EmployeeAttendanceChartView(AdminOrHRRequiredMixin, TemplateView):
         if request.GET.get("export") in ("csv", "xlsx", "excel"):
             from apps.attendance.models import AttendanceReportAudit, record_report_audit
 
-            filters = AO.OverviewFilters.from_request(request)
+            filters = AO.OverviewFilters.from_request(request, fy=get_selected_fy(request))
             data = AO.employee_attendance_overview(request.user, filters)
             fmt = request.GET["export"]
             record_report_audit(
@@ -122,7 +123,7 @@ class EmployeeAttendanceChartView(AdminOrHRRequiredMixin, TemplateView):
         import json
 
         ctx = super().get_context_data(**kwargs)
-        filters = AO.OverviewFilters.from_request(self.request)
+        filters = AO.OverviewFilters.from_request(self.request, fy=get_selected_fy(self.request))
         data = AO.employee_attendance_overview(self.request.user, filters)
 
         query = self.request.GET.copy()

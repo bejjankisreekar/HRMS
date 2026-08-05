@@ -20,6 +20,7 @@ def hrms_sidebar(request):
             "current_fy": None,
             "fy_label": "",
             "fy_choices": [],
+            "selected_fy_id": None,
             "selected_fy_start_year": None,
         }
 
@@ -35,36 +36,51 @@ def hrms_sidebar(request):
         "current_fy": None,
         "fy_label": "",
         "fy_choices": [],
+        "selected_fy_id": None,
         "selected_fy_start_year": None,
     }
 
     org = getattr(request.user, "organization", None)
-    if org:
-        try:
-            from apps.organizations.financial_year import (
-                get_current_financial_year,
-                get_fy_range,
-                fy_year_choices,
+    if not org:
+        return ctx
+
+    try:
+        from apps.organizations.models import FinancialYear
+
+        fy_qs = list(
+            FinancialYear.objects.filter(organization=org).order_by("start_date")
+        )
+
+        if not fy_qs:
+            # No FYs created yet — signal the topnav to show a "Create FY" CTA
+            ctx["fy_choices"] = []
+            return ctx
+
+        choices = [fy.as_dict() for fy in fy_qs]
+
+        # Resolve which FY is active: session > default > latest active > latest
+        selected_id = request.session.get("selected_fy_id")
+        active_obj = None
+
+        if selected_id:
+            active_obj = next((f for f in fy_qs if str(f.id) == selected_id), None)
+
+        if not active_obj:
+            active_obj = (
+                next((f for f in fy_qs if f.is_default), None)
+                or next((f for f in reversed(fy_qs) if f.is_active), None)
+                or fy_qs[-1]
             )
 
-            # Determine which FY the user has selected (session > default=current)
-            calendar_fy = get_current_financial_year(org)
-            raw_year = request.session.get("selected_fy_start_year")
-            if raw_year:
-                try:
-                    active_fy = get_fy_range(org, int(raw_year))
-                except Exception:
-                    active_fy = calendar_fy
-            else:
-                active_fy = calendar_fy
+        active_fy = active_obj.as_dict()
+        ctx["current_fy"] = active_fy
+        ctx["fy_label"] = active_fy["label"]
+        ctx["fy_choices"] = choices
+        ctx["selected_fy_id"] = active_fy["id"]
+        ctx["selected_fy_start_year"] = active_fy["start_year"]
 
-            choices = fy_year_choices(org, n=5)
-
-            ctx["current_fy"] = active_fy
-            ctx["fy_label"] = active_fy["label"]
-            ctx["fy_choices"] = choices
-            ctx["selected_fy_start_year"] = active_fy["start_year"]
-        except Exception:
-            pass
+    except Exception:
+        # Graceful fallback — never crash a page because of the FY context
+        pass
 
     return ctx

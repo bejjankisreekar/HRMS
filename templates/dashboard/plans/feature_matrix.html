@@ -27,6 +27,15 @@ window.PLAN_MATRIX = {
         <p class="fin-subtitle">Configure pricing tiers, set capacity limits, and control feature access across your platform.</p>
       </div>
       <div class="fin-hero__actions">
+        <form method="post" action="{% url 'dashboard:plans:billing_settings_update' %}" class="pmx-discount-form">
+          {% csrf_token %}
+          <label class="pmx-discount-form__label">
+            Yearly discount
+            <input type="number" name="yearly_discount_percent" min="0" max="100" step="0.01"
+                   value="{{ yearly_discount_percent }}" class="pmx-discount-form__input"> %
+          </label>
+          <button type="submit" class="fin-btn fin-btn--ghost fin-btn--sm">Apply to all plans</button>
+        </form>
         <a href="{% url 'accounts:pricing' %}" target="_blank" rel="noopener" class="fin-btn fin-btn--ghost">
           <i data-lucide="external-link"></i> Live pricing
         </a>

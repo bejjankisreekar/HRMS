@@ -1,0 +1,87 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Document Permissions · HRMS{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl space-y-6">
+
+  <div class="flex items-center gap-3">
+    <a href="{% url 'documents:management' %}" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+      <i data-lucide="arrow-left" class="h-5 w-5"></i>
+    </a>
+    <h1 class="text-xl font-bold text-slate-900 dark:text-white">Document Permissions</h1>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{{ msg }}</div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    {% for section, fields in perm_sections %}
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+      <h3 class="font-semibold text-slate-800 dark:text-white mb-4">{{ section }}</h3>
+      <div class="space-y-3">
+        {% for field_name, label, value in fields %}
+        <label class="flex items-center justify-between gap-4 cursor-pointer">
+          <span class="text-sm text-slate-700 dark:text-slate-300">{{ label }}</span>
+          <div class="relative inline-flex">
+            <input type="checkbox" name="{{ field_name }}" {% if value %}checked{% endif %}
+              class="peer h-5 w-5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500">
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Render the perm object directly -->
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 space-y-4">
+      <h3 class="font-semibold text-slate-800 dark:text-white">Template Management</h3>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">Admin can manage templates (create/edit/delete)</span>
+        <input type="checkbox" name="admin_can_manage" {% if perm.admin_can_manage %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">HR can manage templates</span>
+        <input type="checkbox" name="hr_can_manage" {% if perm.hr_can_manage %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 space-y-4">
+      <h3 class="font-semibold text-slate-800 dark:text-white">Document Generation</h3>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">Admin can generate documents</span>
+        <input type="checkbox" name="admin_can_generate" {% if perm.admin_can_generate %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">HR can generate documents</span>
+        <input type="checkbox" name="hr_can_generate" {% if perm.hr_can_generate %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">Employees can request their own documents</span>
+        <input type="checkbox" name="employee_can_generate" {% if perm.employee_can_generate %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 space-y-4">
+      <h3 class="font-semibold text-slate-800 dark:text-white">View Access</h3>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">Admin can view all generated documents</span>
+        <input type="checkbox" name="admin_can_view_all" {% if perm.admin_can_view_all %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+      <label class="flex items-center justify-between gap-4 cursor-pointer">
+        <span class="text-sm text-slate-700 dark:text-slate-300">HR can view all generated documents</span>
+        <input type="checkbox" name="hr_can_view_all" {% if perm.hr_can_view_all %}checked{% endif %} class="h-5 w-5 rounded text-indigo-600">
+      </label>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save Permissions</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

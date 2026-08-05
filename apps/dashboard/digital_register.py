@@ -426,3 +426,207 @@ def export_register_csv(manager: User, filters: RegisterFilters):
         ]
         writer.writerow(line)
     return response
+
+
+def export_register_xlsx(manager: User, filters: RegisterFilters):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+
+    data = build_register(manager, filters, page=1, page_size=100000)
+
+    org = getattr(manager, "organization", None)
+    org_name = org.name if org else "Organization"
+
+    dept_label = ""
+    if filters.department_id:
+        dept = Department.objects.filter(pk=filters.department_id).first()
+        if dept:
+            dept_label = dept.name
+
+    day_headers = data["day_headers"]
+    num_days = len(day_headers)
+    weekend_flags = [h["date"].weekday() == 6 for h in day_headers]  # Sunday only
+    month_name = filters.start.strftime("%B")
+    year_label = filters.start.strftime("%Y")
+    summary_labels = ["Present", "Absent", "Leave", "Half", "WFH", "Late"]
+
+    # Column layout: Emp ID | Name | Month | <days...> | <summary...>
+    first_day_col = 4
+    first_summary_col = first_day_col + num_days
+    total_cols = first_summary_col + len(summary_labels) - 1
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Attendance Register"
+
+    # Palette (approximating the reference template)
+    TEAL = "13A89C"
+    TEAL_DARK = "0E8A80"
+    WEEKEND = "FFF3CD"
+    HEAD_LIGHT = "F1F5F9"
+    center = Alignment(horizontal="center", vertical="center")
+    center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_mid = Alignment(horizontal="left", vertical="center")
+    last_col = get_column_letter(total_cols)
+
+    teal_fill = PatternFill(start_color=TEAL, end_color=TEAL, fill_type="solid")
+    teal_dark_fill = PatternFill(start_color=TEAL_DARK, end_color=TEAL_DARK, fill_type="solid")
+    weekend_fill = PatternFill(start_color=WEEKEND, end_color=WEEKEND, fill_type="solid")
+    light_fill = PatternFill(start_color=HEAD_LIGHT, end_color=HEAD_LIGHT, fill_type="solid")
+    thin = Side(style="thin", color="CBD5E1")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # ---------------------------------------------------------------
+    # Banner: company name + "Employee Attendance Sheet" (full width)
+    # ---------------------------------------------------------------
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+    title = ws.cell(row=1, column=1, value=org_name)
+    title.font = Font(bold=True, size=22, color="FFFFFF")
+    title.alignment = center
+    title.fill = teal_fill
+
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
+    subtitle = ws.cell(row=2, column=1, value="Employee Attendance Sheet")
+    subtitle.font = Font(bold=True, size=13, color="FFFFFF")
+    subtitle.alignment = center
+    subtitle.fill = teal_fill
+
+    ws.row_dimensions[1].height = 34
+    ws.row_dimensions[2].height = 24
+
+    # ---------------------------------------------------------------
+    # Meta line: Year / Month — highlighted as the key context
+    # ---------------------------------------------------------------
+    meta_row = 3
+    ws.merge_cells(start_row=meta_row, start_column=1, end_row=meta_row, end_column=total_cols)
+    meta_bits = [f"Year: {year_label}", f"Month: {month_name}"]
+    if dept_label:
+        meta_bits.append(f"Department: {dept_label}")
+    meta = ws.cell(row=meta_row, column=1, value="       ".join(meta_bits))
+    meta.font = Font(bold=True, size=13, color=TEAL_DARK)
+    meta.alignment = center
+    meta.fill = PatternFill(start_color="D1F5F0", end_color="D1F5F0", fill_type="solid")
+    meta.border = border
+    ws.row_dimensions[meta_row].height = 24
+
+    # ---------------------------------------------------------------
+    # Two-row table header:
+    #   row H1: identity labels (merged down) + day numbers + summary (merged down)
+    #   row H2: weekday abbreviations under each day number
+    # ---------------------------------------------------------------
+    h1 = 4
+    h2 = 5
+
+    # Identity headers span both header rows
+    for col_idx, label in ((1, "Emp. ID"), (2, "Employee Name"), (3, "Department")):
+        ws.merge_cells(start_row=h1, start_column=col_idx, end_row=h2, end_column=col_idx)
+        cell = ws.cell(row=h1, column=col_idx, value=label)
+        cell.font = Font(bold=True, color="FFFFFF", size=10)
+        cell.fill = teal_dark_fill
+        cell.alignment = center_wrap
+        cell.border = border
+        ws.cell(row=h2, column=col_idx).border = border
+
+    # Day columns: number on top, weekday below
+    for i, hdr in enumerate(day_headers):
+        col_idx = first_day_col + i
+        num_cell = ws.cell(row=h1, column=col_idx, value=hdr["day"])
+        wk_cell = ws.cell(row=h2, column=col_idx, value=hdr["weekday"])
+        fill = weekend_fill if weekend_flags[i] else light_fill
+        for cell in (num_cell, wk_cell):
+            cell.fill = fill
+            cell.alignment = center
+            cell.border = border
+        num_cell.font = Font(bold=True, size=9, color="0F172A")
+        wk_cell.font = Font(size=8, color="475569")
+
+    # Summary headers span both header rows, vertical text
+    vertical = Alignment(text_rotation=90, horizontal="center", vertical="center")
+    for i, label in enumerate(summary_labels):
+        col_idx = first_summary_col + i
+        ws.merge_cells(start_row=h1, start_column=col_idx, end_row=h2, end_column=col_idx)
+        cell = ws.cell(row=h1, column=col_idx, value=label)
+        cell.font = Font(bold=True, color="FFFFFF", size=9)
+        cell.fill = teal_dark_fill
+        cell.alignment = vertical
+        cell.border = border
+        ws.cell(row=h2, column=col_idx).border = border
+
+    ws.row_dimensions[h1].height = 18
+    ws.row_dimensions[h2].height = 44
+
+    # ---------------------------------------------------------------
+    # Data rows
+    # ---------------------------------------------------------------
+    current_row = h2
+    for row in data["rows"]:
+        current_row += 1
+        line = [row["employee_id"], row["name"], row["department"]]
+        line += [c["code"] or "-" for c in row["cells"]]
+        line += [
+            row["present_days"],
+            row["absent_days"],
+            row["leave_days"],
+            row["half_days"],
+            row["wfh_days"],
+            row["late_days"],
+        ]
+        for col_idx, value in enumerate(line, start=1):
+            cell = ws.cell(row=current_row, column=col_idx, value=value)
+            cell.border = border
+            if col_idx == 2:
+                cell.alignment = left_mid
+            else:
+                cell.alignment = center
+            # Shade weekend day-columns lightly
+            if first_day_col <= col_idx < first_summary_col and weekend_flags[col_idx - first_day_col]:
+                cell.fill = weekend_fill
+
+    last_data_row = current_row
+
+    # ---------------------------------------------------------------
+    # Column widths + freeze panes
+    # ---------------------------------------------------------------
+    ws.freeze_panes = f"D{h1}"
+    ws.column_dimensions["A"].width = 11
+    ws.column_dimensions["B"].width = 26
+    ws.column_dimensions["C"].width = 20
+    for col_idx in range(first_day_col, first_summary_col):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 3.6
+    for col_idx in range(first_summary_col, total_cols + 1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 4.5
+
+    # ---------------------------------------------------------------
+    # Legend (full forms of the status codes)
+    # ---------------------------------------------------------------
+    current_row += 2  # gap below the table
+    legend_cell = ws.cell(row=current_row, column=1, value="Legend")
+    legend_cell.font = Font(bold=True, size=11, color=TEAL_DARK)
+    legend_items = list(LEGEND) + [("-", "Not marked")]
+    for code, label in legend_items:
+        current_row += 1
+        code_cell = ws.cell(row=current_row, column=1, value=code)
+        code_cell.font = Font(bold=True, color=TEAL_DARK)
+        code_cell.alignment = center
+        ws.cell(row=current_row, column=2, value=label).alignment = left_mid
+
+    # Generated-on note (small, unobtrusive)
+    current_row += 2
+    gen = ws.cell(
+        row=current_row,
+        column=1,
+        value=f"Generated on {timezone.localdate():%d %b %Y}",
+    )
+    gen.font = Font(size=8, italic=True, color="94A3B8")
+    gen.alignment = left_mid
+
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="attendance_register_{filters.start}_{filters.end}.xlsx"'
+    )
+    wb.save(response)
+    return response

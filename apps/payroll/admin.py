@@ -4,7 +4,9 @@ from .models import (
     EmployeeLoan,
     EmployeeSalary,
     PayrollApproval,
+    PayrollCycleConfig,
     PayrollRun,
+    PayrollSettings,
     Payslip,
     PayslipLine,
     Reimbursement,
@@ -47,3 +49,5 @@ admin.site.register(PayrollApproval)
 admin.site.register(SalaryRevision)
 admin.site.register(TaxConfiguration)
 admin.site.register(TaxSlab)
+admin.site.register(PayrollCycleConfig)
+admin.site.register(PayrollSettings)

@@ -178,6 +178,55 @@ class OvertimeRecord(models.Model):
         ]
 
 
+class ShiftChange(models.Model):
+    """Audit record for every shift reassignment made by HR/Admin."""
+
+    class Scope(models.TextChoices):
+        WEEK = "WEEK", "This week"
+        MONTH = "MONTH", "This month"
+        CUSTOM = "CUSTOM", "Custom range"
+        PERMANENT = "PERMANENT", "Entire employment"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="shift_changes",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shift_changes",
+    )
+    old_shift = models.ForeignKey(
+        "attendance.WorkShift",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    new_shift = models.ForeignKey(
+        "attendance.WorkShift",
+        on_delete=models.CASCADE,
+        related_name="shift_change_targets",
+    )
+    scope = models.CharField(max_length=12, choices=Scope.choices, default=Scope.PERMANENT)
+    date_from = models.DateField(null=True, blank=True)
+    date_to = models.DateField(null=True, blank=True)
+    reason = models.CharField(max_length=255, blank=True)
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="shift_changes_made",
+    )
+    notified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class ShiftApproval(models.Model):
     """Approval log for assignments / overtime."""
 

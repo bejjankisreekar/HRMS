@@ -12,6 +12,7 @@ from apps.organizations.models import Organization
 from apps.subscriptions.models import (
     AddOnCatalog,
     BillingInterval,
+    BillingSettings,
     FinancialAuditLog,
     Invoice,
     OrganizationAddOn,
@@ -22,6 +23,7 @@ from apps.subscriptions.models import (
     Subscription,
     SubscriptionStatus,
 )
+from apps.subscriptions.plan_defaults import get_default_plan
 from apps.subscriptions.services.feature_control import invalidate_org_entitlements
 from apps.subscriptions.services.audit import log_financial_action
 
@@ -50,12 +52,14 @@ def get_or_create_subscription(org: Organization) -> Subscription:
         return sub
     plan = Plan.objects.filter(is_active=True).order_by("sort_order").first()
     if not plan:
+        basic = get_default_plan("basic")
+        billing_settings = BillingSettings.get_solo()
         plan = Plan.objects.create(
-            slug="basic",
-            name="Basic",
-            monthly_price_inr=Decimal("2000"),
-            yearly_price_inr=Decimal("19920"),
-            employee_limit=25,
+            slug=basic["slug"],
+            name=basic["name"],
+            monthly_price_inr=basic["monthly_price_inr"],
+            yearly_price_inr=billing_settings.compute_yearly_price(basic["monthly_price_inr"]),
+            employee_limit=basic["employee_limit"],
         )
     now = timezone.now()
     return Subscription.objects.create(

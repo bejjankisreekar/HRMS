@@ -32,15 +32,30 @@ SUPER_ADMIN_NAV_ORDER = [
     "Profile",
 ]
 
+# Static (non-DB) fallback breakdown of the Payroll sidebar section — used only
+# for orgs without seeded plan menus (see _dynamic_groups; real orgs use that path).
+PAYROLL_ADMIN_LABELS = [
+    "Payroll Dashboard", "Salary Structures", "Salary Components", "Employee Salary",
+    "Payroll Cycles", "Payroll Runs", "Payslips", "Tax Management", "Form 16",
+    "PF & ESI", "Professional Tax", "Loans & Advances", "Reimbursements",
+    "Bonuses & Incentives", "Overtime", "Deductions", "Salary Revisions",
+    "Arrears", "Final Settlement", "Payroll Reports", "Payroll Settings",
+]
+PAYROLL_EMPLOYEE_LABELS = [
+    "Payroll Dashboard", "My Salary", "Payslips", "Form 16", "Loans & Advances", "Reimbursements",
+]
+
 # Org-Admin sidebar = core pages only. Everything else is reached from Settings.
 ADMIN_NAV_ORDER = [
     "Dashboard",
     "Staff management",
     "Staff attendance",
     "Leave management",
-    "Payroll",
+    *PAYROLL_ADMIN_LABELS,
     "Compliance Reports",
+    "Document Generator",
     "Analytics",
+    "Rule Engine",
     "Organization settings",
 ]
 
@@ -55,9 +70,11 @@ HR_NAV_ORDER = [
     "Leave management",
     "Work calendar",
     "Shift management",
-    "Payroll",
+    *PAYROLL_ADMIN_LABELS,
     "Onboarding",
     "Offboarding",
+    "Document Generator",
+    "Rule Engine",
     "Settings",
     "My profile",
 ]
@@ -70,7 +87,11 @@ EMPLOYEE_NAV_ORDER = [
     "My profile",
     "Attendance",
     "Leave requests",
+    "Payroll Dashboard",
+    "My Salary",
     "Payslips",
+    "Loans & Advances",
+    "Reimbursements",
     "Settings",
 ]
 
@@ -106,6 +127,7 @@ class SidebarItem:
     roles: tuple[str, ...] = ()
     keywords: tuple[str, ...] = ()
     is_active: bool = False
+    group_label: str = ""
 
 
 @dataclass
@@ -133,6 +155,7 @@ def _item(
     badge: str = "",
     keywords: Sequence[str] = (),
     query: str = "",
+    group: str = "",
 ) -> SidebarItem:
     views = tuple(active_views) if active_views else (url_name,)
     kw = keywords or (label.lower(),)
@@ -148,7 +171,84 @@ def _item(
         badge=badge,
         roles=tuple(roles),
         keywords=tuple(kw),
+        group_label=group,
     )
+
+
+def _payroll_nav_catalog(roles: Sequence[str], *, employee: bool = False) -> dict[str, SidebarItem]:
+    """Static-fallback breakdown of the Payroll sidebar section (see PAYROLL_ADMIN_LABELS /
+    PAYROLL_EMPLOYEE_LABELS). Mirrors apps.subscriptions.plan_catalog's payroll rows —
+    used only for orgs without seeded plan menus (_dynamic_groups covers real orgs)."""
+    g = "Payroll"
+    if employee:
+        return {
+            "Payroll Dashboard": _item("Payroll Dashboard", "layout-dashboard", "payroll:dashboard", ("payroll:dashboard", "payroll:management"), roles, group=g),
+            "Payslips": _item("Payslips", "file-text", "payroll:payslips", ("payroll:payslips",), roles, group=g),
+            "Form 16": _item("Form 16", "file-badge", "payroll:form16", ("payroll:form16",), roles, group=g),
+            "Loans & Advances": _item("Loans & Advances", "hand-coins", "payroll:loans", ("payroll:loans",), roles, group=g),
+            "Reimbursements": _item("Reimbursements", "receipt", "payroll:reimbursements", ("payroll:reimbursements",), roles, group=g),
+        }
+    return {
+        "Payroll Dashboard": _item("Payroll Dashboard", "layout-dashboard", "payroll:dashboard", ("payroll:dashboard", "payroll:management"), roles, group=g),
+        "Salary Structures": _item("Salary Structures", "layers", "payroll:salary_structures", ("payroll:salary_structures", "payroll:salary_structures_bulk"), roles, group=g),
+        "Salary Components": _item("Salary Components", "puzzle", "payroll:components", ("payroll:components",), roles, group=g),
+        "Employee Salary": _item("Employee Salary", "user-cog", "payroll:salary_structures", ("payroll:salary_structures", "payroll:employee_financials"), roles, group=g),
+        "Payroll Cycles": _item("Payroll Cycles", "repeat", "payroll:cycles", ("payroll:cycles",), roles, group=g),
+        "Payroll Runs": _item("Payroll Runs", "play-circle", "payroll:runs", ("payroll:runs",), roles, group=g),
+        "Payslips": _item("Payslips", "file-text", "payroll:payslips", ("payroll:payslips",), roles, group=g),
+        "Tax Management": _item("Tax Management", "percent", "payroll:tax_management", ("payroll:tax_management",), roles, group=g),
+        "Form 16": _item("Form 16", "file-badge", "payroll:form16", ("payroll:form16",), roles, group=g),
+        "PF & ESI": _item("PF & ESI", "shield-check", "payroll:compliance", ("payroll:compliance",), roles, query="report=pf", group=g),
+        "Professional Tax": _item("Professional Tax", "landmark", "payroll:compliance", ("payroll:compliance",), roles, query="report=pt", group=g),
+        "Loans & Advances": _item("Loans & Advances", "hand-coins", "payroll:loans", ("payroll:loans",), roles, group=g),
+        "Reimbursements": _item("Reimbursements", "receipt", "payroll:reimbursements", ("payroll:reimbursements",), roles, group=g),
+        "Bonuses & Incentives": _item("Bonuses & Incentives", "gift", "payroll:bonuses", ("payroll:bonuses",), roles, group=g),
+        "Overtime": _item("Overtime", "clock", "payroll:overtime", ("payroll:overtime",), roles, group=g),
+        "Deductions": _item("Deductions", "minus-circle", "payroll:deductions", ("payroll:deductions",), roles, group=g),
+        "Salary Revisions": _item("Salary Revisions", "trending-up", "payroll:revisions", ("payroll:revisions",), roles, group=g),
+        "Arrears": _item("Arrears", "git-commit", "payroll:arrears", ("payroll:arrears",), roles, group=g),
+        "Final Settlement": _item("Final Settlement", "log-out", "payroll:final_settlement", ("payroll:final_settlement",), roles, group=g),
+        "Payroll Reports": _item("Payroll Reports", "bar-chart-3", "payroll:reports", ("payroll:reports", "payroll:report"), roles, group=g),
+        "Payroll Settings": _item("Payroll Settings", "settings", "payroll:settings", ("payroll:settings",), roles, group=g),
+    }
+
+
+def _slugify_group(label: str) -> str:
+    return "".join(c if c.isalnum() else "-" for c in label.lower()).strip("-") or "group"
+
+
+def _bucket_items_into_groups(
+    items: Sequence[SidebarItem],
+    group_roles: Sequence[str],
+) -> list[SidebarGroup]:
+    """Split a flat item list into the main flat group plus one collapsible
+    SidebarGroup per distinct non-blank `group_label` (order of first appearance)."""
+    main_items: list[SidebarItem] = []
+    grouped: dict[str, list[SidebarItem]] = {}
+    group_order: list[str] = []
+    for item in items:
+        if item.group_label:
+            if item.group_label not in grouped:
+                grouped[item.group_label] = []
+                group_order.append(item.group_label)
+            grouped[item.group_label].append(item)
+        else:
+            main_items.append(item)
+
+    groups = [
+        SidebarGroup(id="nav", title="", roles=tuple(group_roles), items=main_items)
+    ]
+    for label in group_order:
+        groups.append(
+            SidebarGroup(
+                id=_slugify_group(label),
+                title=label,
+                roles=tuple(group_roles),
+                items=grouped[label],
+                collapsible=True,
+            )
+        )
+    return groups
 
 
 def _groups_from_order(
@@ -156,20 +256,14 @@ def _groups_from_order(
     catalog: dict[str, SidebarItem],
     group_roles: Sequence[str],
 ) -> list[SidebarGroup]:
-    """Build a single nav group from an ordered label list + item catalog."""
+    """Build nav groups from an ordered label list + item catalog — items sharing
+    a `group_label` are split into their own collapsible section."""
     items: list[SidebarItem] = []
     for label in order:
         item = catalog.get(label)
         if item is not None:
             items.append(item)
-    return [
-        SidebarGroup(
-            id="nav",
-            title="",
-            roles=tuple(group_roles),
-            items=items,
-        )
-    ]
+    return _bucket_items_into_groups(items, group_roles)
 
 
 def _dedupe_items_by_url(groups: list[SidebarGroup]) -> list[SidebarGroup]:
@@ -490,13 +584,7 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             ("shifts:management",),
             hr,
         ),
-        "Payroll": _item(
-            "Payroll",
-            "wallet",
-            "payroll:management",
-            ("payroll:management",),
-            all_org,
-        ),
+        **_payroll_nav_catalog(hr),
         "Onboarding": _item(
             "Onboarding",
             "user-plus",
@@ -519,6 +607,20 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             ar,
             keywords=("pf", "esi", "tds", "professional tax", "form 16", "statutory", "filing", "compliance"),
         ),
+        "Rule Engine": _item(
+            "Rule Engine",
+            "sliders-horizontal",
+            "ruleengine:management",
+            (
+                "ruleengine:management",
+                "ruleengine:builder_create",
+                "ruleengine:builder_edit",
+                "ruleengine:test",
+                "ruleengine:logs",
+            ),
+            hr,
+            keywords=("rules", "automation", "workflow", "conditions", "actions", "policy"),
+        ),
         "Organization settings": _item(
             "Organization settings",
             "building",
@@ -526,6 +628,15 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             ("dashboard:settings", "dashboard:departments"),
             ar,
             keywords=("organization", "roles", "permissions", "integrations", "departments"),
+        ),
+        "Document Generator": _item(
+            "Document Generator",
+            "file-text",
+            "documents:management",
+            ("documents:management", "documents:template_create", "documents:template_edit",
+             "documents:generate", "documents:generated_detail", "documents:audit"),
+            ar,
+            keywords=("documents", "letters", "offer letter", "appointment", "experience", "relieving", "certificate"),
         ),
         "Grades & hierarchy": _item(
             "Grades & hierarchy",
@@ -649,13 +760,7 @@ def _hr_nav_catalog() -> dict[str, SidebarItem]:
             ("shifts:management",),
             hr,
         ),
-        "Payroll": _item(
-            "Payroll",
-            "wallet",
-            "payroll:management",
-            ("payroll:management",),
-            all_org,
-        ),
+        **_payroll_nav_catalog(hr),
         "Onboarding": _item(
             "Onboarding",
             "user-plus",
@@ -669,6 +774,29 @@ def _hr_nav_catalog() -> dict[str, SidebarItem]:
             "lifecycle:offboarding",
             ("lifecycle:offboarding",),
             hr,
+        ),
+        "Document Generator": _item(
+            "Document Generator",
+            "file-text",
+            "documents:management",
+            ("documents:management", "documents:template_create", "documents:template_edit",
+             "documents:generate", "documents:generated_detail", "documents:audit"),
+            hr,
+            keywords=("documents", "letters", "offer letter", "appointment", "experience", "relieving", "certificate"),
+        ),
+        "Rule Engine": _item(
+            "Rule Engine",
+            "sliders-horizontal",
+            "ruleengine:management",
+            (
+                "ruleengine:management",
+                "ruleengine:builder_create",
+                "ruleengine:builder_edit",
+                "ruleengine:test",
+                "ruleengine:logs",
+            ),
+            hr,
+            keywords=("rules", "automation", "workflow", "conditions", "actions", "policy"),
         ),
         "Settings": _item(
             "Settings",
@@ -736,13 +864,7 @@ def _employee_nav_catalog() -> dict[str, SidebarItem]:
             ("leaves:management",),
             em,
         ),
-        "Payslips": _item(
-            "Payslips",
-            "wallet",
-            "payroll:management",
-            ("payroll:management",),
-            em,
-        ),
+        **_payroll_nav_catalog(em, employee=True),
         "Settings": _item(
             "Settings",
             "settings",
@@ -861,6 +983,7 @@ def _sidebar_item_from_menu_row(row) -> SidebarItem:
         active_views=views,
         roles=(row.audience,),
         keywords=kw,
+        group_label=getattr(row, "group_label", "") or "",
     )
 
 
@@ -875,14 +998,7 @@ def _dynamic_groups(user: User, group_roles: Sequence[str]) -> list[SidebarGroup
     if not db_items:
         return None
     items = [_sidebar_item_from_menu_row(row) for row in db_items]
-    return [
-        SidebarGroup(
-            id="nav",
-            title="",
-            roles=tuple(group_roles),
-            items=items,
-        )
-    ]
+    return _bucket_items_into_groups(items, group_roles)
 
 
 def _admin_groups(user: User | None = None) -> list[SidebarGroup]:

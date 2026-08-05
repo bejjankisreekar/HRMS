@@ -1,0 +1,66 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Payslips · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="file-text" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Payslips</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">{% if selected_fy %}{{ selected_fy.label }}{% else %}{{ filters.period_label }}{% endif %} · all 12 months{% if not is_finance %} · your payslips only{% endif %}</p>
+      </div>
+    </div>
+  </div>
+
+  {% if is_finance %}
+  <form method="post" class="flex flex-wrap gap-2.5 pr-no-print">
+    {% csrf_token %}
+    <button type="submit" name="action" value="bulk_generate" class="pr-btn-primary"><i data-lucide="file-plus" class="h-4 w-4"></i> Bulk Generate</button>
+    <button type="submit" name="action" value="bulk_email" class="pr-btn-ghost"><i data-lucide="mail" class="h-4 w-4"></i> Bulk Email</button>
+  </form>
+  {% endif %}
+
+  <section class="pr-glass">
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        <thead><tr><th>Employee</th><th>Period</th><th>Payslip #</th><th class="text-right">Gross</th><th class="text-right">Deductions</th><th class="text-right">Net</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+        <tbody>
+          {% for row in table_rows %}
+          <tr>
+            <td>{{ row.employee_name }}<br><span class="text-xs text-slate-400">{{ row.employee_id }}</span></td>
+            <td>{{ row.period }}</td>
+            <td class="font-mono text-xs">{{ row.payslip_number|default:"—" }}</td>
+            <td class="text-right">₹{{ row.gross|floatformat:0|intcomma }}</td>
+            <td class="text-right">₹{{ row.deductions|floatformat:0|intcomma }}</td>
+            <td class="text-right font-bold">₹{{ row.net|floatformat:0|intcomma }}</td>
+            <td><span class="pr-badge pr-badge--{{ row.payment_status|lower }}">{{ row.payment_status_display }}</span></td>
+            <td class="text-right">
+              <a href="?payslip={{ row.id }}" class="pr-btn-ghost" style="padding:.3rem .6rem;"><i data-lucide="download" class="h-3.5 w-3.5"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-slate-500">No payslips for this period.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-center gap-2 p-4">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="pr-btn-ghost">Prev</a>{% endif %}
+      <span class="text-xs text-slate-500 self-center">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="pr-btn-ghost">Next</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -19,8 +19,19 @@ FEATURE_URL_NAMES: dict[str, list[str]] = {
     "shifts": ["shifts:management", "dashboard:attendance_shifts", "dashboard:attendance_settings"],
     "attendance": ["dashboard:attendance", "dashboard:attendance_corrections", "dashboard:attendance_team"],
     "leave": ["leaves:management", "leaves:apply"],
-    "payroll_basic": ["payroll:management"],
-    "payroll_advanced": ["payroll:management"],
+    "payroll_basic": [
+        "payroll:management", "payroll:dashboard", "payroll:salary_structures",
+        "payroll:salary_structures_bulk", "payroll:components", "payroll:employee_financials",
+        "payroll:cycles", "payroll:runs", "payroll:payslips", "payroll:settings",
+    ],
+    "payroll_advanced": [
+        "payroll:tax_management", "payroll:compliance",
+        "payroll:deductions", "payroll:revisions", "payroll:reports", "payroll:report",
+    ],
+    "payroll_growth": [
+        "payroll:form16", "payroll:loans", "payroll:reimbursements", "payroll:bonuses",
+        "payroll:overtime", "payroll:arrears", "payroll:final_settlement",
+    ],
     "departments": ["dashboard:departments"],
     "employees": ["dashboard:staff_list", "dashboard:staff_create", "dashboard:staff_detail", "dashboard:staff_edit"],
     "grades": ["dashboard:grades:hub", "dashboard:grades:list"],
@@ -95,7 +106,8 @@ class Command(BaseCommand):
                 continue
             PlanMenuItem.objects.filter(plan=plan).delete()
             for order, row in enumerate(menus):
-                label, icon, url_name, feature_key, query, active_views, roles = row
+                label, icon, url_name, feature_key, query, active_views, roles, *rest = row
+                group_label = rest[0] if rest else ""
                 for role in roles:
                     PlanMenuItem.objects.create(
                         plan=plan,
@@ -104,6 +116,7 @@ class Command(BaseCommand):
                         url_name=url_name,
                         query_string=query or "",
                         feature_key=feature_key or "",
+                        group_label=group_label,
                         sort_order=order,
                         is_enabled=True,
                         audience=role,

@@ -10,42 +10,52 @@
       <p class="hrms-topnav__workspace">{{ topnav.workspace_subtitle }}</p>
     </div>
 
-    <!-- ── Global Financial Year Selector ──────────────────────── -->
-    {% if fy_choices %}
-    <div class="hrms-fy-selector" data-topnav-dropdown="fy">
-      <button type="button"
-              class="hrms-fy-selector__btn"
-              data-topnav-dropdown-toggle
-              aria-haspopup="listbox"
-              aria-expanded="false"
-              title="Switch Financial Year">
-        <svg class="hrms-fy-selector__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span class="hrms-fy-selector__label">{{ fy_label }}</span>
-        <svg class="hrms-fy-selector__chev" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div class="hrms-fy-selector__panel hidden" role="listbox" data-topnav-dropdown-menu>
-        <p class="hrms-fy-selector__panel-title">Financial Year</p>
-        {% for fy in fy_choices %}
-        <form method="post" action="{% url 'dashboard:set_fy' %}" style="margin:0">
-          {% csrf_token %}
-          <input type="hidden" name="fy_start_year" value="{{ fy.start_year }}">
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button type="submit"
-                  class="hrms-fy-selector__option{% if fy.start_year == selected_fy_start_year %} is-active{% endif %}"
-                  role="option"
-                  aria-selected="{% if fy.start_year == selected_fy_start_year %}true{% else %}false{% endif %}">
-            <span class="hrms-fy-selector__option-label">{{ fy.label }}</span>
-            {% if fy.start_year == selected_fy_start_year %}
-            <svg class="hrms-fy-selector__check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            {% endif %}
-          </button>
-        </form>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-
     <div class="hrms-topnav__actions">
+      <!-- ── Global Financial Year Selector ──────────────────────── -->
+      {% if fy_choices %}
+      <div class="hrms-fy-selector" data-topnav-dropdown="fy">
+        <button type="button"
+                class="hrms-fy-selector__btn"
+                data-topnav-dropdown-toggle
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                title="Switch Financial Year">
+          <span class="hrms-fy-selector__label">{{ fy_label }}</span>
+          <svg class="hrms-fy-selector__chev" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="hrms-fy-selector__panel hidden" role="listbox" data-topnav-dropdown-menu>
+          <p class="hrms-fy-selector__panel-title">Financial Year</p>
+          {% for fy in fy_choices %}
+          <form method="post" action="{% url 'dashboard:set_fy' %}" style="margin:0">
+            {% csrf_token %}
+            <input type="hidden" name="fy_id" value="{{ fy.id }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit"
+                    class="hrms-fy-selector__option{% if fy.id == selected_fy_id %} is-active{% endif %}"
+                    role="option"
+                    aria-selected="{% if fy.id == selected_fy_id %}true{% else %}false{% endif %}">
+              <span class="hrms-fy-selector__option-label">{{ fy.label }}</span>
+              {% if not fy.is_active %}<span class="hrms-fy-selector__option-badge">Inactive</span>{% endif %}
+              {% if fy.id == selected_fy_id %}
+              <svg class="hrms-fy-selector__check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              {% endif %}
+            </button>
+          </form>
+          {% endfor %}
+          <div class="hrms-fy-selector__footer">
+            <a href="{% url 'dashboard:financial_year_master' %}" class="hrms-fy-selector__manage-link">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              Manage Financial Years
+            </a>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <a href="{% url 'dashboard:financial_year_master' %}" class="hrms-fy-selector__create-cta" title="No financial year configured — click to create one">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hrms-fy-selector__cta-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
+        <span class="hrms-fy-selector__cta-label">Create FY</span>
+      </a>
+      {% endif %}
       <button type="button" class="hrms-topnav__icon-btn" data-theme-toggle aria-label="Toggle theme">
         <i data-lucide="sun" class="hrms-topnav__theme-light hidden dark:inline"></i>
         <i data-lucide="moon" class="hrms-topnav__theme-dark dark:hidden"></i>
@@ -129,12 +139,10 @@
         <button type="button"
                 class="hrms-topnav__profile-btn"
                 data-topnav-dropdown-toggle
+                aria-label="{{ topnav.display_name }} — account menu"
+                title="{{ topnav.display_name }}"
                 aria-expanded="false">
-          <span class="hrms-topnav__avatar">{{ topnav.user_initials }}</span>
-          <span class="hrms-topnav__profile-text hidden md:block">
-            <span class="hrms-topnav__profile-name">{{ topnav.display_name }}</span>
-            <span class="hrms-topnav__profile-sub">{{ topnav.profile_subtitle }}</span>
-          </span>
+          <span class="hrms-topnav__avatar">{{ topnav.user_initials }}<span class="hrms-topnav__avatar-status" aria-hidden="true"></span></span>
           <i data-lucide="chevron-down" class="hrms-topnav__profile-chev"></i>
         </button>
         <div class="hrms-topnav__panel hrms-topnav__panel--profile hidden" data-topnav-dropdown-menu>

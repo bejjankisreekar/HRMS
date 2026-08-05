@@ -18,6 +18,7 @@ from django.views.generic import TemplateView
 from apps.dashboard.mixins import SuperAdminRequiredMixin
 from apps.subscriptions.models import (
     AddOnCatalog,
+    BillingSettings,
     FeatureDefinition,
     MenuAudience,
     Plan,
@@ -160,6 +161,7 @@ class PlanDetailView(PlanManagementMixin, TemplateView):
         ctx["audiences"] = MenuAudience.choices
         ctx["addons"] = AddOnCatalog.objects.filter(is_active=True).order_by("sort_order", "name")
         ctx["sub_count"] = plan.subscriptions.count()
+        ctx["yearly_discount_percent"] = BillingSettings.get_solo().yearly_discount_percent
         return ctx
 
 
@@ -174,11 +176,11 @@ class PlanUpdateView(PlanManagementMixin, View):
         plan.trial_days = int(request.POST.get("trial_days") or plan.trial_days or 14)
         try:
             plan.monthly_price_inr = Decimal(request.POST.get("monthly_price_inr") or plan.monthly_price_inr)
-            plan.yearly_price_inr = Decimal(request.POST.get("yearly_price_inr") or plan.yearly_price_inr)
             plan.setup_fee_inr = Decimal(request.POST.get("setup_fee_inr") or plan.setup_fee_inr)
         except InvalidOperation:
             messages.error(request, "Invalid pricing value.")
             return redirect("dashboard:plans:detail", pk=pk)
+        plan.yearly_price_inr = BillingSettings.get_solo().compute_yearly_price(plan.monthly_price_inr)
 
         emp = request.POST.get("employee_limit", "").strip()
         plan.employee_limit = int(emp) if emp else None
@@ -188,6 +190,32 @@ class PlanUpdateView(PlanManagementMixin, View):
         _invalidate_plan_subscribers(plan)
         messages.success(request, f"Plan “{plan.name}” updated.")
         return redirect("dashboard:plans:detail", pk=pk)
+
+
+class BillingSettingsUpdateView(PlanManagementMixin, View):
+    """Updates the platform-wide yearly discount %; recomputes every plan's yearly price from it."""
+
+    section = "list"
+
+    def post(self, request):
+        try:
+            percent = Decimal(request.POST.get("yearly_discount_percent", ""))
+            if percent < 0 or percent > 100:
+                raise InvalidOperation
+        except InvalidOperation:
+            messages.error(request, "Enter a discount percent between 0 and 100.")
+            return redirect("dashboard:plans:matrix")
+
+        settings_obj = BillingSettings.get_solo()
+        settings_obj.yearly_discount_percent = percent
+        settings_obj.save(update_fields=["yearly_discount_percent", "updated_at"])
+
+        for plan in Plan.objects.all():
+            plan.yearly_price_inr = settings_obj.compute_yearly_price(plan.monthly_price_inr)
+            plan.save(update_fields=["yearly_price_inr", "updated_at"])
+
+        messages.success(request, f"Yearly discount set to {percent}% — all plans’ yearly prices recalculated.")
+        return redirect("dashboard:plans:matrix")
 
 
 class PlanFeatureToggleView(PlanManagementMixin, View):

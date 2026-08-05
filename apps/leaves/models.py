@@ -175,6 +175,39 @@ class LeaveBalance(models.Model):
         return f"{self.user_id} · {self.leave_type.code} · {self.year}"
 
 
+class AttendanceLeaveDeduction(models.Model):
+    """Tracks automatic leave-balance deductions triggered by absent attendance records.
+
+    Multiple rows per AttendanceRecord are allowed when the deduction splits across
+    several leave types in the priority chain. Deleting all rows for a record_id
+    reverses the full deduction (the service handles balance updates).
+    """
+
+    attendance_record_id = models.UUIDField(
+        db_index=True,
+        help_text="PK of the AttendanceRecord that triggered this deduction.",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="attendance_leave_deductions",
+    )
+    leave_balance = models.ForeignKey(
+        LeaveBalance,
+        on_delete=models.CASCADE,
+        related_name="attendance_deductions",
+    )
+    days = models.DecimalField(max_digits=4, decimal_places=1)
+    attendance_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-attendance_date"]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} · {self.attendance_date} · -{self.days}d"
+
+
 class LeaveRequest(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"

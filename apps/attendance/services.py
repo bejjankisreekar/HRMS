@@ -90,6 +90,18 @@ def approve_regularization(reviewer: User, req: AttendanceRegularizationRequest,
         update_fields.append("status")
     record.save(update_fields=list(dict.fromkeys(update_fields)))
 
+    # Re-sync leave balance deduction for the corrected record.
+    # The post_save signal also does this, but calling explicitly here guarantees
+    # correctness even if the signal is suppressed or out of order.
+    try:
+        from apps.leaves.services import apply_absent_deduction, reverse_absent_deduction
+        from .models import AttendanceRecord as _AR
+        reverse_absent_deduction(record.pk)
+        if record.status in (_AR.Status.ABSENT, _AR.Status.HALF_DAY):
+            apply_absent_deduction(record)
+    except Exception:
+        pass
+
     req.status = AttendanceRegularizationRequest.Status.APPROVED
     req.reviewed_by = reviewer
     req.reviewed_at = timezone.now()
@@ -118,6 +130,19 @@ def reject_regularization(reviewer: User, req: AttendanceRegularizationRequest, 
     req.reviewed_at = timezone.now()
     req.review_comment = comment.strip()
     req.save(update_fields=["status", "reviewed_by", "reviewed_at", "review_comment", "updated_at"])
+
+    # Rejection keeps the original attendance record as-is, but sync its deduction
+    # in case the policy was enabled after this record was created.
+    try:
+        from apps.leaves.services import apply_absent_deduction, reverse_absent_deduction
+        from .models import AttendanceRecord as _AR
+        record = AttendanceRecord.objects.filter(user=req.user, date=req.date).first()
+        if record:
+            reverse_absent_deduction(record.pk)
+            if record.status in (_AR.Status.ABSENT, _AR.Status.HALF_DAY):
+                apply_absent_deduction(record)
+    except Exception:
+        pass
 
 
 def pending_corrections_for(reviewer: User):

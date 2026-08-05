@@ -269,6 +269,70 @@ def table_rows(org: Organization, users: list[User], filters: ShiftFilters) -> l
     return rows
 
 
+def export_shift_summary_csv(
+    org,
+    users: list,
+    date_from,
+    date_to,
+) -> bytes:
+    """Lean export: employee, ID, shift name, shift time, date range."""
+    import io as _io, csv as _csv
+    from datetime import timedelta as _td
+    from apps.dashboard.attendance_utils import get_effective_shift
+
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(["Employee", "Employee ID", "Shift", "Shift Time", "Date From", "Date To"])
+
+    def _val(v):
+        """Return plain ASCII-safe value — no em dashes."""
+        if v is None or v == "" or v == "—":
+            return "-"
+        return str(v).replace("—", "-").replace("–", "-")
+
+    for user in users:
+        d = date_from
+        span_start = None
+        span_shift = None
+        while d <= date_to:
+            assign = ShiftAssignment.objects.filter(user=user, date=d).select_related("shift").first()
+            shift = assign.shift if assign else get_effective_shift(user)
+            shift_key = shift.pk if shift else None
+            if span_shift != shift_key:
+                if span_start is not None:
+                    prev_assign = ShiftAssignment.objects.filter(
+                        user=user, date=span_start
+                    ).select_related("shift").first()
+                    ps = prev_assign.shift if prev_assign else get_effective_shift(user)
+                    w.writerow([
+                        _val(user.display_name),
+                        _val(user.employee_id),
+                        _val(ps.name if ps else None),
+                        _val(ps.time_range_display if ps else None),
+                        span_start.strftime("%d-%m-%Y"),
+                        (d - _td(days=1)).strftime("%d-%m-%Y"),
+                    ])
+                span_start = d
+                span_shift = shift_key
+            d += _td(days=1)
+        if span_start is not None:
+            last_assign = ShiftAssignment.objects.filter(
+                user=user, date=span_start
+            ).select_related("shift").first()
+            ps = last_assign.shift if last_assign else get_effective_shift(user)
+            w.writerow([
+                _val(user.display_name),
+                _val(user.employee_id),
+                _val(ps.name if ps else None),
+                _val(ps.time_range_display if ps else None),
+                span_start.strftime("%d-%m-%Y"),
+                date_to.strftime("%d-%m-%Y"),
+            ])
+
+    # UTF-8 BOM so Excel opens without encoding prompt
+    return "﻿".encode("utf-8") + buf.getvalue().encode("utf-8")
+
+
 def export_schedule_csv(rows: list[dict]) -> bytes:
     buf = io.StringIO()
     writer = csv.writer(buf)

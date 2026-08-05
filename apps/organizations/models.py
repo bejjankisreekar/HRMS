@@ -74,6 +74,11 @@ class Organization(models.Model):
         ASSUME_PRESENT = "ASSUME_PRESENT", "Assume present (pay full unless explicitly absent)"
         STRICT = "STRICT", "Strict proration (pay by present ÷ working days)"
 
+    class AbsentAttendancePolicy(models.TextChoices):
+        NONE = "NONE", "No auto-deduction"
+        LEAVE = "LEAVE", "Deduct from a leave balance"
+        LOP = "LOP", "Deduct as Loss of Pay (LOP)"
+
     class WeekStartDay(models.TextChoices):
         MONDAY = "MONDAY", "Monday"
         SUNDAY = "SUNDAY", "Sunday"
@@ -252,6 +257,25 @@ class Organization(models.Model):
         ),
     )
 
+    absent_attendance_policy = models.CharField(
+        max_length=10,
+        choices=AbsentAttendancePolicy.choices,
+        default=AbsentAttendancePolicy.NONE,
+        help_text=(
+            "When an employee is marked Absent, automatically deduct from a leave balance "
+            "or record it as Loss of Pay. 'No auto-deduction' leaves balances untouched."
+        ),
+    )
+    absent_leave_type_priorities = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Ordered list of LeaveType PKs (strings). When an employee is absent, "
+            "the system deducts from the first type that has remaining balance, then "
+            "cascades to the next if that one is exhausted."
+        ),
+    )
+
     subscription_plan = models.CharField(
         max_length=20, choices=SubscriptionPlan.choices, default=SubscriptionPlan.BASIC, blank=True
     )
@@ -336,6 +360,65 @@ class Organization(models.Model):
     @property
     def department_label_plural(self) -> str:
         return self.department_labels()[1]
+
+
+class FinancialYear(models.Model):
+    """A user-created financial year record for an organization."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="financial_years",
+    )
+    label = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Auto-generated if left blank (e.g. 'FY 2025-26').",
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(
+        default=False,
+        help_text="The default FY selected when no session choice is active.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-start_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "start_date"],
+                name="unique_fy_start_date_per_org",
+            ),
+        ]
+
+    def _auto_label(self) -> str:
+        sy, ey = self.start_date.year, self.end_date.year
+        return f"FY {sy}" if sy == ey else f"FY {sy}-{str(ey)[2:]}"
+
+    def save(self, *args, **kwargs):
+        if not self.label:
+            self.label = self._auto_label()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.label
+
+    def as_dict(self) -> dict:
+        """Return a dict compatible with the existing FY context shape."""
+        return {
+            "id": str(self.id),
+            "start_year": self.start_date.year,
+            "end_year": self.end_date.year,
+            "label": self.label,
+            "date_from": self.start_date,
+            "date_to": self.end_date,
+            "is_active": self.is_active,
+            "is_default": self.is_default,
+        }
 
 
 class Department(models.Model):

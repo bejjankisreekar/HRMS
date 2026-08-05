@@ -13,6 +13,7 @@ from .digital_register import (
     build_register_json,
     build_summary_cards,
     export_register_csv,
+    export_register_xlsx,
     register_filter_options,
 )
 from .mixins import AdminOrHRRequiredMixin
@@ -28,13 +29,9 @@ class DigitalRegisterView(AdminOrHRRequiredMixin, TemplateView):
         export = request.GET.get("export")
         if export in ("csv", "excel"):
             filters = RegisterFilters.from_request(request)
-            response = export_register_csv(request.user, filters)
             if export == "excel":
-                response["Content-Type"] = "application/vnd.ms-excel; charset=utf-8"
-                response["Content-Disposition"] = (
-                    f'attachment; filename="attendance_register_{filters.start}_{filters.end}.xls"'
-                )
-            return response
+                return export_register_xlsx(request.user, filters)
+            return export_register_csv(request.user, filters)
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

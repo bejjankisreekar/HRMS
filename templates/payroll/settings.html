@@ -1,0 +1,54 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras %}
+{% block title %}Payroll Settings · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="settings" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Payroll Settings</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">Currency, rounding, automation, and lock policy for {{ organization.name }}.</p>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" class="pr-glass p-6 max-w-2xl space-y-4">
+    {% csrf_token %}
+    <div class="grid grid-cols-2 gap-4">
+      <div><label class="pr-filter-label">Currency</label>{{ form.currency }}</div>
+      <div><label class="pr-filter-label">Decimal precision</label>{{ form.decimal_precision }}</div>
+    </div>
+    <div><label class="pr-filter-label">Rounding rule</label>{{ form.rounding_rule }}</div>
+    <div>
+      <label class="pr-filter-label">Payslip format</label>
+      {{ form.payslip_format }}
+      <p class="mt-1 text-xs text-slate-500">Layout used for on-screen payslips and PDF downloads.</p>
+    </div>
+    <div><label class="pr-filter-label">Default salary structure</label>{{ form.default_salary_structure }}</div>
+    <div class="flex flex-col gap-2 text-sm">
+      <label class="flex items-center gap-2">{{ form.auto_payroll_enabled }} Auto-run payroll each cycle</label>
+      <label class="flex items-center gap-2">{{ form.payslip_email_enabled }} Email payslips automatically</label>
+      <label class="flex items-center gap-2">{{ form.approval_workflow_enabled }} Require multi-step approval before payment</label>
+    </div>
+
+    <div class="border-t border-slate-100 dark:border-white/10 pt-4">
+      <label class="pr-filter-label">Payroll lock / pay policy</label>
+      <select name="payroll_lop_policy" class="pr-input">
+        {% for value, label in lop_policy_choices %}<option value="{{ value }}" {% if value == lop_policy %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="pr-btn-primary"><i data-lucide="save" class="h-4 w-4"></i> Save settings</button>
+  </form>
+</div>
+{% endblock %}

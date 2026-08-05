@@ -1,0 +1,448 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Reassign Shift · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static 'shifts.css' %}">
+<style>
+  .sr-page { max-width: 1100px; margin: 0 auto; }
+  .sr-hero { background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border-radius: 1.25rem; padding: 1.75rem 2rem; color: #fff; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .sr-hero h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+  .sr-hero p { font-size: .875rem; color: rgba(255,255,255,.8); margin: .25rem 0 0; }
+  .sr-back { display: inline-flex; align-items: center; gap: .4rem; font-size: .8125rem; font-weight: 600; color: rgba(255,255,255,.85); text-decoration: none; border: 1.5px solid rgba(255,255,255,.3); border-radius: .6rem; padding: .45rem .9rem; transition: background .15s; }
+  .sr-back:hover { background: rgba(255,255,255,.15); }
+
+  .sr-layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start; }
+  @media (max-width: 900px) { .sr-layout { grid-template-columns: 1fr; } }
+
+  .sr-card { background: var(--sh-card-bg, #1e293b); border: 1px solid rgba(255,255,255,.08); border-radius: 1rem; padding: 1.5rem; }
+  html:not(.dark) .sr-card { background: #fff; border-color: #e2e8f0; }
+
+  .sr-section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 1rem; }
+
+  /* Employee checklist */
+  .sr-emp-search { width: 100%; background: rgba(255,255,255,.06); border: 1.5px solid rgba(255,255,255,.12); border-radius: .6rem; padding: .5rem .75rem; font-size: .875rem; color: inherit; margin-bottom: .75rem; outline: none; }
+  html:not(.dark) .sr-emp-search { background: #f8fafc; border-color: #e2e8f0; }
+  .sr-emp-search:focus { border-color: #7c3aed; }
+
+  .sr-emp-list { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: .35rem; }
+  .sr-emp-item { display: flex; align-items: center; gap: .75rem; border: 1.5px solid rgba(255,255,255,.08); border-radius: .6rem; padding: .65rem .85rem; cursor: pointer; transition: border-color .15s, background .15s; }
+  html:not(.dark) .sr-emp-item { border-color: #e2e8f0; }
+  .sr-emp-item:hover { background: rgba(124,58,237,.08); border-color: rgba(124,58,237,.3); }
+  .sr-emp-item.is-checked { background: rgba(124,58,237,.12); border-color: #7c3aed; }
+  .sr-emp-item input[type="checkbox"] { accent-color: #7c3aed; width: 1rem; height: 1rem; flex-shrink: 0; }
+  .sr-emp-name { font-size: .875rem; font-weight: 600; color: var(--sh-text, #f1f5f9); }
+  html:not(.dark) .sr-emp-name { color: #0f172a; }
+  .sr-emp-meta { font-size: .75rem; color: #94a3b8; }
+  .sr-emp-avatar { width: 2rem; height: 2rem; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #6d28d9); display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+
+  .sr-select-all { display: flex; align-items: center; gap: .5rem; font-size: .8125rem; font-weight: 600; color: #7c3aed; cursor: pointer; margin-bottom: .5rem; }
+
+  /* Right panel */
+  .sr-shift-grid { display: grid; gap: .5rem; }
+  .sr-shift-opt { display: flex; align-items: center; gap: .75rem; border: 1.5px solid rgba(255,255,255,.08); border-radius: .6rem; padding: .65rem .85rem; cursor: pointer; transition: border-color .15s, background .15s; }
+  html:not(.dark) .sr-shift-opt { border-color: #e2e8f0; }
+  .sr-shift-opt:hover { background: rgba(124,58,237,.08); border-color: rgba(124,58,237,.3); }
+  .sr-shift-opt input[type="radio"] { accent-color: #7c3aed; width: 1rem; height: 1rem; flex-shrink: 0; }
+  .sr-shift-opt.is-selected { background: rgba(124,58,237,.12); border-color: #7c3aed; }
+  .sr-shift-dot { width: .75rem; height: .75rem; border-radius: 50%; flex-shrink: 0; }
+  .sr-shift-name { font-size: .875rem; font-weight: 600; color: var(--sh-text, #f1f5f9); }
+  html:not(.dark) .sr-shift-name { color: #0f172a; }
+  .sr-shift-time { font-size: .75rem; color: #94a3b8; }
+
+  .sr-scope-grid { display: flex; flex-direction: column; gap: .4rem; }
+  .sr-scope-opt { display: flex; align-items: center; gap: .75rem; border: 1.5px solid rgba(255,255,255,.08); border-radius: .6rem; padding: .6rem .85rem; cursor: pointer; transition: border-color .15s, background .15s; }
+  html:not(.dark) .sr-scope-opt { border-color: #e2e8f0; }
+  .sr-scope-opt:hover { background: rgba(124,58,237,.06); }
+  .sr-scope-opt.is-active { border-color: #7c3aed; background: rgba(124,58,237,.1); }
+  .sr-scope-opt input { accent-color: #7c3aed; width: 1rem; height: 1rem; flex-shrink: 0; }
+  .sr-scope-label { font-size: .875rem; font-weight: 600; color: var(--sh-text, #f1f5f9); }
+  html:not(.dark) .sr-scope-label { color: #0f172a; }
+  .sr-scope-desc { font-size: .75rem; color: #94a3b8; margin-top: .1rem; }
+
+  .sr-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-top: .75rem; }
+  .sr-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1.5px solid rgba(255,255,255,.12); border-radius: .6rem; padding: .5rem .75rem; font-size: .875rem; color: inherit; outline: none; }
+  html:not(.dark) .sr-input { background: #f8fafc; border-color: #e2e8f0; color: #0f172a; }
+  .sr-input:focus { border-color: #7c3aed; }
+  .sr-label { display: block; font-size: .75rem; font-weight: 600; color: #94a3b8; margin-bottom: .35rem; }
+
+  .sr-summary { background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.25); border-radius: .75rem; padding: 1rem; margin-top: 1rem; font-size: .8125rem; color: #c4b5fd; }
+  .sr-summary b { color: #a78bfa; }
+
+  .sr-submit-btn { width: 100%; margin-top: 1rem; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: #fff; border: none; border-radius: .75rem; padding: .75rem 1rem; font-size: .9375rem; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; }
+  .sr-submit-btn:hover { opacity: .9; }
+  .sr-submit-btn:active { transform: scale(.98); }
+  .sr-submit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Audit table */
+  .sr-audit-table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
+  .sr-audit-table th { text-align: left; padding: .5rem .75rem; font-weight: 600; font-size: .75rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,.08); }
+  html:not(.dark) .sr-audit-table th { border-bottom-color: #e2e8f0; }
+  .sr-audit-table td { padding: .6rem .75rem; border-bottom: 1px solid rgba(255,255,255,.05); color: #cbd5e1; }
+  html:not(.dark) .sr-audit-table td { border-bottom-color: #f1f5f9; color: #334155; }
+  .sr-badge { display: inline-block; border-radius: 9999px; padding: .15rem .55rem; font-size: .7rem; font-weight: 700; }
+  .sr-badge-perm { background: rgba(124,58,237,.2); color: #c4b5fd; }
+  .sr-badge-week { background: rgba(14,165,233,.2); color: #7dd3fc; }
+  .sr-badge-month { background: rgba(16,185,129,.2); color: #6ee7b7; }
+  .sr-badge-custom { background: rgba(245,158,11,.2); color: #fcd34d; }
+
+  /* Filter chips */
+  .sr-filter-row { display: flex; flex-direction: column; gap: .6rem; margin-bottom: .75rem; }
+  .sr-filter-group { display: flex; align-items: flex-start; gap: .5rem; }
+  .sr-filter-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; white-space: nowrap; padding-top: .3rem; min-width: 5rem; }
+  .sr-filter-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .sr-chip { background: rgba(255,255,255,.06); border: 1.5px solid rgba(255,255,255,.1); border-radius: 9999px; padding: .2rem .7rem; font-size: .75rem; font-weight: 600; color: #94a3b8; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  html:not(.dark) .sr-chip { background: #f1f5f9; border-color: #e2e8f0; color: #64748b; }
+  .sr-chip:hover { border-color: #7c3aed; color: #c4b5fd; }
+  html:not(.dark) .sr-chip:hover { color: #7c3aed; }
+  .sr-chip--active { background: rgba(124,58,237,.15); border-color: #7c3aed; color: #a78bfa; }
+  html:not(.dark) .sr-chip--active { background: #ede9fe; border-color: #7c3aed; color: #6d28d9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sr-page">
+
+  <div class="sr-hero">
+    <div>
+      <h1>Reassign Shift</h1>
+      <p>Select one or more employees, choose their new shift, and set how long the change applies.</p>
+    </div>
+    <a href="{% url 'shifts:management' %}" class="sr-back">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3L5 8l5 5"/></svg>
+      Back to shifts
+    </a>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="mb-4 rounded-xl px-4 py-3 text-sm font-medium
+    {% if msg.tags == 'success' %}bg-emerald-500/10 border border-emerald-500/20 text-emerald-300
+    {% else %}bg-red-500/10 border border-red-500/20 text-red-300{% endif %}">
+    {{ msg }}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="post" id="reassign-page-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
+      {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    <div class="sr-layout">
+
+      {# Left — employee picker #}
+      <div class="sr-card">
+        <p class="sr-section-title">Select employees</p>
+
+        {# Search #}
+        <input type="text" id="sr-emp-search" class="sr-emp-search" placeholder="Search by name or ID…"
+               oninput="srApplyFilters()">
+
+        {# Filter chips #}
+        <div class="sr-filter-row">
+          <div class="sr-filter-group">
+            <span class="sr-filter-label">Department</span>
+            <div class="sr-filter-chips" id="sr-dept-chips">
+              <button type="button" class="sr-chip sr-chip--active" data-dept="">All</button>
+              {% for dept in departments %}
+              <button type="button" class="sr-chip" data-dept="{{ dept.pk }}">{{ dept.name }}</button>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="sr-filter-group">
+            <span class="sr-filter-label">Current shift</span>
+            <div class="sr-filter-chips" id="sr-shift-chips">
+              <button type="button" class="sr-chip sr-chip--active" data-shift="">All</button>
+              {% for sh in active_shifts %}
+              <button type="button" class="sr-chip" data-shift="{{ sh.pk }}">{{ sh.name }}</button>
+              {% endfor %}
+              <button type="button" class="sr-chip" data-shift="__none__">Unassigned</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-2">
+          <label class="sr-select-all">
+            <input type="checkbox" id="sr-select-all" onchange="srToggleAll(this.checked)" style="accent-color:#7c3aed;width:1rem;height:1rem;">
+            Select all visible
+          </label>
+          <span id="sr-filter-count" class="text-xs text-slate-500"></span>
+        </div>
+
+        <div class="sr-emp-list" id="sr-emp-list">
+          {% for emp in form.users.field.queryset %}
+          <label class="sr-emp-item {% if emp.pk|stringformat:'s' in form.users.value %}is-checked{% endif %}"
+                 data-name="{{ emp.display_name|lower }} {{ emp.employee_id|lower }}"
+                 data-dept="{{ emp.department_id|default:'' }}"
+                 data-shift="{{ emp.work_shift_id|default:'__none__' }}"
+                 onclick="srToggleItem(this)">
+            <input type="checkbox" name="users" value="{{ emp.pk }}"
+                   {% if emp.pk|stringformat:'s' in form.users.value %}checked{% endif %}
+                   onclick="event.stopPropagation()"
+                   onchange="this.closest('.sr-emp-item').classList.toggle('is-checked', this.checked); srUpdateSummary()">
+            <span class="sr-emp-avatar">{{ emp.first_name|first|upper }}{{ emp.last_name|first|upper }}</span>
+            <span>
+              <span class="sr-emp-name">{{ emp.display_name }}{% if emp.employee_id %} <span style="font-weight:400;color:#94a3b8">— {{ emp.employee_id }}</span>{% endif %}</span>
+              <span class="sr-emp-meta block">
+                {% if emp.department %}{{ emp.department.name }}{% else %}<span class="text-slate-500">No dept</span>{% endif %}
+                {% if emp.work_shift %} · <span style="color:{{ emp.work_shift.color|default:'#94a3b8' }}">{{ emp.work_shift.name }}</span>{% endif %}
+              </span>
+            </span>
+          </label>
+          {% empty %}
+          <p class="text-sm text-slate-400 py-4 text-center">No employees found.</p>
+          {% endfor %}
+        </div>
+
+        <p id="sr-selected-count" class="mt-3 text-xs text-slate-400">0 employee(s) selected</p>
+      </div>
+
+      {# Right — shift + scope + submit #}
+      <div class="space-y-4">
+
+        <div class="sr-card">
+          <p class="sr-section-title">New shift</p>
+          <div class="sr-shift-grid" id="sr-shift-grid">
+            {% for shift in form.new_shift.field.queryset %}
+            <label class="sr-shift-opt {% if forloop.first %}is-selected{% endif %}"
+                   onclick="srSelectShift(this)">
+              <input type="radio" name="new_shift" value="{{ shift.pk }}"
+                     {% if forloop.first %}checked{% endif %}
+                     onclick="event.stopPropagation()"
+                     onchange="srUpdateSummary()">
+              <span class="sr-shift-dot" style="background:{{ shift.color|default:'#7c3aed' }}"></span>
+              <span>
+                <span class="sr-shift-name">{{ shift.name }}</span>
+                <span class="sr-shift-time block">{{ shift.start_time|time:"H:i" }} – {{ shift.end_time|time:"H:i" }}</span>
+              </span>
+            </label>
+            {% empty %}
+            <p class="text-sm text-slate-400">No active shifts configured.</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="sr-card">
+          <p class="sr-section-title">Applies to</p>
+          <div class="sr-scope-grid">
+            {% for val, lbl in form.scope.field.choices %}
+            <label class="sr-scope-opt {% if val == 'PERMANENT' %}is-active{% endif %}"
+                   onclick="srSelectScope(this, '{{ val }}')">
+              <input type="radio" name="scope" value="{{ val }}"
+                     {% if val == 'PERMANENT' %}checked{% endif %}
+                     onclick="event.stopPropagation()"
+                     onchange="srUpdateSummary()">
+              <span>
+                <span class="sr-scope-label">{{ lbl }}</span>
+                <span class="sr-scope-desc block">
+                  {% if val == "WEEK" %}Mon – Sun of the current week{% endif %}
+                  {% if val == "MONTH" %}All days in the current calendar month{% endif %}
+                  {% if val == "CUSTOM" %}You choose the exact date range{% endif %}
+                  {% if val == "PERMANENT" %}Updates the employee's default shift going forward{% endif %}
+                </span>
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+
+          <div id="sr-date-row" class="sr-date-row" style="display:none">
+            <div>
+              <label class="sr-label">From</label>
+              <input type="date" name="date_from" class="sr-input" id="sr-date-from"
+                     value="{{ form.date_from.value|default:'' }}" onchange="srUpdateSummary()">
+            </div>
+            <div>
+              <label class="sr-label">To</label>
+              <input type="date" name="date_to" class="sr-input" id="sr-date-to"
+                     value="{{ form.date_to.value|default:'' }}" onchange="srUpdateSummary()">
+            </div>
+          </div>
+        </div>
+
+        <div class="sr-card">
+          <label class="sr-label">Reason <span class="font-normal text-slate-500">(optional)</span></label>
+          <input type="text" name="reason" class="sr-input" placeholder="e.g. Project requirement, rotation…"
+                 value="{{ form.reason.value|default:'' }}">
+        </div>
+
+        <div class="sr-card">
+          <div id="sr-summary" class="sr-summary" style="display:none"></div>
+          <button type="submit" class="sr-submit-btn" id="sr-submit-btn" disabled>
+            Reassign &amp; notify employees
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </form>
+
+  {% if recent_changes %}
+  <div class="sr-card mt-6">
+    <p class="sr-section-title">Recent shift changes</p>
+    <div class="overflow-x-auto">
+      <table class="sr-audit-table">
+        <thead><tr>
+          <th>Employee</th><th>From</th><th>To</th><th>Scope</th><th>Period</th><th>Changed by</th><th>When</th>
+        </tr></thead>
+        <tbody>
+          {% for ch in recent_changes %}
+          <tr>
+            <td class="font-semibold" style="color:inherit">{{ ch.user.display_name }}</td>
+            <td style="color:#94a3b8">{{ ch.old_shift.name|default:"—" }}</td>
+            <td style="color:#a78bfa;font-weight:600">{{ ch.new_shift.name }}</td>
+            <td>
+              <span class="sr-badge
+                {% if ch.scope == 'PERMANENT' %}sr-badge-perm
+                {% elif ch.scope == 'WEEK' %}sr-badge-week
+                {% elif ch.scope == 'MONTH' %}sr-badge-month
+                {% else %}sr-badge-custom{% endif %}">
+                {{ ch.get_scope_display }}
+              </span>
+            </td>
+            <td style="color:#94a3b8;font-size:.75rem">
+              {% if ch.date_from %}{{ ch.date_from|date:"d M" }} – {{ ch.date_to|date:"d M Y" }}{% else %}—{% endif %}
+            </td>
+            <td style="color:#94a3b8">{{ ch.assigned_by.display_name|default:"—" }}</td>
+            <td style="color:#64748b;font-size:.75rem">{{ ch.created_at|date:"d M, H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+(function () {
+  function getCheckedEmps() {
+    return document.querySelectorAll('#sr-emp-list input[type="checkbox"]:checked');
+  }
+  function getSelectedShift() {
+    var el = document.querySelector('#sr-shift-grid input[type="radio"]:checked');
+    return el ? el.closest('.sr-shift-opt').querySelector('.sr-shift-name').textContent : '—';
+  }
+  function getSelectedScope() {
+    var el = document.querySelector('input[name="scope"]:checked');
+    return el ? el.value : 'PERMANENT';
+  }
+
+  window.srUpdateSummary = function () {
+    var count = getCheckedEmps().length;
+    var shift = getSelectedShift();
+    var scope = getSelectedScope();
+    var submitBtn = document.getElementById('sr-submit-btn');
+    var counter = document.getElementById('sr-selected-count');
+    var summary = document.getElementById('sr-summary');
+
+    counter.textContent = count + ' employee(s) selected';
+    submitBtn.disabled = count === 0;
+
+    if (count === 0) { summary.style.display = 'none'; return; }
+
+    var scopeText = {
+      WEEK: 'this week', MONTH: 'this month', PERMANENT: 'entire employment'
+    }[scope] || 'custom range';
+
+    if (scope === 'CUSTOM') {
+      var df = document.getElementById('sr-date-from').value;
+      var dt = document.getElementById('sr-date-to').value;
+      scopeText = df && dt ? df + ' → ' + dt : 'custom range';
+    }
+
+    summary.style.display = 'block';
+    summary.innerHTML = '<b>' + count + ' employee(s)</b> will be moved to <b>' + shift + '</b> for <b>' + scopeText + '</b>. Each will receive a notification.';
+  };
+
+  window.srToggleItem = function (item) {
+    var cb = item.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    item.classList.toggle('is-checked', cb.checked);
+    srUpdateSummary();
+    // sync select-all state
+    var all = document.querySelectorAll('#sr-emp-list .sr-emp-item:not([style*="display:none"])');
+    var allChecked = Array.from(all).every(function(el) { return el.querySelector('input').checked; });
+    document.getElementById('sr-select-all').checked = allChecked;
+  };
+
+  window.srToggleAll = function (checked) {
+    document.querySelectorAll('#sr-emp-list .sr-emp-item').forEach(function (item) {
+      if (item.style.display === 'none') return;
+      var cb = item.querySelector('input[type="checkbox"]');
+      cb.checked = checked;
+      item.classList.toggle('is-checked', checked);
+    });
+    srUpdateSummary();
+  };
+
+  // Active filter state
+  var srActiveDept = '';
+  var srActiveShift = '';
+
+  window.srApplyFilters = function () {
+    var q = (document.getElementById('sr-emp-search').value || '').toLowerCase();
+    var visible = 0;
+    document.querySelectorAll('#sr-emp-list .sr-emp-item').forEach(function (item) {
+      var nameMatch = !q || item.dataset.name.includes(q);
+      var deptMatch = !srActiveDept || item.dataset.dept === srActiveDept;
+      var shiftMatch = !srActiveShift || item.dataset.shift === srActiveShift;
+      var show = nameMatch && deptMatch && shiftMatch;
+      item.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    var countEl = document.getElementById('sr-filter-count');
+    if (countEl) countEl.textContent = visible + ' showing';
+    // reset select-all
+    var allVisible = document.querySelectorAll('#sr-emp-list .sr-emp-item:not([style*="display: none"]):not([style*="display:none"])');
+    var allChecked = allVisible.length > 0 && Array.from(allVisible).every(function (el) { return el.querySelector('input').checked; });
+    var selAll = document.getElementById('sr-select-all');
+    if (selAll) selAll.checked = allChecked;
+  };
+
+  // Chip click handler — dept
+  document.getElementById('sr-dept-chips').addEventListener('click', function (e) {
+    var chip = e.target.closest('.sr-chip');
+    if (!chip) return;
+    this.querySelectorAll('.sr-chip').forEach(function (c) { c.classList.remove('sr-chip--active'); });
+    chip.classList.add('sr-chip--active');
+    srActiveDept = chip.dataset.dept;
+    srApplyFilters();
+  });
+
+  // Chip click handler — shift
+  document.getElementById('sr-shift-chips').addEventListener('click', function (e) {
+    var chip = e.target.closest('.sr-chip');
+    if (!chip) return;
+    this.querySelectorAll('.sr-chip').forEach(function (c) { c.classList.remove('sr-chip--active'); });
+    chip.classList.add('sr-chip--active');
+    srActiveShift = chip.dataset.shift;
+    srApplyFilters();
+  });
+
+  srApplyFilters();
+
+  window.srSelectShift = function (label) {
+    document.querySelectorAll('.sr-shift-opt').forEach(function (el) { el.classList.remove('is-selected'); });
+    label.classList.add('is-selected');
+    label.querySelector('input').checked = true;
+    srUpdateSummary();
+  };
+
+  window.srSelectScope = function (label, val) {
+    document.querySelectorAll('.sr-scope-opt').forEach(function (el) { el.classList.remove('is-active'); });
+    label.classList.add('is-active');
+    label.querySelector('input').checked = true;
+    var row = document.getElementById('sr-date-row');
+    row.style.display = val === 'CUSTOM' ? 'grid' : 'none';
+    srUpdateSummary();
+  };
+
+  // init
+  srUpdateSummary();
+})();
+</script>
+{% endblock %}

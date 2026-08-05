@@ -105,6 +105,210 @@
     </div>
   </section>
 
+  {# ── Absent attendance policy ── #}
+  <section class="settings-panel">
+    <div class="settings-panel-header">
+      <h2 class="text-sm font-semibold">Absent attendance policy</h2>
+    </div>
+    <div class="settings-panel-body">
+      <p class="mb-4 text-sm text-slate-600 dark:text-slate-400">
+        When HR marks an employee as <strong>Absent</strong> or <strong>Half Day</strong>, the system can
+        automatically deduct from their leave balance or record it as Loss&nbsp;of&nbsp;Pay.
+        Deductions appear immediately in the employee's leave balance view.
+      </p>
+      <form method="post" class="space-y-5" id="absent-policy-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_absent_policy">
+
+        <div class="space-y-3">
+          {% for val, label in absent_policy_choices %}
+          <label class="relative flex cursor-pointer">
+            <input type="radio" name="absent_attendance_policy" value="{{ val }}"
+                   class="peer sr-only"
+                   {% if organization.absent_attendance_policy == val %}checked{% endif %}
+                   onchange="document.getElementById('absent-leave-type-row').style.display = (this.value === 'LEAVE' ? '' : 'none')">
+            <span class="flex w-full items-center gap-3 rounded-xl border-2 border-slate-200 p-4 transition peer-checked:border-violet-500 peer-checked:bg-violet-50 peer-checked:shadow-sm dark:border-white/10 dark:peer-checked:border-violet-400 dark:peer-checked:bg-violet-500/10">
+              {% if val == "NONE" %}
+                <i data-lucide="ban" class="h-5 w-5 shrink-0 text-slate-400 peer-checked:text-violet-600"></i>
+              {% elif val == "LEAVE" %}
+                <i data-lucide="calendar-minus" class="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-300"></i>
+              {% else %}
+                <i data-lucide="minus-circle" class="h-5 w-5 shrink-0 text-red-500"></i>
+              {% endif %}
+              <span>
+                <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ label }}</span>
+                {% if val == "NONE" %}
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Leave balances are untouched when attendance is absent.</span>
+                {% elif val == "LEAVE" %}
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Deduct 1 day (or 0.5 for Half Day) from the selected leave type's balance.</span>
+                {% else %}
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Record the absence as unpaid Loss of Pay — no leave type required.</span>
+                {% endif %}
+              </span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div id="absent-leave-type-row"
+             class="rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden"
+             style="{% if organization.absent_attendance_policy != 'LEAVE' %}display:none{% endif %}">
+          <div class="bg-slate-50 dark:bg-slate-800/60 px-4 py-3 border-b border-slate-200 dark:border-white/10">
+            <p class="text-sm font-semibold text-slate-800 dark:text-white">Leave deduction priority</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              The system deducts from leave types in this order. When one is exhausted it cascades to the next.
+            </p>
+          </div>
+
+          {# Hidden ordered inputs — JS keeps these in sync with the priority list #}
+          <div id="absent-priority-inputs"></div>
+
+          <div class="p-4 grid gap-4 sm:grid-cols-2">
+            {# Left: priority queue #}
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">Priority order</p>
+              <ul id="absent-priority-list" class="space-y-2 min-h-[60px]">
+                {% for item in priority_list %}
+                <li class="absent-priority-item flex items-center gap-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                    data-id="{{ item.id }}" data-name="{{ item.name }}">
+                  <span class="absent-priority-badge flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center"></span>
+                  <span class="flex-1 font-medium text-slate-800 dark:text-white">{{ item.name }}</span>
+                  {% if item.quota %}<span class="text-xs text-slate-400">{{ item.quota }}d</span>{% endif %}
+                  <button type="button" onclick="absentPriorityMoveUp(this)" title="Move up"
+                          class="p-1 rounded text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-500/10">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l4-4 4 4"/></svg>
+                  </button>
+                  <button type="button" onclick="absentPriorityMoveDown(this)" title="Move down"
+                          class="p-1 rounded text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-500/10">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+                  </button>
+                  <button type="button" onclick="absentPriorityRemove(this)" title="Remove"
+                          class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                  </button>
+                </li>
+                {% endfor %}
+              </ul>
+              {% if not priority_list %}
+              <p id="absent-priority-empty" class="text-xs text-slate-400 italic py-2">No leave types added yet — select from the right.</p>
+              {% else %}
+              <p id="absent-priority-empty" class="text-xs text-slate-400 italic py-2 hidden">No leave types added yet — select from the right.</p>
+              {% endif %}
+            </div>
+
+            {# Right: available leave types to add #}
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">Available leave types</p>
+              <div id="absent-available-list" class="space-y-1">
+                {% for lt in leave_types_for_absent %}
+                <button type="button"
+                        onclick="absentPriorityAdd(this)"
+                        data-id="{{ lt.pk }}"
+                        data-name="{{ lt.name }}"
+                        data-quota="{% if lt.annual_quota %}{{ lt.annual_quota }}d{% endif %}"
+                        class="absent-available-item w-full flex items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-left hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition">
+                  <span class="font-medium text-slate-800 dark:text-white">{{ lt.name }}</span>
+                  {% if lt.annual_quota %}<span class="text-xs text-slate-400">{{ lt.annual_quota }}d/yr</span>{% endif %}
+                  <span class="ml-auto text-violet-500 text-xs font-semibold">+ Add</span>
+                </button>
+                {% empty %}
+                <p class="text-xs text-slate-400 italic">All leave types added, or none configured.</p>
+                {% endfor %}
+              </div>
+              {% if not leave_types_for_absent and not priority_list %}
+              <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                No active leave types found. Go to <a href="{% url 'leaves:management' %}" class="underline">Leave policies</a> to add one.
+              </p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <script>
+        (function () {
+          function syncHiddenInputs() {
+            var container = document.getElementById('absent-priority-inputs');
+            container.innerHTML = '';
+            var items = document.querySelectorAll('#absent-priority-list .absent-priority-item');
+            items.forEach(function (li) {
+              var inp = document.createElement('input');
+              inp.type = 'hidden';
+              inp.name = 'leave_priority_ids[]';
+              inp.value = li.dataset.id;
+              container.appendChild(inp);
+            });
+            // Update badges
+            document.querySelectorAll('#absent-priority-list .absent-priority-badge').forEach(function (badge, i) {
+              badge.textContent = i + 1;
+            });
+            // Show/hide empty message
+            var empty = document.getElementById('absent-priority-empty');
+            if (empty) empty.classList.toggle('hidden', items.length > 0);
+          }
+
+          window.absentPriorityAdd = function (btn) {
+            var id = btn.dataset.id, name = btn.dataset.name, quota = btn.dataset.quota;
+            // Build list item
+            var li = document.createElement('li');
+            li.className = 'absent-priority-item flex items-center gap-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm';
+            li.dataset.id = id; li.dataset.name = name;
+            li.innerHTML = '<span class="absent-priority-badge flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-bold flex items-center justify-center"></span>'
+              + '<span class="flex-1 font-medium text-slate-800 dark:text-white">' + name + '</span>'
+              + (quota ? '<span class="text-xs text-slate-400">' + quota + '</span>' : '')
+              + '<button type="button" onclick="absentPriorityMoveUp(this)" title="Move up" class="p-1 rounded text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-500/10"><svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l4-4 4 4"/></svg></button>'
+              + '<button type="button" onclick="absentPriorityMoveDown(this)" title="Move down" class="p-1 rounded text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-500/10"><svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button>'
+              + '<button type="button" onclick="absentPriorityRemove(this)" title="Remove" class="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"><svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>';
+            document.getElementById('absent-priority-list').appendChild(li);
+            btn.closest('.absent-available-item').remove();
+            syncHiddenInputs();
+          };
+
+          window.absentPriorityRemove = function (btn) {
+            var li = btn.closest('.absent-priority-item');
+            var id = li.dataset.id, name = li.dataset.name;
+            // Add back to available list
+            var avail = document.getElementById('absent-available-list');
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'absent-available-item w-full flex items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-left hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition';
+            item.dataset.id = id; item.dataset.name = name; item.dataset.quota = '';
+            item.setAttribute('onclick', 'absentPriorityAdd(this)');
+            item.innerHTML = '<span class="font-medium text-slate-800 dark:text-white">' + name + '</span>'
+              + '<span class="ml-auto text-violet-500 text-xs font-semibold">+ Add</span>';
+            avail.appendChild(item);
+            li.remove();
+            syncHiddenInputs();
+          };
+
+          window.absentPriorityMoveUp = function (btn) {
+            var li = btn.closest('.absent-priority-item');
+            var prev = li.previousElementSibling;
+            if (prev && prev.classList.contains('absent-priority-item')) { li.parentNode.insertBefore(li, prev); syncHiddenInputs(); }
+          };
+
+          window.absentPriorityMoveDown = function (btn) {
+            var li = btn.closest('.absent-priority-item');
+            var next = li.nextElementSibling;
+            if (next && next.classList.contains('absent-priority-item')) { li.parentNode.insertBefore(next, li); syncHiddenInputs(); }
+          };
+
+          // Initial sync
+          syncHiddenInputs();
+        })();
+        </script>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
+            Save policy
+          </button>
+          <a href="{% url 'dashboard:settings' %}" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </section>
+
   <section class="settings-panel">
     <div class="settings-panel-header">
       <h2 class="text-sm font-semibold">Configuration</h2>

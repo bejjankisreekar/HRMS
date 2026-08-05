@@ -1,7 +1,7 @@
 {% extends "dashboard/_shell.html" %}
-{% load static %}
+{% load static static_extras %}
 {% block title %}{{ meta.label }} · Payroll{% endblock %}
-{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static 'payroll.css' %}">{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
 {% block page_back %}
 <div class="hrms-page-back">
   {% url 'payroll:reports' as rh %}

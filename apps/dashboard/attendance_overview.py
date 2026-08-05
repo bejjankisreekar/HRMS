@@ -42,7 +42,7 @@ class OverviewFilters:
     search: str = ""
 
     @classmethod
-    def from_request(cls, request) -> "OverviewFilters":
+    def from_request(cls, request, fy: dict | None = None) -> "OverviewFilters":
         def _int(v, d):
             try:
                 return int(v)
@@ -50,9 +50,16 @@ class OverviewFilters:
                 return d
 
         today = timezone.localdate()
+        if fy:
+            # Default to the most recent month within the FY (up to today)
+            from datetime import date as _date
+            fy_end = min(today, fy["date_to"])
+            default_year, default_month = fy_end.year, fy_end.month
+        else:
+            default_year, default_month = today.year, today.month
         return cls(
-            year=_int(request.GET.get("year"), today.year),
-            month=_int(request.GET.get("month"), today.month),
+            year=_int(request.GET.get("year"), default_year),
+            month=_int(request.GET.get("month"), default_month),
             department=(request.GET.get("department") or "").strip(),
             designation=(request.GET.get("designation") or "").strip(),
             employee_id=(request.GET.get("employee") or "").strip(),

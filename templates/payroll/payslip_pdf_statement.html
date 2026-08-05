@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { margin: 1.6cm 1.8cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.5; }
+  .title { text-align: center; font-size: 14pt; font-weight: bold; }
+  .company { text-align: center; font-size: 11pt; }
+  .address { text-align: center; font-size: 9pt; color: #444; }
+  table.details { width: 100%; border-collapse: collapse; margin-top: 18px; margin-bottom: 16px; }
+  table.details td { font-size: 9.5pt; padding: 2px 4px; vertical-align: top; }
+  table.details .k { width: 20%; }
+  table.details .c { width: 3%; }
+  table.details .v { width: 27%; }
+  table.grid { width: 100%; border-collapse: collapse; border: 1px solid #6b7280; }
+  table.grid th { background-color: #d9d9d9; border: 1px solid #6b7280; text-align: center; font-weight: bold; padding: 6px 8px; font-size: 10pt; }
+  table.grid td { border-left: 1px solid #6b7280; border-right: 1px solid #6b7280; padding: 4px 8px; font-size: 9.5pt; height: 16px; }
+  table.grid td.amt { text-align: right; }
+  table.grid tr.total td { border-top: 1px solid #6b7280; font-weight: normal; }
+  table.grid td.tlabel { text-align: right; }
+  .words { text-align: center; margin-top: 22px; }
+  .words .num { font-size: 11pt; }
+  .words .inwords { font-size: 10pt; }
+  table.sign { width: 100%; border-collapse: collapse; margin-top: 42px; }
+  table.sign td { width: 50%; font-size: 9.5pt; padding: 0 6px; }
+  .sign-label { }
+  .sign-line { border-top: 1px solid #333; margin-top: 40px; width: 80%; }
+  .sysnote { text-align: center; font-size: 9.5pt; color: #333; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="title">Payslip</div>
+<div class="company">{{ org.name }}</div>
+{% if org.address %}<div class="address">{{ org.address }}</div>{% endif %}
+
+<table class="details">
+  <tr>
+    <td class="k">Date of Joining</td><td class="c">:</td>
+    <td class="v">{% if employee.date_of_joining %}{{ employee.date_of_joining|date:"Y-m-d" }}{% else %}{{ employee.date_joined|date:"Y-m-d" }}{% endif %}</td>
+    <td class="k">Employee name</td><td class="c">:</td><td class="v">{{ employee.display_name }}</td>
+  </tr>
+  <tr>
+    <td class="k">Pay Period</td><td class="c">:</td><td class="v">{{ payslip.payroll_run.period_label }}</td>
+    <td class="k">Designation</td><td class="c">:</td><td class="v">{{ employee.designation|default:"—" }}</td>
+  </tr>
+  <tr>
+    <td class="k">Worked Days</td><td class="c">:</td><td class="v">{{ payslip.attendance_days }}</td>
+    <td class="k">Department</td><td class="c">:</td><td class="v">{{ employee.department_name|default:"—" }}</td>
+  </tr>
+</table>
+
+<table class="grid">
+  <tr>
+    <th style="width:32%;">Earnings</th><th style="width:18%;">Amount</th>
+    <th style="width:32%;">Deductions</th><th style="width:18%;">Amount</th>
+  </tr>
+  {% for e, d in line_pairs %}
+  <tr>
+    <td>{% if e %}{{ e.label }}{% endif %}</td>
+    <td class="amt">{% if e %}{{ e.amount|floatformat:"-2" }}{% endif %}</td>
+    <td>{% if d %}{{ d.label }}{% endif %}</td>
+    <td class="amt">{% if d %}{{ d.amount|floatformat:"-2" }}{% endif %}</td>
+  </tr>
+  {% endfor %}
+  <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
+  <tr class="total">
+    <td class="tlabel">Total Earnings</td><td class="amt">{{ payslip.gross_salary|floatformat:"-2" }}</td>
+    <td class="tlabel">Total Deductions</td><td class="amt">{{ payslip.total_deductions|floatformat:"-2" }}</td>
+  </tr>
+  <tr>
+    <td></td><td></td>
+    <td class="tlabel">Net Pay</td><td class="amt">{{ payslip.net_salary|floatformat:"-2" }}</td>
+  </tr>
+</table>
+
+<div class="words">
+  <div class="num">{{ payslip.net_salary|floatformat:"-2" }}</div>
+  <div class="inwords">{{ net_in_words }}</div>
+</div>
+
+<table class="sign">
+  <tr>
+    <td class="sign-label">Employer Signature</td>
+    <td class="sign-label">Employee Signature</td>
+  </tr>
+  <tr>
+    <td><div class="sign-line"></div></td>
+    <td><div class="sign-line"></div></td>
+  </tr>
+</table>
+
+<div class="sysnote">This is system generated payslip</div>
+</body>
+</html>

@@ -1,0 +1,139 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Payroll Dashboard · HRMS{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static_v 'payroll.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script>window.PAYROLL_CHARTS = {{ charts_json|safe }};</script>
+<script src="{% static 'payroll.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <i data-lucide="layout-dashboard" class="h-7 w-7 text-white"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Payroll Dashboard</h1>
+          <p class="mt-1.5 text-sm text-violet-100/90">{{ organization.name }} · {{ filters.period_label }}
+            {% if upcoming_payroll_date %}· Next payroll date: {{ upcoming_payroll_date|date:"d M Y" }}{% endif %}
+          </p>
+        </div>
+      </div>
+      <form method="get" class="pr-hero-filter pr-no-print">
+        <span class="pr-hero-filter__group">
+          <span class="pr-hero-filter__label"><i data-lucide="calendar" class="h-3 w-3"></i> Period</span>
+          <span class="pr-hero-filter__row">
+            <select name="month" class="pr-hero-select" onchange="this.form.submit()">
+              {% for m, label in month_choices %}<option value="{{ m }}" {% if m == filters.month %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <select name="year" class="pr-hero-select" onchange="this.form.submit()">
+              {% for y in period_years %}<option value="{{ y }}" {% if y == filters.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+            </select>
+          </span>
+        </span>
+      </form>
+    </div>
+  </div>
+
+  {# ── KPI cards ── #}
+  <section class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {% if is_finance %}
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="users" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">{{ kpis.total_employees }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Total Employees</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="wallet" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.payroll_cost|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Payroll Cost</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="check-circle" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">{{ kpis.employees_paid }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Employees Paid</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="clock" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">{{ kpis.employees_pending }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Employees Pending</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="badge-check" class="h-5 w-5"></i></div><p class="mt-2 text-sm font-extrabold text-slate-900 dark:text-white">{{ kpis.run_status }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Payroll Status</p></div>
+    {% else %}
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="banknote" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.gross_salary|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Gross Salary</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="wallet" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.net_salary|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Net Salary (Take-home)</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="minus-circle" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.total_deductions|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Total Deductions</p></div>
+    {% endif %}
+
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="shield-check" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.pf_amount|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">PF Amount</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="heart-pulse" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.esi_amount|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">ESI Amount</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="landmark" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.professional_tax|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Professional Tax</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="percent" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.tds|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">TDS</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="hand-coins" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.loan_deductions|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Loan Deductions</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="clock-4" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.overtime_cost|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Overtime Cost</p></div>
+    <div class="pr-stat"><div class="pr-stat-icon"><i data-lucide="gift" class="h-5 w-5"></i></div><p class="mt-2 text-xl font-extrabold pr-counter text-slate-900 dark:text-white">₹{{ kpis.bonus_cost|floatformat:0|intcomma }}</p><p class="text-[0.65rem] font-semibold uppercase text-slate-500">Bonus Cost</p></div>
+  </section>
+
+  {% if is_finance %}
+  {# ── Quick actions ── #}
+  <section>
+    <p class="prd-section-title">Quick actions</p>
+    <div class="pra-grid">
+      <form method="post" class="pra-card">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="run_payroll">
+        <input type="hidden" name="year" value="{{ filters.year }}"><input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="pra-inner pra-card--primary w-full"><div class="pra-icon"><i data-lucide="play-circle" class="h-5 w-5"></i></div><span class="pra-title">Generate Payroll</span><span class="pra-desc">Calculate payroll for {{ filters.period_label }}</span></button>
+      </form>
+      {% if is_admin %}
+      <form method="post" class="pra-card">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="approve_payroll">
+        <input type="hidden" name="year" value="{{ filters.year }}"><input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="pra-inner w-full"><div class="pra-icon"><i data-lucide="check-circle" class="h-5 w-5"></i></div><span class="pra-title">Approve Payroll</span><span class="pra-desc">Approve the current run</span></button>
+      </form>
+      <form method="post" class="pra-card">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="lock_payroll">
+        <input type="hidden" name="year" value="{{ filters.year }}"><input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="pra-inner w-full"><div class="pra-icon"><i data-lucide="lock" class="h-5 w-5"></i></div><span class="pra-title">Lock Payroll</span><span class="pra-desc">Prevent further changes</span></button>
+      </form>
+      {% endif %}
+      <a href="{% url 'payroll:runs' %}?export=bank&year={{ filters.year }}&month={{ filters.month }}" class="pra-card">
+        <div class="pra-inner w-full"><div class="pra-icon"><i data-lucide="download" class="h-5 w-5"></i></div><span class="pra-title">Export Bank File</span><span class="pra-desc">Download bank transfer CSV</span></div>
+      </a>
+      <form method="post" action="{% url 'payroll:runs' %}" class="pra-card">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="generate_payslips">
+        <input type="hidden" name="year" value="{{ filters.year }}"><input type="hidden" name="month" value="{{ filters.month }}">
+        <button type="submit" class="pra-inner w-full"><div class="pra-icon"><i data-lucide="file-text" class="h-5 w-5"></i></div><span class="pra-title">Generate Payslips</span><span class="pra-desc">Assign payslip numbers</span></button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if is_finance %}
+  {# ── Charts ── #}
+  <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Payroll cost trend</h3><p class="text-[0.65rem] text-slate-500">Last 6 months</p><div class="mt-2 h-44"><canvas id="chartPayrollMonthly"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Department salary distribution</h3><div class="mt-2 h-44"><canvas id="chartDeptPayroll"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Monthly payroll</h3><div class="mt-2 h-44"><canvas id="chartSalaryDist"></canvas></div></div>
+    <div class="pr-glass p-4"><h3 class="text-xs font-semibold text-slate-900 dark:text-white">Tax summary</h3><div class="mt-2 h-44"><canvas id="chartTax"></canvas></div></div>
+  </section>
+  {% else %}
+  {# ── My Salary structure (employee) ── #}
+  <section class="space-y-6">
+    {% include "payroll/_salary_breakdown.html" %}
+  </section>
+  {% endif %}
+
+  {% if is_finance %}
+  {# ── Recent runs ── #}
+  <section class="pr-glass">
+    <div class="pr-panel-head"><h3 class="text-sm font-bold text-slate-900 dark:text-white">Recent payroll runs</h3><a href="{% url 'payroll:runs' %}" class="pr-btn-ghost">View all runs</a></div>
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        <thead><tr><th>Period</th><th>Status</th><th>Employees</th><th class="text-right">Net Payroll</th></tr></thead>
+        <tbody>
+          {% for r in recent_runs %}
+          <tr><td>{{ r.period_label }}</td><td><span class="pr-badge pr-badge--{{ r.status|lower }}">{{ r.status_display }}</span></td><td>{{ r.employee_count }}</td><td class="text-right">₹{{ r.net|floatformat:0|intcomma }}</td></tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-slate-500">No payroll runs yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

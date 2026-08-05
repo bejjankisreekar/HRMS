@@ -1,0 +1,222 @@
+{% extends "dashboard/_shell.html" %}
+{% load static %}
+{% block title %}Document Generator · HRMS{% endblock %}
+
+{% block dashboard_extra_head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+<style>
+.doc-hero{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);color:#fff;border-radius:1rem;padding:2rem 2rem 1.5rem;}
+.doc-stat{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1rem 1.25rem;}
+.dark .doc-stat{background:#1e293b;border-color:#334155;}
+.doc-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;overflow:hidden;transition:box-shadow .15s;}
+.doc-card:hover{box-shadow:0 4px 16px rgba(79,70,229,.12);}
+.dark .doc-card{background:#1e293b;border-color:#334155;}
+.doc-type-badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.7rem;font-weight:600;padding:.2rem .6rem;border-radius:999px;background:#ede9fe;color:#5b21b6;}
+.dark .doc-type-badge{background:#3b1f8c30;color:#a78bfa;}
+.doc-tab{padding:.5rem 1rem;font-size:.8rem;font-weight:600;border-radius:.5rem;color:#64748b;cursor:pointer;transition:all .1s;}
+.doc-tab.active,.doc-tab:hover{background:#ede9fe;color:#4f46e5;}
+.dark .doc-tab.active,.dark .doc-tab:hover{background:#3730a330;color:#a78bfa;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="w-full space-y-6" x-data="{ tab: 'templates' }">
+
+  <!-- Hero -->
+  <div class="doc-hero">
+    <div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div class="flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+          <i data-lucide="file-text" class="h-7 w-7"></i>
+        </div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-indigo-200">HRMS · Documents</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Document Generator</h1>
+          <p class="mt-1.5 max-w-2xl text-sm text-indigo-100/90">Create, manage, and generate HR letters with rich templates and auto-filled employee data.</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if can_generate %}
+        <a href="{% url 'documents:generate' %}" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50">
+          <i data-lucide="file-plus" class="inline h-4 w-4 mr-1"></i>Generate Document
+        </a>
+        {% endif %}
+        {% if can_manage %}
+        <a href="{% url 'documents:template_create' %}" class="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30">
+          <i data-lucide="plus" class="inline h-4 w-4 mr-1"></i>New Template
+        </a>
+        {% endif %}
+        {% if request.user.role == 'ADMIN' %}
+        <a href="{% url 'documents:audit' %}" class="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30">
+          <i data-lucide="shield-check" class="inline h-4 w-4 mr-1"></i>Audit Log
+        </a>
+        <a href="{% url 'documents:permissions' %}" class="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30">
+          <i data-lucide="lock" class="inline h-4 w-4 mr-1"></i>Permissions
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="doc-stat">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Active Templates</p>
+      <p class="mt-1 text-2xl font-bold text-indigo-600">{{ active_templates }}</p>
+    </div>
+    <div class="doc-stat">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Total Generated</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{{ total_generated }}</p>
+    </div>
+    <div class="doc-stat">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Template Types</p>
+      <p class="mt-1 text-2xl font-bold text-violet-600">{{ grouped_templates|length }}</p>
+    </div>
+    <div class="doc-stat">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Recent Docs</p>
+      <p class="mt-1 text-2xl font-bold text-emerald-600">{{ generated_docs|length }}</p>
+    </div>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="rounded-lg border px-4 py-3 text-sm {% if msg.tags == 'success' %}border-emerald-200 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300{% else %}border-red-200 bg-red-50 text-red-800{% endif %}">
+    {{ msg }}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Tabs -->
+  <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+    <button @click="tab='templates'" :class="tab==='templates'?'active':''" class="doc-tab">Templates</button>
+    <button @click="tab='generated'" :class="tab==='generated'?'active':''" class="doc-tab">Generated Documents</button>
+  </div>
+
+  <!-- Templates tab -->
+  <div x-show="tab==='templates'">
+    {% if can_manage %}
+    <!-- Quick create buttons -->
+    <div class="mb-4 flex flex-wrap gap-2">
+      {% for val, label in template_types.items %}
+      <a href="{% url 'documents:template_create' %}?type={{ val }}" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-600">
+        + {{ label }}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if templates %}
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {% for tmpl in templates %}
+      <div class="doc-card p-4">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="doc-type-badge">{{ tmpl.get_template_type_display }}</span>
+            <h3 class="mt-2 font-semibold text-slate-900 dark:text-white truncate">{{ tmpl.name }}</h3>
+            {% if tmpl.description %}<p class="mt-1 text-xs text-slate-500 line-clamp-2">{{ tmpl.description }}</p>{% endif %}
+          </div>
+          <div class="flex shrink-0 items-center gap-1">
+            {% if tmpl.is_active %}
+            <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Active</span>
+            {% else %}
+            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Inactive</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="mt-3 flex items-center gap-2 text-[11px] text-slate-400">
+          <i data-lucide="git-branch" class="h-3 w-3"></i> v{{ tmpl.version }}
+          <span class="mx-1">·</span>
+          <i data-lucide="calendar" class="h-3 w-3"></i> {{ tmpl.updated_at|date:"d M Y" }}
+        </div>
+        <div class="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 dark:border-slate-700 pt-3">
+          {% if can_generate and tmpl.is_active %}
+          <a href="{% url 'documents:generate' %}?template={{ tmpl.pk }}" class="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700">Generate</a>
+          {% endif %}
+          <a href="{% url 'documents:template_preview' tmpl.pk %}" target="_blank" class="rounded-md border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-indigo-300">Preview</a>
+          {% if can_manage %}
+          <a href="{% url 'documents:template_edit' tmpl.pk %}" class="rounded-md border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-indigo-300">Edit</a>
+          <a href="{% url 'documents:template_versions' tmpl.pk %}" class="rounded-md border border-slate-200 dark:border-slate-600 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-indigo-300">History</a>
+          <form method="post" action="{% url 'documents:template_delete' tmpl.pk %}" class="inline" onsubmit="return confirm('Delete this template?')">
+            {% csrf_token %}
+            <button type="submit" class="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-500 hover:border-red-400">Delete</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+      <i data-lucide="file-text" class="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600"></i>
+      <h3 class="mt-3 font-semibold text-slate-700 dark:text-slate-300">No templates yet</h3>
+      <p class="mt-1 text-sm text-slate-500">Create your first document template to get started.</p>
+      {% if can_manage %}
+      <a href="{% url 'documents:template_create' %}" class="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Create Template</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Generated Documents tab -->
+  <div x-show="tab==='generated'">
+    {% if can_generate %}
+    <div class="mb-4">
+      <a href="{% url 'documents:generate' %}" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        <i data-lucide="file-plus" class="h-4 w-4"></i> Generate New Document
+      </a>
+    </div>
+    {% endif %}
+
+    {% if generated_docs %}
+    <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-800">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Document</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Employee</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Generated</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+          {% for doc in generated_docs %}
+          <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+            <td class="px-4 py-3">
+              <span class="doc-type-badge">{{ doc.get_template_type_display }}</span>
+              <p class="mt-0.5 font-medium text-slate-900 dark:text-white">{{ doc.template_name }}</p>
+            </td>
+            <td class="px-4 py-3 text-slate-600 dark:text-slate-300">
+              {{ doc.employee.display_name }}
+              {% if doc.employee.employee_id %}<br><span class="text-xs text-slate-400">{{ doc.employee.employee_id }}</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-slate-500 text-xs">
+              {{ doc.generated_at|date:"d M Y H:i" }}
+              {% if doc.generated_by %}<br>by {{ doc.generated_by.display_name }}{% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex gap-1.5">
+                <a href="{% url 'documents:generated_detail' doc.pk %}" class="rounded-md border border-slate-200 dark:border-slate-600 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-indigo-300">View</a>
+                <a href="{% url 'documents:doc_download' doc.pk %}" class="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-indigo-700">PDF</a>
+                {% if can_manage %}
+                <form method="post" action="{% url 'documents:doc_delete' doc.pk %}" class="inline" onsubmit="return confirm('Delete this document?')">
+                  {% csrf_token %}
+                  <button type="submit" class="rounded-md border border-red-200 px-2 py-0.5 text-xs font-medium text-red-500 hover:border-red-400">Del</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-10 text-center">
+      <i data-lucide="inbox" class="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600"></i>
+      <p class="mt-2 text-sm text-slate-500">No documents generated yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

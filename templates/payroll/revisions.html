@@ -1,0 +1,48 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Salary Revisions · Payroll{% endblock %}
+{% block dashboard_extra_head %}<link rel="stylesheet" href="{% static_v 'payroll.css' %}">{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-page w-full space-y-6">
+  <div class="payroll-hero pr-no-print">
+    <div class="payroll-hero-inner flex items-start gap-4">
+      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur"><i data-lucide="trending-up" class="h-7 w-7 text-white"></i></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-violet-200">Payroll</p>
+        <h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Salary Revisions</h1>
+        <p class="mt-1.5 text-sm text-violet-100/90">Increments, promotions, and CTC changes across the organization. Edit an employee's salary from Employee Salary to record a new revision.</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="pr-glass">
+    <div class="pr-table-wrap">
+      <table class="pr-table">
+        <thead><tr><th>Employee</th><th>Effective date</th><th class="text-right">Previous CTC</th><th class="text-right">New CTC</th><th class="text-right">Change</th><th>Reason</th><th>Approved by</th></tr></thead>
+        <tbody>
+          {% for row in revisions %}
+          <tr>
+            <td>{{ row.rev.user.display_name }}</td>
+            <td>{{ row.rev.effective_date|date:"d M Y" }}</td>
+            <td class="text-right">₹{{ row.rev.previous_ctc|floatformat:0|intcomma }}</td>
+            <td class="text-right">₹{{ row.rev.new_ctc|floatformat:0|intcomma }}</td>
+            <td class="text-right {% if row.pct > 0 %}text-emerald-600{% elif row.pct < 0 %}text-rose-600{% endif %} font-bold">{% if row.pct != None %}{{ row.pct }}%{% else %}—{% endif %}</td>
+            <td>{{ row.rev.reason|default:"—" }}</td>
+            <td>{{ row.rev.approved_by.display_name|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-slate-500">No salary revisions recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

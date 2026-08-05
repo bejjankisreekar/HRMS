@@ -6,11 +6,6 @@
     </div>
 
     <div class="pro-header__actions">
-      <div class="pro-org-switcher" title="Organization workspace">
-        <i data-lucide="building-2"></i>
-        <span>{{ organization.name }}</span>
-        <i data-lucide="chevron-down" class="pro-org-switcher__chev"></i>
-      </div>
       <a href="{% url 'dashboard:staff_create' %}" class="pro-btn pro-btn--primary">
         <i data-lucide="user-plus"></i> Add employee
       </a>
@@ -18,17 +13,5 @@
         <i data-lucide="download"></i> Export
       </a>
     </div>
-  </div>
-
-  <div class="pro-modules" aria-label="HR modules">
-    <a href="{% url 'dashboard:professional_admin' %}" class="pro-module pro-module--active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
-    <a href="{% url 'dashboard:staff_list' %}" class="pro-module"><i data-lucide="users"></i> Employees</a>
-    <a href="{% url 'dashboard:attendance' %}" class="pro-module"><i data-lucide="calendar-check"></i> Attendance</a>
-    <a href="{% url 'payroll:management' %}" class="pro-module"><i data-lucide="wallet"></i> Payroll</a>
-    <span class="pro-module pro-module--soon"><i data-lucide="target"></i> Performance</span>
-    <a href="{% url 'leaves:management' %}" class="pro-module"><i data-lucide="palmtree"></i> Leave</a>
-    <span class="pro-module pro-module--soon"><i data-lucide="folder-kanban"></i> Projects</span>
-    <a href="{% url 'attendance:reports' %}" class="pro-module"><i data-lucide="bar-chart-3"></i> Reports</a>
-    <a href="{% url 'dashboard:settings' %}" class="pro-module"><i data-lucide="settings"></i> Settings</a>
   </div>
 </header>

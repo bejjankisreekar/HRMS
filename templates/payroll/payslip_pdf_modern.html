@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { margin: 1.4cm 1.8cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 10pt; color: #0f172a; line-height: 1.5; }
+  .banner { background-color: #4f46e5; color: #ffffff; padding: 14px 18px; }
+  .banner .org-name { font-size: 16pt; font-weight: bold; color: #ffffff; }
+  .banner .org-logo { max-height: 46px; max-width: 150px; }
+  .banner .doc-title { font-size: 13pt; font-weight: bold; text-align: right; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
+  .banner .period { font-size: 9.5pt; text-align: right; color: #e0e7ff; }
+  .meta-card { background-color: #eef2ff; padding: 10px 14px; margin-top: 14px; }
+  table.meta { width: 100%; border-collapse: collapse; }
+  table.meta td { padding: 3px 4px; font-size: 9.5pt; vertical-align: top; }
+  table.meta .label { color: #6366f1; width: 26%; font-weight: bold; }
+  table.lines { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  table.lines th { text-align: left; padding: 7px 10px; font-size: 10pt; color: #ffffff; }
+  table.lines th.amount, table.lines td.amount { text-align: right; }
+  table.lines td { padding: 5px 10px; font-size: 9.5pt; border-bottom: 1px solid #eef2ff; }
+  th.earn { background-color: #059669; }
+  th.deduct { background-color: #e11d48; }
+  .subtotal td { font-weight: bold; background-color: #f8fafc; border-top: 1px solid #cbd5e1; }
+  .net-box { margin-top: 16px; background-color: #4f46e5; color: #ffffff; padding: 12px 18px; }
+  .net-box .net-label { font-size: 11pt; color: #e0e7ff; }
+  .net-box .net-value { font-size: 18pt; font-weight: bold; color: #ffffff; text-align: right; }
+  .bank-block { margin-top: 14px; font-size: 9.5pt; background-color: #f8fafc; padding: 8px 12px; }
+  .bank-block .label { color: #64748b; }
+  .footer { margin-top: 26px; border-top: 1px solid #e2e8f0; padding-top: 6px; font-size: 8pt; color: #94a3b8; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <table style="width:100%; border-collapse:collapse;">
+    <tr>
+      <td style="width:60%; vertical-align:middle;">
+        {% if logo_src %}<img src="{{ logo_src }}" class="org-logo" alt="{{ org.name }}">{% else %}<div class="org-name">{{ org.name }}</div>{% endif %}
+      </td>
+      <td style="width:40%; vertical-align:middle;">
+        <div class="doc-title">Payslip</div>
+        <div class="period">{{ payslip.payroll_run.period_label }}</div>
+        {% if payslip.payslip_number %}<div class="period">No. {{ payslip.payslip_number }}</div>{% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="meta-card">
+  <table class="meta">
+    <tr>
+      <td class="label">Employee</td><td>{{ employee.display_name }}</td>
+      <td class="label">Employee ID</td><td>{{ employee.employee_id|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td class="label">Department</td><td>{{ employee.department_name|default:"—" }}</td>
+      <td class="label">Designation</td><td>{{ employee.designation|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td class="label">Working Days</td><td>{{ payslip.working_days }}</td>
+      <td class="label">Days Paid</td><td>{{ payslip.attendance_days }}</td>
+    </tr>
+    <tr>
+      <td class="label">PAN</td><td>{{ employee.pan_number|default:"—" }}</td>
+      <td class="label">PF / UAN</td><td>{{ employee.pf_account_number|default:"—" }} / {{ employee.uan_number|default:"—" }}</td>
+    </tr>
+  </table>
+</div>
+
+<table class="lines">
+  <tr><th class="earn">Earnings</th><th class="earn amount">Amount</th></tr>
+  {% for line in earnings %}
+  <tr><td>{{ line.label }}</td><td class="amount">{{ line.amount }}</td></tr>
+  {% endfor %}
+  <tr class="subtotal"><td>Gross Earnings</td><td class="amount">{{ payslip.gross_salary }}</td></tr>
+</table>
+
+<table class="lines">
+  <tr><th class="deduct">Deductions</th><th class="deduct amount">Amount</th></tr>
+  {% for line in deductions %}
+  <tr><td>{{ line.label }}</td><td class="amount">{{ line.amount }}</td></tr>
+  {% endfor %}
+  <tr class="subtotal"><td>Total Deductions</td><td class="amount">{{ payslip.total_deductions }}</td></tr>
+</table>
+
+<div class="net-box">
+  <table style="width:100%; border-collapse:collapse;">
+    <tr>
+      <td class="net-label" style="vertical-align:middle;">Net Pay</td>
+      <td class="net-value" style="vertical-align:middle;">{{ payslip.net_salary }}</td>
+    </tr>
+  </table>
+</div>
+
+<div class="bank-block">
+  <span class="label">Bank:</span> {{ employee.bank_name|default:"—" }} &nbsp;
+  <span class="label">Account:</span> {{ employee.bank_account_number|default:"—" }} &nbsp;
+  <span class="label">IFSC:</span> {{ employee.ifsc_code|default:"—" }}
+</div>
+
+<div class="footer">
+  This payslip is confidential and intended solely for {{ employee.display_name }}.<br>
+  {{ org.name }} · Generated on {{ generated_date }} · Digitally generated, signature not required.
+</div>
+</body>
+</html>

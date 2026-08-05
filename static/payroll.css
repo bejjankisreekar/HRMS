@@ -405,6 +405,105 @@
   color: #94a3b8;
 }
 
+.pr-hero-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.pr-hero-filter__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+}
+
+.pr-hero-filter__label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.pr-hero-filter__label i {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.pr-hero-filter__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pr-hero-filter__to {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 0 0.1rem;
+}
+
+.pr-hero-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.14);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.4rem center;
+  background-size: 0.9rem;
+  padding: 0.4rem 1.6rem 0.4rem 0.6rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.pr-hero-select:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.pr-hero-select:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
+
+.pr-hero-select--sm {
+  padding: 0.32rem 1.4rem 0.32rem 0.5rem;
+  font-size: 0.72rem;
+  background-size: 0.75rem;
+  background-position: right 0.35rem center;
+}
+
+.pr-hero-select option {
+  color: #1e1b4b;
+  background: #fff;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .pr-hero-filter {
+    width: 100%;
+  }
+  .pr-hero-filter__group {
+    flex: 1 1 auto;
+  }
+}
+
 .pr-table-wrap {
   overflow: auto;
   max-height: 28rem;
@@ -444,6 +543,7 @@
   border-bottom: 1px solid rgb(241 245 249);
   color: rgb(51 65 85);
   white-space: nowrap;
+  vertical-align: top;
 }
 
 .dark .pr-table tbody td {
