@@ -90,8 +90,9 @@ class LifecycleFilters:
             except ValueError:
                 return default
 
+        month_start = today.replace(day=1)
+
         if mode == "onboarding":
-            month_start = today.replace(day=1)
             return cls(
                 department=(g.get("department") or "").strip(),
                 branch=(g.get("branch") or "").strip(),

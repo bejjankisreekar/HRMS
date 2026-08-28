@@ -26,19 +26,17 @@ from apps.subscriptions.services.feature_control import (
     log_feature_action,
     set_plan_feature,
 )
+from apps.subscriptions import plan_features
 from apps.subscriptions.services.pricing_matrix import FEATURED_PLAN_SLUG, build_feature_matrix, get_catalog_plans
 
 
-PLAN_SHORT_NAMES = {
-    "basic": "Basic",
-    "professional": "Pro",
-    "growth": "Growth",
-}
+# Short names and accent colours both come from plan_features, so renaming or
+# re-branding a plan there flows through to this matrix.
+PLAN_SHORT_NAMES = {t.slug: t.short_name for t in plan_features.PLAN_TIERS}
 
 PLAN_ACCENTS = {
-    "basic": {"color": "#475569", "bg": "#f8fafc", "ring": "#e2e8f0"},
-    "professional": {"color": "#2563eb", "bg": "#eff6ff", "ring": "#bfdbfe"},
-    "growth": {"color": "#7c3aed", "bg": "#f5f3ff", "ring": "#ddd6fe"},
+    t.slug: {"color": t.accent, "bg": t.accent_bg, "ring": t.accent_ring}
+    for t in plan_features.PLAN_TIERS
 }
 
 
@@ -87,7 +85,7 @@ def _matrix_context() -> dict:
         )
     plan_cards = []
     for p in plans:
-        accent = PLAN_ACCENTS.get(p.slug, PLAN_ACCENTS["basic"])
+        accent = PLAN_ACCENTS.get(p.slug, PLAN_ACCENTS[plan_features.DEFAULT_TIER.slug])
         plan_cards.append(
             {
                 "plan_id": p.pk,
@@ -139,7 +137,7 @@ def _matrix_context() -> dict:
             "plan_name": p.name,
             "plan_short": PLAN_SHORT_NAMES.get(p.slug, p.name[:3]),
             "enabled_count": len(enabled_map.get(p.pk, set())),
-            "accent_color": PLAN_ACCENTS.get(p.slug, PLAN_ACCENTS["basic"])["color"],
+            "accent_color": PLAN_ACCENTS.get(p.slug, PLAN_ACCENTS[plan_features.DEFAULT_TIER.slug])["color"],
             "is_featured": p.slug == FEATURED_PLAN_SLUG,
         }
         for p in plans

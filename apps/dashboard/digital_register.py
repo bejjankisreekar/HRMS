@@ -151,6 +151,8 @@ def build_register(manager: User, filters: RegisterFilters, *, page: int = 1, pa
             "day": d.day,
             "weekday": d.strftime("%a"),
             "is_today": d == today,
+            "is_weekend": d.weekday() >= 5,
+            "is_week_start": d.weekday() == 0,
             "iso": d.isoformat(),
         }
         for d in days
@@ -251,6 +253,9 @@ def build_register(manager: User, filters: RegisterFilters, *, page: int = 1, pa
                     "cls": STATUS_META[code]["cls"],
                     "label": STATUS_META[code]["label"],
                     "iso": d.isoformat(),
+                    "day": d.day,
+                    "is_weekend": is_weekend,
+                    "is_week_start": d.weekday() == 0,
                     "is_today": d == today,
                     "tip": tip,
                 }

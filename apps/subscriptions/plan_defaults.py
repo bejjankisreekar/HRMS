@@ -10,40 +10,42 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-DEFAULT_PLANS = [
-    {
-        "slug": "basic",
-        "name": "Basic",
-        "description": "Core HR for small teams.",
+from apps.subscriptions import plan_features
+
+# Identity (slug / name / description) comes from plan_features so that renaming
+# a plan there renames it in the seeded catalog too. Only pricing and limits are
+# defined here.
+_PLAN_COMMERCIALS = {
+    plan_features.BASIC_SLUG: {
         "monthly_price_inr": Decimal("1999"),
         "employee_limit": 50,
         "branch_limit": 1,
         "storage_limit_mb": 5120,
-        "trial_days": 14,
-        "sort_order": 1,
     },
-    {
-        "slug": "professional",
-        "name": "Professional",
-        "description": "Payroll, performance, and analytics.",
+    plan_features.PROFESSIONAL_SLUG: {
         "monthly_price_inr": Decimal("4999"),
         "employee_limit": 250,
         "branch_limit": 3,
         "storage_limit_mb": 20480,
-        "trial_days": 14,
-        "sort_order": 2,
     },
-    {
-        "slug": "growth",
-        "name": "Growth",
-        "description": "Full platform — multi-branch, advanced analytics, compliance, and unlimited scale.",
+    plan_features.GROWTH_SLUG: {
         "monthly_price_inr": Decimal("5999"),
         "employee_limit": None,
         "branch_limit": None,
         "storage_limit_mb": None,
-        "trial_days": 14,
-        "sort_order": 3,
     },
+}
+
+DEFAULT_PLANS = [
+    {
+        "slug": tier.slug,
+        "name": tier.name,
+        "description": tier.description,
+        "trial_days": 14,
+        "sort_order": index,
+        **_PLAN_COMMERCIALS[tier.slug],
+    }
+    for index, tier in enumerate(plan_features.PLAN_TIERS, start=1)
 ]
 
 DEFAULT_ADDONS = [

@@ -1,41 +1,20 @@
 {% extends "dashboard/grades/_base.html" %}
 
 {% block grades_content %}
-<div class="grid gap-6 lg:grid-cols-5">
-  <section class="grd-panel lg:col-span-2">
-    <h2 class="grd-panel__title">Add designation</h2>
-    <form method="post" class="space-y-3">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="create">
-      {% for field in form %}
-      <div>
-        <label class="platform-label">{{ field.label }}</label>
-        {{ field }}
-      </div>
-      {% endfor %}
-      <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Create designation</button>
-    </form>
+<div class="grd-toolbar">
+  <p class="grd-muted">Job titles staff hold, each optionally mapped to a grade.</p>
+  <button type="button" class="grd-btn grd-btn--primary" data-grd-open="grd-modal-designation">
+    <i data-lucide="plus"></i> Add designation
+  </button>
+</div>
 
-    {% if edit_designation %}
-    <div class="mt-6 pt-6 border-t border-slate-200 dark:border-white/10">
-      <h3 class="grd-panel__title">Edit {{ edit_designation.name }}</h3>
-      <form method="post" class="space-y-3">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="edit">
-        <input type="hidden" name="designation_id" value="{{ edit_designation.pk }}">
-        {% for field in edit_form %}
-        <div><label class="platform-label">{{ field.label }}</label>{{ field }}</div>
-        {% endfor %}
-        <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Save</button>
-      </form>
-    </div>
-    {% endif %}
-  </section>
-
-  <section class="grd-panel lg:col-span-3">
-    <h2 class="grd-panel__title">Designations</h2>
+<section class="grd-panel">
+  <h2 class="grd-panel__title">Designations ({{ designations|length }})</h2>
+  <div class="overflow-x-auto">
     <table class="grd-table">
-      <thead><tr><th>Title</th><th>Grade</th><th>Staff</th><th>Status</th><th></th></tr></thead>
+      <thead>
+        <tr><th>Title</th><th>Grade</th><th>Staff</th><th>Status</th><th class="grd-actions-cell">Actions</th></tr>
+      </thead>
       <tbody>
         {% for d in designations %}
         <tr>
@@ -43,13 +22,19 @@
           <td>{% if d.grade %}{{ d.grade.name }}{% else %}—{% endif %}</td>
           <td>{{ d.holder_count }}</td>
           <td>{{ d.get_status_display }}</td>
-          <td>
-            <a href="?edit={{ d.pk }}" class="text-xs text-teal-600 font-semibold">Edit</a>
-            <form method="post" class="inline">{% csrf_token %}
-              <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="designation_id" value="{{ d.pk }}">
-              <button type="submit" class="text-xs text-rose-600 ml-2" onclick="return confirm('Delete designation?')">Delete</button>
-            </form>
+          <td class="grd-actions-cell">
+            <div class="grd-row-actions">
+              <a href="?edit={{ d.pk }}" class="grd-icon-btn grd-icon-btn--edit" title="Edit {{ d.name }}" aria-label="Edit {{ d.name }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><use href="#grd-i-edit"></use></svg>
+              </a>
+              <form method="post" data-grd-confirm="Delete &quot;{{ d.name }}&quot;? {% if d.holder_count %}{{ d.holder_count }} employee(s) will lose this title. {% endif %}This cannot be undone.">{% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="designation_id" value="{{ d.pk }}">
+                <button type="submit" class="grd-icon-btn grd-icon-btn--danger" title="Delete {{ d.name }}" aria-label="Delete {{ d.name }}">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><use href="#grd-i-trash"></use></svg>
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% empty %}
@@ -57,6 +42,61 @@
         {% endfor %}
       </tbody>
     </table>
-  </section>
+  </div>
+</section>
+
+{% include "dashboard/grades/_icons.html" %}
+
+{# ---------- Add designation modal ---------- #}
+<div class="grd-modal" id="grd-modal-designation" hidden {% if form.errors or open_create %}data-grd-autoopen{% endif %}>
+  <div class="grd-modal__backdrop" data-grd-close></div>
+  <div class="grd-modal__panel" role="dialog" aria-modal="true" aria-labelledby="grd-modal-designation-title">
+    <header class="grd-modal__head">
+      <div>
+        <h2 class="grd-modal__title" id="grd-modal-designation-title">Add designation</h2>
+        <p class="grd-modal__sub">A job title, optionally mapped to a grade.</p>
+      </div>
+      <button type="button" class="grd-modal__x" data-grd-close aria-label="Close">&times;</button>
+    </header>
+    <form method="post" class="grd-modal__form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      <div class="grd-modal__body">
+        {% include "dashboard/grades/_designation_fields.html" with field_form=form %}
+      </div>
+      <footer class="grd-modal__foot">
+        <button type="button" class="grd-btn grd-btn--soft" data-grd-close>Cancel</button>
+        <button type="submit" class="grd-btn grd-btn--primary">Create designation</button>
+      </footer>
+    </form>
+  </div>
 </div>
+
+{# ---------- Edit designation modal ---------- #}
+{% if edit_designation %}
+<div class="grd-modal" id="grd-modal-designation-edit" hidden data-grd-autoopen data-grd-close-url="{% url 'dashboard:grades:designations' %}">
+  <div class="grd-modal__backdrop" data-grd-close></div>
+  <div class="grd-modal__panel" role="dialog" aria-modal="true" aria-labelledby="grd-modal-designation-edit-title">
+    <header class="grd-modal__head">
+      <div>
+        <h2 class="grd-modal__title" id="grd-modal-designation-edit-title">Edit {{ edit_designation.name }}</h2>
+        <p class="grd-modal__sub">Renaming updates the title on every employee who holds it.</p>
+      </div>
+      <button type="button" class="grd-modal__x" data-grd-close aria-label="Close">&times;</button>
+    </header>
+    <form method="post" class="grd-modal__form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="designation_id" value="{{ edit_designation.pk }}">
+      <div class="grd-modal__body">
+        {% include "dashboard/grades/_designation_fields.html" with field_form=edit_form %}
+      </div>
+      <footer class="grd-modal__foot">
+        <button type="button" class="grd-btn grd-btn--soft" data-grd-close>Cancel</button>
+        <button type="submit" class="grd-btn grd-btn--primary">Save changes</button>
+      </footer>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

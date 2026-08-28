@@ -53,13 +53,14 @@ ADMIN_NAV_ORDER = [
     "Leave management",
     *PAYROLL_ADMIN_LABELS,
     "Compliance Reports",
-    "Document Generator",
+    "HR Analytics",
     "Analytics",
     "Rule Engine",
     "Organization settings",
 ]
 
 HR_NAV_ORDER = [
+    "HR Analytics",
     "Team analytics",
     "Organization tree",
     "Team structure",
@@ -73,7 +74,6 @@ HR_NAV_ORDER = [
     *PAYROLL_ADMIN_LABELS,
     "Onboarding",
     "Offboarding",
-    "Document Generator",
     "Rule Engine",
     "Settings",
     "My profile",
@@ -266,14 +266,41 @@ def _groups_from_order(
     return _bucket_items_into_groups(items, group_roles)
 
 
+def _owns_destination(item: SidebarItem) -> int:
+    """How strong an item's claim is on its own URL.
+
+    Several features have no page of their own yet and link to a shared landing page
+    (Settings) as a placeholder. Those claim only the landing route, while the feature
+    that actually owns the page also claims its sub-routes. Ranking by the number of
+    claimed routes therefore keeps the real owner and drops the placeholders.
+    """
+    return len(item.active_views)
+
+
 def _dedupe_items_by_url(groups: list[SidebarGroup]) -> list[SidebarGroup]:
-    """Keep first nav entry per URL so the sidebar shows unique destinations."""
+    """Keep one nav entry per URL so the sidebar shows unique destinations.
+
+    Where several entries share a URL, the one that owns the destination wins rather
+    than whichever happened to sort first — otherwise a placeholder can stand in for a
+    page it does not represent, and take that page's active highlight with it.
+    """
+    best_by_url: dict[str, SidebarItem] = {}
+    for group in groups:
+        for item in group.items:
+            if not item.url or item.url == "#":
+                continue
+            incumbent = best_by_url.get(item.url)
+            if incumbent is None or _owns_destination(item) > _owns_destination(incumbent):
+                best_by_url[item.url] = item
+
     seen: set[str] = set()
     result: list[SidebarGroup] = []
     for group in groups:
         unique_items: list[SidebarItem] = []
         for item in group.items:
             if not item.url or item.url == "#" or item.url in seen:
+                continue
+            if best_by_url[item.url] is not item:
                 continue
             seen.add(item.url)
             unique_items.append(item)
@@ -489,6 +516,15 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             roles=ar,
             keywords=("dashboard", "overview", "home"),
         ),
+        "HR Analytics": _item(
+            "HR Analytics",
+            "chart-no-axes-combined",
+            "dashboard:hr_analytics",
+            ("dashboard:hr_analytics", "dashboard:hr_analytics_data"),
+            ar,
+            keywords=("hr analytics", "people analytics", "attrition", "headcount",
+                      "retention", "workforce", "diversity", "scorecard"),
+        ),
         "Analytics": _item(
             "Analytics",
             "bar-chart-3",
@@ -629,15 +665,6 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
             ar,
             keywords=("organization", "roles", "permissions", "integrations", "departments"),
         ),
-        "Document Generator": _item(
-            "Document Generator",
-            "file-text",
-            "documents:management",
-            ("documents:management", "documents:template_create", "documents:template_edit",
-             "documents:generate", "documents:generated_detail", "documents:audit"),
-            ar,
-            keywords=("documents", "letters", "offer letter", "appointment", "experience", "relieving", "certificate"),
-        ),
         "Grades & hierarchy": _item(
             "Grades & hierarchy",
             "network",
@@ -648,7 +675,6 @@ def _admin_nav_catalog(user: User | None) -> dict[str, SidebarItem]:
                 "dashboard:grades:designations",
                 "dashboard:grades:hierarchy",
                 "dashboard:grades:career",
-                "dashboard:grades:analytics",
             ),
             ar,
             keywords=("grade", "designation", "hierarchy", "level", "promotion"),
@@ -674,6 +700,15 @@ def _hr_nav_catalog() -> dict[str, SidebarItem]:
     hr = (User.Role.HR,)
     all_org = (User.Role.HR, User.Role.EMPLOYEE)
     return {
+        "HR Analytics": _item(
+            "HR Analytics",
+            "chart-no-axes-combined",
+            "dashboard:hr_analytics",
+            ("dashboard:hr_analytics", "dashboard:hr_analytics_data"),
+            hr,
+            keywords=("hr analytics", "people analytics", "attrition", "headcount",
+                      "retention", "workforce", "diversity", "scorecard"),
+        ),
         "Team analytics": _item(
             "Team analytics",
             "bar-chart-3",
@@ -774,15 +809,6 @@ def _hr_nav_catalog() -> dict[str, SidebarItem]:
             "lifecycle:offboarding",
             ("lifecycle:offboarding",),
             hr,
-        ),
-        "Document Generator": _item(
-            "Document Generator",
-            "file-text",
-            "documents:management",
-            ("documents:management", "documents:template_create", "documents:template_edit",
-             "documents:generate", "documents:generated_detail", "documents:audit"),
-            hr,
-            keywords=("documents", "letters", "offer letter", "appointment", "experience", "relieving", "certificate"),
         ),
         "Rule Engine": _item(
             "Rule Engine",

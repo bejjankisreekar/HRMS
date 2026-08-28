@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -14,11 +15,18 @@ from django.views.generic import TemplateView
 
 from apps.accounts.models import User
 from apps.dashboard.mixins import AdminRequiredMixin
+from apps.dashboard.notification_service import send_notification
 from apps.grades.forms import CareerPathForm, DesignationForm, GradeForm, GradePermissionForm
-from apps.grades.models import CareerPathStep, Designation, Grade, GradePermission, GradeStatus
+from apps.grades.models import (
+    CareerPathStep,
+    Designation,
+    Grade,
+    GradeChangeLog,
+    GradePermission,
+    GradeStatus,
+)
 from apps.grades.services.defaults import seed_organization_grades
 from apps.grades.services.hierarchy import (
-    build_analytics_context,
     build_grade_tree,
     build_hierarchy_context,
     get_career_path_for_grade,
@@ -32,7 +40,6 @@ GRADES_NAV = [
     ("designations", "Designations", "badge-check", "dashboard:grades:designations"),
     ("hierarchy", "Hierarchy", "git-branch", "dashboard:grades:hierarchy"),
     ("career", "Career paths", "trending-up", "dashboard:grades:career"),
-    ("analytics", "Analytics", "bar-chart-3", "dashboard:grades:analytics"),
 ]
 
 
@@ -92,12 +99,16 @@ class GradeListView(GradesContextMixin, TemplateView):
         ctx["grades"] = qs.order_by("category", "level_number", "priority_order")
         ctx["filter_category"] = category
         ctx["form"] = GradeForm(organization=org)
+        ctx["open_create"] = "create" in self.request.GET
         edit_id = self.request.GET.get("edit")
         if edit_id:
             grade = get_object_or_404(Grade, pk=edit_id, organization=org)
             ctx["edit_grade"] = grade
             ctx["edit_form"] = GradeForm(instance=grade, organization=org)
-            ctx["permission_form"] = GradePermissionForm()
+            permission_form = GradePermissionForm()
+            # Rendered inside the edit-grade modal, so bind it to the separate add form.
+            permission_form.fields["permission_key"].widget.attrs["form"] = "grd-perm-add-form"
+            ctx["permission_form"] = permission_form
             ctx["grade_permissions"] = grade.permissions.all()
         return ctx
 
@@ -176,6 +187,7 @@ class DesignationListView(GradesContextMixin, TemplateView):
             .order_by("priority_order", "name")
         )
         ctx["form"] = DesignationForm(organization=org)
+        ctx["open_create"] = "create" in self.request.GET
         edit_id = self.request.GET.get("edit")
         if edit_id:
             d = get_object_or_404(Designation, pk=edit_id, organization=org)
@@ -208,7 +220,13 @@ class DesignationListView(GradesContextMixin, TemplateView):
 
         messages.error(request, "Please fix the errors below.")
         ctx = self.get_context_data(**kwargs)
-        ctx["form"] = form
+        if action == "edit":
+            ctx["edit_form"] = form
+            ctx["edit_designation"] = get_object_or_404(
+                Designation, pk=request.POST.get("designation_id"), organization=org
+            )
+        else:
+            ctx["form"] = form
         return self.render_to_response(ctx)
 
 
@@ -220,7 +238,6 @@ class HierarchyView(GradesContextMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
         org = self.request.user.organization
         ctx.update(build_hierarchy_context(org))
-        ctx["hierarchy_json"] = json.dumps(build_hierarchy_context(org))
         ctx["staff_mapping"] = (
             User.objects.filter(organization=org)
             .exclude(role=User.Role.SUPER_ADMIN)
@@ -237,18 +254,51 @@ class CareerPathView(GradesContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         org = self.request.user.organization
-        ctx["steps"] = CareerPathStep.objects.filter(organization=org).select_related(
-            "from_grade", "to_grade"
+        ctx["steps"] = (
+            CareerPathStep.objects.filter(organization=org)
+            .select_related("from_grade", "to_grade")
+            .order_by("sort_order", "from_grade__level_number")
         )
         ctx["form"] = CareerPathForm(organization=org)
+        ctx["open_create"] = "create" in self.request.GET
+
+        # How many people each step could promote right now.
+        on_grade = dict(
+            User.objects.filter(organization=org, is_active=True, job_grade__isnull=False)
+            .values_list("job_grade")
+            .annotate(n=Count("id"))
+        )
+        for step in ctx["steps"]:
+            step.eligible_count = on_grade.get(step.from_grade_id, 0)
+
+        promote_id = self.request.GET.get("promote")
+        if promote_id:
+            step = get_object_or_404(CareerPathStep, pk=promote_id, organization=org)
+            ctx["promote_step"] = step
+            ctx["promote_candidates"] = (
+                User.objects.filter(organization=org, is_active=True, job_grade=step.from_grade)
+                .select_related("department")
+                .order_by("first_name", "last_name")
+            )
+
+        ctx["recent_promotions"] = (
+            GradeChangeLog.objects.filter(organization=org)
+            .select_related("user", "from_grade", "to_grade", "actor")[:10]
+        )
         return ctx
 
     def post(self, request, *args, **kwargs):
         org = request.user.organization
-        if request.POST.get("action") == "delete":
+        action = request.POST.get("action", "create")
+
+        if action == "delete":
             CareerPathStep.objects.filter(pk=request.POST.get("step_id"), organization=org).delete()
             messages.success(request, "Career path step removed.")
             return redirect("dashboard:grades:career")
+
+        if action == "promote":
+            return self._promote(request, org)
+
         form = CareerPathForm(request.POST, organization=org)
         if form.is_valid():
             step = form.save(commit=False)
@@ -256,21 +306,61 @@ class CareerPathView(GradesContextMixin, TemplateView):
             step.save()
             messages.success(request, "Career path step saved.")
             return redirect("dashboard:grades:career")
-        messages.error(request, "Invalid career path.")
-        return redirect("dashboard:grades:career")
+        messages.error(request, "Please fix the errors below.")
+        ctx = self.get_context_data(**kwargs)
+        ctx["form"] = form
+        return self.render_to_response(ctx)
 
+    def _promote(self, request, org):
+        """Move selected employees one step along a career path."""
+        step = get_object_or_404(
+            CareerPathStep, pk=request.POST.get("step_id"), organization=org, is_active=True
+        )
+        career_url = reverse("dashboard:grades:career")
 
-class GradesAnalyticsView(GradesContextMixin, TemplateView):
-    template_name = "dashboard/grades/analytics.html"
-    section = "analytics"
+        # Re-filter against from_grade so a tampered payload cannot promote
+        # someone who is not actually on this step.
+        selected = request.POST.getlist("employees")
+        employees = list(
+            User.objects.filter(
+                pk__in=selected, organization=org, is_active=True, job_grade=step.from_grade
+            )
+        )
+        if not employees:
+            messages.error(request, "Select at least one eligible employee to promote.")
+            return redirect(f"{career_url}?promote={step.pk}")
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        data = build_analytics_context(self.request.user.organization)
-        ctx.update(data)
-        ctx["category_chart_json"] = json.dumps(data["category_chart"])
-        ctx["employee_chart_json"] = json.dumps(data["employee_chart"])
-        return ctx
+        summary = f"Promoted from {step.from_grade.name} to {step.to_grade.name}"
+        with transaction.atomic():
+            User.objects.filter(pk__in=[e.pk for e in employees]).update(job_grade=step.to_grade)
+            GradeChangeLog.objects.bulk_create(
+                [
+                    GradeChangeLog(
+                        organization=org,
+                        user=emp,
+                        actor=request.user,
+                        from_grade=step.from_grade,
+                        to_grade=step.to_grade,
+                        summary=summary,
+                    )
+                    for emp in employees
+                ]
+            )
+
+        for emp in employees:
+            send_notification(
+                emp,
+                source_key=f"grade_promotion:{step.pk}:{emp.pk}",
+                title="You have been promoted",
+                message=f"Your grade is now {step.to_grade.name} (was {step.from_grade.name}).",
+                url=career_url,
+                icon="trending-up",
+                force_unread=True,
+            )
+
+        who = employees[0].display_name if len(employees) == 1 else f"{len(employees)} employees"
+        messages.success(request, f"Promoted {who} to {step.to_grade.name}.")
+        return redirect(career_url)
 
 
 class GradesActionAPIView(AdminRequiredMixin, View):

@@ -7,6 +7,8 @@ plan-driven sidebars, and the Super Admin role-permissions UI/API.
 
 from __future__ import annotations
 
+from unittest import skip
+
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
@@ -140,6 +142,14 @@ class MenuAudienceTests(FeatureControlTestBase):
         self.assertEqual([i.label for i in items], ["My Dashboard"])
 
 
+@skip(
+    "The feature-control UI was superseded by the plan matrix: its URLs are no "
+    "longer mounted (dashboard/urls.py redirects super/feature-control/ to "
+    "dashboard:plans:matrix), so 'dashboard:feature_control:*' cannot reverse. "
+    "apps/subscriptions/feature_control_{urls,views}.py and "
+    "templates/dashboard/feature_control/ are dead code kept for reference. "
+    "Re-mount those URLs to re-enable these tests, or delete both together."
+)
 class RolePermissionAdminUITests(FeatureControlTestBase):
     def setUp(self):
         super().setUp()

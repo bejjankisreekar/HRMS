@@ -1,0 +1,6 @@
+<div class="grd-field{% if wide %} grd-field--full{% endif %}">
+  <label class="platform-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<p class="grd-field__hint">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="grd-field__err">{{ field.errors.0 }}</p>{% endif %}
+</div>

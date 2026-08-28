@@ -1,0 +1,12 @@
+{% if field_form.non_field_errors %}
+<div class="grd-form-alert">{{ field_form.non_field_errors.0 }}</div>
+{% endif %}
+
+<div class="grd-form-grid">
+  {% include "dashboard/grades/_field.html" with field=field_form.name wide=1 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.code wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.grade wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.priority_order wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.status wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.description wide=1 %}
+</div>

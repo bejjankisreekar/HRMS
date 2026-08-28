@@ -54,6 +54,9 @@ DEFAULT_COMPONENTS = [
 ]
 
 
+from . import tax_engine  # noqa: E402  (after models import, avoids a cycle)
+
+
 def payroll_team_for(user: User):
     if user.role == User.Role.ADMIN:
         return User.objects.filter(
@@ -91,30 +94,64 @@ def ensure_payroll_setup(org: Organization) -> None:
             monthly_ctc=Decimal("50000"),
             is_default=True,
         )
-    if not TaxConfiguration.objects.filter(organization=org, is_active=True).exists():
-        fy_start = date(timezone.localdate().year, 4, 1)
-        if timezone.localdate().month < 4:
-            fy_start = date(timezone.localdate().year - 1, 4, 1)
-        cfg = TaxConfiguration.objects.create(
+    ensure_tax_configuration(org)
+
+
+# Slab bands per regime. Bounds are inclusive lower / exclusive upper, matching how
+# tax_engine.slab_tax walks them, so each band is taxed only on its own slice.
+NEW_REGIME_SLABS = [
+    (0, 300000, 0),
+    (300000, 700000, 5),
+    (700000, 1000000, 10),
+    (1000000, 1200000, 15),
+    (1200000, 1500000, 20),
+    (1500000, None, 30),
+]
+
+OLD_REGIME_SLABS = [
+    (0, 250000, 0),
+    (250000, 500000, 5),
+    (500000, 1000000, 20),
+    (1000000, None, 30),
+]
+
+# (regime, standard deduction, 87A income limit, 87A max rebate)
+REGIME_DEFAULTS = [
+    ("NEW", Decimal("75000"), Decimal("700000"), Decimal("25000"), NEW_REGIME_SLABS),
+    ("OLD", Decimal("50000"), Decimal("500000"), Decimal("12500"), OLD_REGIME_SLABS),
+]
+
+
+def ensure_tax_configuration(org) -> None:
+    """Make sure both regimes have slabs for the current financial year.
+
+    Without this the tax engine has nothing to compute against and would quietly
+    withhold zero, so it is created up front rather than on first payroll run.
+    """
+    today = timezone.localdate()
+    fy_start = date(today.year if today.month >= 4 else today.year - 1, 4, 1)
+
+    for regime, std, rebate_limit, rebate_max, slabs in REGIME_DEFAULTS:
+        cfg, created = TaxConfiguration.objects.get_or_create(
             organization=org,
             financial_year_start=fy_start,
-            regime="NEW",
+            regime=regime,
+            defaults={
+                "standard_deduction": std,
+                "rebate_87a_income_limit": rebate_limit,
+                "rebate_87a_max": rebate_max,
+                "is_active": True,
+            },
         )
-        slabs = [
-            (0, 300000, 0),
-            (300001, 600000, 5),
-            (600001, 900000, 10),
-            (900001, 1200000, 15),
-            (1200001, 1500000, 20),
-            (1500001, None, 30),
-        ]
-        for lo, hi, rate in slabs:
-            TaxSlab.objects.create(
-                tax_config=cfg,
-                min_income=Decimal(lo),
-                max_income=Decimal(hi) if hi else None,
-                rate_percent=Decimal(rate),
-            )
+        if created or not cfg.slabs.exists():
+            cfg.slabs.all().delete()
+            for lo, hi, rate in slabs:
+                TaxSlab.objects.create(
+                    tax_config=cfg,
+                    min_income=Decimal(lo),
+                    max_income=Decimal(hi) if hi else None,
+                    rate_percent=Decimal(rate),
+                )
 
 
 def get_active_salary(user: User) -> EmployeeSalary:
@@ -447,6 +484,13 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
                 }
             )
 
+        # Income tax: computed from the employee's projected annual income for this
+        # financial year rather than copied from a fixed structure value, then trued
+        # up against what has already been withheld. See apps.payroll.tax_engine.
+        tax_result = _apply_computed_tds(
+            member, run, components, full_earning_lines, deduction_lines, full_gross
+        )
+
         stored_lines = full_earning_lines + deduction_lines
         gross = full_gross
         deductions = _money(sum((l["amount"] for l in deduction_lines), Decimal("0")))
@@ -479,6 +523,9 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
                 if ded.balance <= 0:
                     ded.is_active = False
                 ded.save(update_fields=["balance", "is_active"])
+        if tax_result is not None:
+            tax_engine.record_computation(member, payslip, tax_result, run.year, run.month)
+
         payslip.lines.all().delete()
         for line in stored_lines:
             PayslipLine.objects.create(
@@ -509,6 +556,56 @@ def process_payroll_run(run: PayrollRun, processor: User) -> str:
 
     _ensure_approval_steps(run)
     return f"Processed payroll for {count} employees — {run.period_label}."
+
+
+def _amount_for_code(lines: list[dict], code: str) -> Decimal:
+    for line in lines:
+        comp = line.get("component")
+        if comp is not None and getattr(comp, "code", "") == code:
+            return _money(line["amount"])
+    return Decimal("0")
+
+
+def _apply_computed_tds(member, run, components, earning_lines, deduction_lines, monthly_gross):
+    """Replace the income-tax deduction line with the engine's computed figure.
+
+    Returns the :class:`~apps.payroll.tax_engine.TaxResult` so the caller can record
+    it against the payslip, or ``None`` when the org has no tax configuration.
+    """
+    monthly_basic = _amount_for_code(earning_lines, "basic")
+    monthly_hra = _amount_for_code(earning_lines, "hra")
+
+    result = tax_engine.monthly_tds_for(
+        member,
+        monthly_gross=monthly_gross,
+        monthly_basic=monthly_basic,
+        monthly_hra=monthly_hra,
+        year=run.year,
+        month=run.month,
+    )
+
+    tax_comp = next((c for c in components if c.code == "tax"), None)
+    existing = next(
+        (
+            l
+            for l in deduction_lines
+            if (l.get("component") is not None and getattr(l["component"], "code", "") == "tax")
+        ),
+        None,
+    )
+    if existing is not None:
+        existing["amount"] = result.monthly_tds
+    elif result.monthly_tds > 0:
+        deduction_lines.append(
+            {
+                "component": tax_comp,
+                "label": tax_comp.label if tax_comp else "Income Tax (TDS)",
+                "line_type": SalaryComponent.ComponentType.DEDUCTION,
+                "amount": result.monthly_tds,
+                "sort_order": 60,
+            }
+        )
+    return result
 
 
 def _ensure_approval_steps(run: PayrollRun) -> None:
@@ -645,10 +742,25 @@ def seed_employee_components(salary) -> None:
         ESC.objects.bulk_create(objs)
 
 
+# Income tax and professional tax are statutory obligations, not earnings: they are
+# owed in full regardless of how many days were worked. Prorating them by attendance
+# under-withheld for anyone with unpaid leave and left a shortfall at year end.
+NON_PRORATED_CATEGORIES = {"TAX", "PT"}
+
+
+def _is_statutory_fixed(comp) -> bool:
+    category = getattr(comp, "category", None) or ""
+    if category in NON_PRORATED_CATEGORIES:
+        return True
+    return getattr(comp, "code", "") in {"tax", "pt"}
+
+
 def _resolve_component_amount(comp, ctc: Decimal, basic: Decimal, factor: Decimal) -> Decimal:
     from .models import EmployeeSalaryComponent as ESC
 
     if comp.mode == ESC.Mode.FIXED:
+        if _is_statutory_fixed(comp):
+            return _money(comp.value)
         return _money(comp.value * factor)
     if comp.mode == ESC.Mode.PCT_CTC:
         return _money(ctc * comp.value / Decimal("100"))
@@ -661,7 +773,9 @@ def compute_employee_breakdown(salary, factor: Decimal = Decimal("1")) -> dict:
     """Earnings/deductions/gross/net from per-employee components (or auto fallback)."""
     from .models import SalaryComponent as SC
 
-    comps = list(salary.components.all().order_by("sort_order"))
+    # Sorted in Python, not via .order_by(): calling order_by() on this relation
+    # discards any prefetch and issues a query per employee on listing pages.
+    comps = sorted(salary.components.all(), key=lambda c: c.sort_order)
     if not comps:
         org = salary.user.organization
         components = list(

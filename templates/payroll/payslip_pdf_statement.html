@@ -8,24 +8,22 @@
   .title { text-align: center; font-size: 14pt; font-weight: bold; }
   .company { text-align: center; font-size: 11pt; }
   .address { text-align: center; font-size: 9pt; color: #444; }
+  .period-line { text-align: center; font-size: 10pt; font-weight: bold; margin-top: 8px; }
   table.details { width: 100%; border-collapse: collapse; margin-top: 18px; margin-bottom: 16px; }
-  table.details td { font-size: 9.5pt; padding: 2px 4px; vertical-align: top; }
-  table.details .k { width: 20%; }
-  table.details .c { width: 3%; }
-  table.details .v { width: 27%; }
-  table.grid { width: 100%; border-collapse: collapse; border: 1px solid #6b7280; }
-  table.grid th { background-color: #d9d9d9; border: 1px solid #6b7280; text-align: center; font-weight: bold; padding: 6px 8px; font-size: 10pt; }
-  table.grid td { border-left: 1px solid #6b7280; border-right: 1px solid #6b7280; padding: 4px 8px; font-size: 9.5pt; height: 16px; }
-  table.grid td.amt { text-align: right; }
-  table.grid tr.total td { border-top: 1px solid #6b7280; font-weight: normal; }
-  table.grid td.tlabel { text-align: right; }
+  table.details td { font-size: 9.5pt; padding: 3px 4px; vertical-align: top; }
+  table.details .k { color: #555; }
+  table.money { width: 100%; border: 1px solid #6b7280; border-collapse: collapse; }
+  table.money th { background-color: #d9d9d9; border-bottom: 1px solid #6b7280; text-align: center; font-weight: bold; padding: 5px 8px; font-size: 10pt; }
+  table.money th.amt, table.money td.amt { text-align: right; }
+  table.money td { padding: 4px 8px; font-size: 9.5pt; }
+  table.money tr.total td { border-top: 1px solid #6b7280; font-weight: bold; }
+  table.money tr.total td.tlabel { text-align: right; }
   .words { text-align: center; margin-top: 22px; }
   .words .num { font-size: 11pt; }
   .words .inwords { font-size: 10pt; }
-  table.sign { width: 100%; border-collapse: collapse; margin-top: 42px; }
-  table.sign td { width: 50%; font-size: 9.5pt; padding: 0 6px; }
-  .sign-label { }
-  .sign-line { border-top: 1px solid #333; margin-top: 40px; width: 80%; }
+  table.sign { width: 100%; border-collapse: collapse; margin-top: 44px; }
+  table.sign td { font-size: 9.5pt; padding: 0 6px; vertical-align: bottom; }
+  table.sign td.line { border-bottom: 1px solid #333; height: 30px; }
   .sysnote { text-align: center; font-size: 9.5pt; color: #333; margin-top: 40px; }
 </style>
 </head>
@@ -34,44 +32,46 @@
 <div class="title">Payslip</div>
 <div class="company">{{ org.name }}</div>
 {% if org.address %}<div class="address">{{ org.address }}</div>{% endif %}
+<div class="period-line">Payslip for the month of {{ payslip.payroll_run.period_label }}</div>
 
-<table class="details">
+<table class="details" width="100%">
+  <colgroup><col width="50%"><col width="50%"></colgroup>
   <tr>
-    <td class="k">Date of Joining</td><td class="c">:</td>
-    <td class="v">{% if employee.date_of_joining %}{{ employee.date_of_joining|date:"Y-m-d" }}{% else %}{{ employee.date_joined|date:"Y-m-d" }}{% endif %}</td>
-    <td class="k">Employee name</td><td class="c">:</td><td class="v">{{ employee.display_name }}</td>
+    <td><span class="k">Date of Joining</span> : {% if employee.date_of_joining %}{{ employee.date_of_joining|date:"Y-m-d" }}{% else %}{{ employee.date_joined|date:"Y-m-d" }}{% endif %}</td>
+    <td><span class="k">Employee name</span> : {{ employee.display_name }}</td>
   </tr>
   <tr>
-    <td class="k">Pay Period</td><td class="c">:</td><td class="v">{{ payslip.payroll_run.period_label }}</td>
-    <td class="k">Designation</td><td class="c">:</td><td class="v">{{ employee.designation|default:"—" }}</td>
+    <td><span class="k">Pay Period</span> : {{ payslip.payroll_run.period_label }}</td>
+    <td><span class="k">Designation</span> : {{ employee.designation|default:"—" }}</td>
   </tr>
   <tr>
-    <td class="k">Worked Days</td><td class="c">:</td><td class="v">{{ payslip.attendance_days }}</td>
-    <td class="k">Department</td><td class="c">:</td><td class="v">{{ employee.department_name|default:"—" }}</td>
+    <td><span class="k">Worked Days</span> : {{ payslip.attendance_days }}</td>
+    <td><span class="k">Department</span> : {{ employee.department_name|default:"—" }}</td>
   </tr>
 </table>
 
-<table class="grid">
+<table width="100%" style="border-collapse:collapse; margin-top:6px;">
   <tr>
-    <th style="width:32%;">Earnings</th><th style="width:18%;">Amount</th>
-    <th style="width:32%;">Deductions</th><th style="width:18%;">Amount</th>
-  </tr>
-  {% for e, d in line_pairs %}
-  <tr>
-    <td>{% if e %}{{ e.label }}{% endif %}</td>
-    <td class="amt">{% if e %}{{ e.amount|floatformat:"-2" }}{% endif %}</td>
-    <td>{% if d %}{{ d.label }}{% endif %}</td>
-    <td class="amt">{% if d %}{{ d.amount|floatformat:"-2" }}{% endif %}</td>
-  </tr>
-  {% endfor %}
-  <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
-  <tr class="total">
-    <td class="tlabel">Total Earnings</td><td class="amt">{{ payslip.gross_salary|floatformat:"-2" }}</td>
-    <td class="tlabel">Total Deductions</td><td class="amt">{{ payslip.total_deductions|floatformat:"-2" }}</td>
-  </tr>
-  <tr>
-    <td></td><td></td>
-    <td class="tlabel">Net Pay</td><td class="amt">{{ payslip.net_salary|floatformat:"-2" }}</td>
+    <td style="width:49%; vertical-align:top; padding-right:6px;">
+      <table class="money">
+        <tr><th style="width:70%;">Earnings</th><th class="amt" style="width:30%;">Amount</th></tr>
+        {% for line in earnings %}
+        <tr><td>{{ line.label }}</td><td class="amt">{{ line.amount|floatformat:"-2" }}</td></tr>
+        {% endfor %}
+        <tr class="total"><td class="tlabel">Total Earnings</td><td class="amt">{{ payslip.gross_salary|floatformat:"-2" }}</td></tr>
+      </table>
+    </td>
+    <td style="width:2%;">&nbsp;</td>
+    <td style="width:49%; vertical-align:top; padding-left:6px;">
+      <table class="money">
+        <tr><th style="width:70%;">Deductions</th><th class="amt" style="width:30%;">Amount</th></tr>
+        {% for line in deductions %}
+        <tr><td>{{ line.label }}</td><td class="amt">{{ line.amount|floatformat:"-2" }}</td></tr>
+        {% endfor %}
+        <tr class="total"><td class="tlabel">Total Deductions</td><td class="amt">{{ payslip.total_deductions|floatformat:"-2" }}</td></tr>
+        <tr class="total"><td class="tlabel">Net Pay</td><td class="amt">{{ payslip.net_salary|floatformat:"-2" }}</td></tr>
+      </table>
+    </td>
   </tr>
 </table>
 
@@ -80,14 +80,13 @@
   <div class="inwords">{{ net_in_words }}</div>
 </div>
 
-<table class="sign">
+<table class="sign" width="100%">
+  <colgroup><col width="42%"><col width="16%"><col width="42%"></colgroup>
   <tr>
-    <td class="sign-label">Employer Signature</td>
-    <td class="sign-label">Employee Signature</td>
+    <td>Employer Signature</td><td>&nbsp;</td><td>Employee Signature</td>
   </tr>
   <tr>
-    <td><div class="sign-line"></div></td>
-    <td><div class="sign-line"></div></td>
+    <td class="line">&nbsp;</td><td>&nbsp;</td><td class="line">&nbsp;</td>
   </tr>
 </table>
 

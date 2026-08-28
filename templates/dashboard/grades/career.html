@@ -1,41 +1,152 @@
 {% extends "dashboard/grades/_base.html" %}
 
 {% block grades_content %}
-<div class="grid gap-6 lg:grid-cols-5">
-  <section class="grd-panel lg:col-span-2">
-    <h2 class="grd-panel__title">Add promotion step</h2>
-    <form method="post" class="space-y-3">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="create">
-      {% for field in form %}
-      <div><label class="platform-label">{{ field.label }}</label>{{ field }}</div>
-      {% endfor %}
-      <button type="submit" class="grd-btn grd-btn--primary w-full justify-center">Add step</button>
-    </form>
-  </section>
-
-  <section class="grd-panel lg:col-span-3">
-    <h2 class="grd-panel__title">Career progression paths</h2>
-    {% for step in steps %}
-    <div class="grd-career-arrow">
-      <strong>{{ step.from_grade.name }}</strong>
-      <span class="grd-muted">→</span>
-      <strong>{{ step.to_grade.name }}</strong>
-      {% if step.requirements %}<span class="grd-muted">· {{ step.requirements|truncatechars:60 }}</span>{% endif %}
-      <form method="post" class="ml-auto inline">{% csrf_token %}
-        <input type="hidden" name="action" value="delete">
-        <input type="hidden" name="step_id" value="{{ step.pk }}">
-        <button type="submit" class="text-xs text-rose-600">Remove</button>
-      </form>
-    </div>
-    {% empty %}
-    <p class="grd-muted">No career paths defined. Default paths are seeded with new organizations.</p>
-    {% endfor %}
-  </section>
+<div class="grd-toolbar">
+  <p class="grd-muted">Promotion routes between grades. Employees progress along these steps.</p>
+  <button type="button" class="grd-btn grd-btn--primary" data-grd-open="grd-modal-career">
+    <i data-lucide="plus"></i> Add step
+  </button>
 </div>
+
+<section class="grd-panel">
+  <h2 class="grd-panel__title">Career progression paths ({{ steps|length }})</h2>
+  {% for step in steps %}
+  <div class="grd-career-arrow{% if not step.is_active %} is-inactive{% endif %}">
+    <strong>{{ step.from_grade.name }}</strong>
+    <span class="grd-muted">→</span>
+    <strong>{{ step.to_grade.name }}</strong>
+    {% if not step.is_active %}<span class="grd-badge grd-badge--archived">Inactive</span>{% endif %}
+    {% if step.requirements %}<span class="grd-muted">· {{ step.requirements|truncatechars:60 }}</span>{% endif %}
+    <span class="grd-step-actions">
+      {% if step.is_active %}
+      {% if step.eligible_count %}
+      <a href="?promote={{ step.pk }}" class="grd-btn grd-btn--promote" title="Promote employees from {{ step.from_grade.name }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><use href="#grd-i-promote"></use></svg>
+        Promote <span class="grd-step-count">{{ step.eligible_count }}</span>
+      </a>
+      {% else %}
+      <span class="grd-muted grd-step-none" title="Nobody currently holds {{ step.from_grade.name }}">No one on {{ step.from_grade.name }}</span>
+      {% endif %}
+      {% endif %}
+    </span>
+    <form method="post" data-grd-confirm="Remove the step {{ step.from_grade.name }} → {{ step.to_grade.name }}? This cannot be undone.">{% csrf_token %}
+      <input type="hidden" name="action" value="delete">
+      <input type="hidden" name="step_id" value="{{ step.pk }}">
+      <button type="submit" class="grd-icon-btn grd-icon-btn--danger" title="Remove this step" aria-label="Remove {{ step.from_grade.name }} to {{ step.to_grade.name }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><use href="#grd-i-trash"></use></svg>
+      </button>
+    </form>
+  </div>
+  {% empty %}
+  <p class="grd-muted">No career paths defined. Default paths are seeded with new organizations.</p>
+  {% endfor %}
+</section>
+
+{% if recent_promotions %}
+<section class="grd-panel mt-4">
+  <h2 class="grd-panel__title">Recent promotions</h2>
+  <ul class="grd-promo-log">
+    {% for log in recent_promotions %}
+    <li>
+      <strong>{{ log.user.display_name }}</strong>
+      <span class="grd-muted">{{ log.from_grade.name|default:"—" }} → {{ log.to_grade.name|default:"—" }}</span>
+      <span class="grd-promo-log__meta">{{ log.created_at|date:"d M Y, H:i" }}{% if log.actor %} · by {{ log.actor.display_name }}{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 <section class="grd-panel mt-4">
   <h2 class="grd-panel__title">Example progression</h2>
   <p class="text-sm text-slate-600 dark:text-slate-400">Intern → Junior Employee → Associate → Senior Associate → Team Lead → Assistant Manager → Manager → Senior Manager → Director</p>
 </section>
+
+{% include "dashboard/grades/_icons.html" %}
+
+{# ---------- Add promotion step modal ---------- #}
+<div class="grd-modal" id="grd-modal-career" hidden {% if form.errors or open_create %}data-grd-autoopen{% endif %}>
+  <div class="grd-modal__backdrop" data-grd-close></div>
+  <div class="grd-modal__panel" role="dialog" aria-modal="true" aria-labelledby="grd-modal-career-title">
+    <header class="grd-modal__head">
+      <div>
+        <h2 class="grd-modal__title" id="grd-modal-career-title">Add promotion step</h2>
+        <p class="grd-modal__sub">One hop along a career path — from one grade to the next.</p>
+      </div>
+      <button type="button" class="grd-modal__x" data-grd-close aria-label="Close">&times;</button>
+    </header>
+    <form method="post" class="grd-modal__form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      <div class="grd-modal__body">
+        {% include "dashboard/grades/_career_fields.html" with field_form=form %}
+      </div>
+      <footer class="grd-modal__foot">
+        <button type="button" class="grd-btn grd-btn--soft" data-grd-close>Cancel</button>
+        <button type="submit" class="grd-btn grd-btn--primary">Add step</button>
+      </footer>
+    </form>
+  </div>
+</div>
+
+{# ---------- Promote employees modal ---------- #}
+{% if promote_step %}
+<div class="grd-modal" id="grd-modal-promote" hidden data-grd-autoopen data-grd-close-url="{% url 'dashboard:grades:career' %}">
+  <div class="grd-modal__backdrop" data-grd-close></div>
+  <div class="grd-modal__panel" role="dialog" aria-modal="true" aria-labelledby="grd-modal-promote-title">
+    <header class="grd-modal__head">
+      <div>
+        <h2 class="grd-modal__title" id="grd-modal-promote-title">Promote to {{ promote_step.to_grade.name }}</h2>
+        <p class="grd-modal__sub">{{ promote_step.from_grade.name }} → {{ promote_step.to_grade.name }}. Selected employees move to the new grade immediately.</p>
+      </div>
+      <button type="button" class="grd-modal__x" data-grd-close aria-label="Close">&times;</button>
+    </header>
+    <form method="post" class="grd-modal__form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="promote">
+      <input type="hidden" name="step_id" value="{{ promote_step.pk }}">
+      <div class="grd-modal__body">
+        {% if promote_step.requirements %}
+        <div class="grd-requirements">
+          <span class="grd-requirements__label">Eligibility criteria</span>
+          <p>{{ promote_step.requirements }}</p>
+        </div>
+        {% endif %}
+
+        <div class="grd-field" data-grd-picker>
+          <div class="grd-picker__head">
+            <label class="platform-label">Employees on {{ promote_step.from_grade.name }}</label>
+            <span class="grd-picker__count" data-grd-picker-count>0 selected</span>
+          </div>
+          <div class="grd-picker__tools">
+            <input type="search" class="grd-picker__search" placeholder="Search employees…" data-grd-picker-search aria-label="Search employees">
+            <button type="button" class="grd-picker__link" data-grd-picker-all>Select all</button>
+            <button type="button" class="grd-picker__link" data-grd-picker-none>Clear</button>
+          </div>
+          <div class="grd-picker__box">
+            <div class="grd-check">
+              {% for emp in promote_candidates %}
+              <div>
+                <label for="grd-promote-{{ emp.pk }}">
+                  <input type="checkbox" class="grd-check" name="employees" value="{{ emp.pk }}" id="grd-promote-{{ emp.pk }}">
+                  {{ emp.display_name }}{% if emp.department %} <span class="grd-muted">· {{ emp.department.name }}</span>{% endif %}
+                </label>
+              </div>
+              {% empty %}
+              <div><p class="grd-muted">Nobody currently holds {{ promote_step.from_grade.name }}.</p></div>
+              {% endfor %}
+            </div>
+            <p class="grd-picker__empty" data-grd-picker-empty hidden>No employees match that search.</p>
+          </div>
+          <p class="grd-field__hint">Each promotion is recorded in the grade change log and the employee is notified.</p>
+        </div>
+      </div>
+      <footer class="grd-modal__foot">
+        <button type="button" class="grd-btn grd-btn--soft" data-grd-close>Cancel</button>
+        <button type="submit" class="grd-btn grd-btn--primary"{% if not promote_candidates %} disabled{% endif %}>Promote selected</button>
+      </footer>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

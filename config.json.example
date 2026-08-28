@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Copy this file to config.json and fill in real values.",
+    "config.json is gitignored - never commit it, it holds credentials.",
+    "",
+    "Precedence: environment variable > config.json > hard failure.",
+    "Environment variables always win, so a deployment that injects env vars",
+    "(Render, Docker, systemd) does not need this file at all.",
+    "",
+    "There is deliberately NO fallback password in settings.py. If neither the",
+    "environment nor this file supplies superadmin.password, no Super Admin is",
+    "auto-created on migrate - which is the safe outcome. It is never a weak",
+    "default one."
+  ],
+
+  "superadmin": {
+    "email": "superadmin@example.com",
+    "username": "superadmin",
+    "password": "REPLACE-WITH-A-STRONG-PASSWORD"
+  }
+}

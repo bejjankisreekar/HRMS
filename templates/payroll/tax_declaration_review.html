@@ -1,0 +1,84 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Tax Declarations · Payroll{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static_v 'payroll.css' %}">
+<link rel="stylesheet" href="{% static_v 'tax-declaration.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tx-page">
+  <header class="tx-hero">
+    <div>
+      <p class="tx-eyebrow">{{ fy_label }}</p>
+      <h1 class="tx-title">Investment declarations</h1>
+      <p class="tx-subtitle">Only approved declarations reduce an employee's TDS. Verify the proofs before approving.</p>
+    </div>
+    <a href="{% url 'payroll:tax_projection' %}" class="tx-btn tx-btn--soft">TDS projection</a>
+  </header>
+
+  <div class="tx-kpis">
+    <div class="tx-kpi"><span>Declarations</span><strong>{{ counts.total }}</strong></div>
+    <div class="tx-kpi tx-kpi--warn"><span>Awaiting review</span><strong>{{ counts.pending }}</strong></div>
+    <div class="tx-kpi tx-kpi--good"><span>Approved</span><strong>{{ counts.approved }}</strong></div>
+  </div>
+
+  <div class="tx-filter-row">
+    <a href="?" class="{% if not filter_status %}is-active{% endif %}">All</a>
+    {% for value, label in status_choices %}
+    <a href="?status={{ value }}" class="{% if filter_status == value %}is-active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <section class="tx-panel">
+    <div class="overflow-x-auto">
+      <table class="tx-table">
+        <thead>
+          <tr>
+            <th>Employee</th><th>Regime</th><th>Rent</th><th>80C</th><th>80D</th>
+            <th>NPS</th><th>Home loan</th><th>Total claimed</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in declarations %}
+          <tr>
+            <td><strong>{{ d.user.display_name }}</strong></td>
+            <td>{{ d.get_regime_display }}</td>
+            <td>₹{{ d.hra_rent_paid|floatformat:0|intcomma }}</td>
+            <td>₹{{ d.section_80c|floatformat:0|intcomma }}</td>
+            <td>₹{{ d.section_80d|floatformat:0|intcomma }}</td>
+            <td>₹{{ d.section_80ccd_1b|floatformat:0|intcomma }}</td>
+            <td>₹{{ d.home_loan_interest|floatformat:0|intcomma }}</td>
+            <td><strong>₹{{ d.claimed_total|floatformat:0|intcomma }}</strong></td>
+            <td><span class="tx-status tx-status--{{ d.status|lower }}">{{ d.get_status_display }}</span></td>
+            <td class="tx-actions-cell">
+              <form method="post" class="tx-row-form">{% csrf_token %}
+                <input type="hidden" name="declaration_id" value="{{ d.pk }}">
+                <input type="text" name="review_note" class="tx-note-input" placeholder="Note (optional)" value="{{ d.review_note }}">
+                {% if d.status != 'APPROVED' %}
+                <button type="submit" name="action" value="approve" class="tx-btn tx-btn--tiny tx-btn--approve">Approve</button>
+                {% endif %}
+                {% if d.status != 'REJECTED' %}
+                <button type="submit" name="action" value="reject" class="tx-btn tx-btn--tiny tx-btn--reject">Reject</button>
+                {% endif %}
+                {% if d.status == 'APPROVED' or d.status == 'REJECTED' %}
+                <button type="submit" name="action" value="reopen" class="tx-btn tx-btn--tiny tx-btn--soft">Reopen</button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="tx-empty">No declarations submitted for {{ fy_label }} yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,111 +1,166 @@
 {% extends "dashboard/_shell.html" %}
-{% load static %}
+{% load static static_extras %}
 {% block title %}Digital Attendance Register · HRMS{% endblock %}
 
 {% block dashboard_extra_head %}
-<link rel="stylesheet" href="{% static 'digital-register.css' %}">
+<link rel="stylesheet" href="{% static_v 'digital-register.css' %}">
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'digital-register.js' %}" defer></script>
+<script src="{% static_v 'digital-register.js' %}" defer></script>
 {% endblock %}
 
 {% block content %}
 <div class="dr-page w-full">
 
-  {# ── Header ── #}
+  {# ── Hero / command bar ──────────────────────────────────────────────── #}
   <header class="dr-hero">
+    <div class="dr-hero__grid" aria-hidden="true"></div>
     <div class="dr-hero__inner">
       <div class="dr-hero__title-wrap">
-        <div class="dr-hero__icon"><i data-lucide="book-open" class="h-7 w-7"></i></div>
-        <div>
+        <div class="dr-hero__icon"><i data-lucide="book-open" class="h-6 w-6"></i></div>
+        <div class="min-w-0">
           <p class="dr-hero__eyebrow">Attendance</p>
           <h1 class="dr-hero__title">Digital Attendance Register</h1>
-          <p class="dr-hero__sub">View employee attendance in register-book format.</p>
+          <p class="dr-hero__sub">
+            The muster roll in register-book form — one row per employee, one column per day.
+          </p>
+          <div class="dr-hero__meta">
+            <span class="dr-pill">
+              <i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+              {{ start_date|date:"d M Y" }} – {{ end_date|date:"d M Y" }}
+            </span>
+            <span class="dr-pill">
+              <i data-lucide="users" class="h-3.5 w-3.5"></i>
+              {{ total_employees }} employee{{ total_employees|pluralize }}
+            </span>
+            <span class="dr-pill">
+              <i data-lucide="calendar-days" class="h-3.5 w-3.5"></i>
+              {{ num_days }} day{{ num_days|pluralize }}
+            </span>
+          </div>
         </div>
       </div>
+
       <div class="dr-hero__actions">
-        <a href="?{{ filter_query }}&export=excel" class="dr-btn dr-btn--primary" title="Download attendance register as Excel (.xlsx)" download><i data-lucide="file-spreadsheet" class="h-4 w-4"></i>Download Excel<i data-lucide="download" class="h-4 w-4"></i></a>
+        <button type="button" class="dr-btn" data-dr-print>
+          <i data-lucide="printer" class="h-4 w-4"></i>Print
+        </button>
+        <a href="?{{ filter_query }}&amp;export=excel" class="dr-btn dr-btn--solid"
+           title="Download attendance register as Excel (.xlsx)" download>
+          <i data-lucide="download" class="h-4 w-4"></i>Export Excel
+        </a>
       </div>
     </div>
   </header>
 
-  {# ── Summary cards ── #}
+  {# ── Summary band ────────────────────────────────────────────────────── #}
   <div class="dr-cards">
-    <div class="dr-card">
-      <div class="dr-card__icon dr-card__icon--violet"><i data-lucide="users" class="h-5 w-5"></i></div>
-      <div><p class="dr-card__label">Total Employees</p><p class="dr-card__value">{{ summary.total_employees }}</p></div>
+    <div class="dr-card dr-card--violet">
+      <div class="dr-card__top">
+        <p class="dr-card__label">Total Employees</p>
+        <span class="dr-card__icon"><i data-lucide="users" class="h-4 w-4"></i></span>
+      </div>
+      <p class="dr-card__value">{{ summary.total_employees }}</p>
+      <p class="dr-card__hint">On the register</p>
     </div>
-    <div class="dr-card">
-      <div class="dr-card__icon dr-card__icon--green"><i data-lucide="user-check" class="h-5 w-5"></i></div>
-      <div><p class="dr-card__label">Present Today</p><p class="dr-card__value dr-text-green">{{ summary.present_today }}</p></div>
+    <div class="dr-card dr-card--green">
+      <div class="dr-card__top">
+        <p class="dr-card__label">Present Today</p>
+        <span class="dr-card__icon"><i data-lucide="user-check" class="h-4 w-4"></i></span>
+      </div>
+      <p class="dr-card__value">{{ summary.present_today }}</p>
+      <p class="dr-card__hint">Marked in</p>
     </div>
-    <div class="dr-card">
-      <div class="dr-card__icon dr-card__icon--red"><i data-lucide="user-x" class="h-5 w-5"></i></div>
-      <div><p class="dr-card__label">Absent Today</p><p class="dr-card__value dr-text-red">{{ summary.absent_today }}</p></div>
+    <div class="dr-card dr-card--red">
+      <div class="dr-card__top">
+        <p class="dr-card__label">Absent Today</p>
+        <span class="dr-card__icon"><i data-lucide="user-x" class="h-4 w-4"></i></span>
+      </div>
+      <p class="dr-card__value">{{ summary.absent_today }}</p>
+      <p class="dr-card__hint">Unaccounted</p>
     </div>
-    <div class="dr-card">
-      <div class="dr-card__icon dr-card__icon--amber"><i data-lucide="palmtree" class="h-5 w-5"></i></div>
-      <div><p class="dr-card__label">On Leave</p><p class="dr-card__value dr-text-amber">{{ summary.on_leave_today }}</p></div>
+    <div class="dr-card dr-card--amber">
+      <div class="dr-card__top">
+        <p class="dr-card__label">On Leave</p>
+        <span class="dr-card__icon"><i data-lucide="palmtree" class="h-4 w-4"></i></span>
+      </div>
+      <p class="dr-card__value">{{ summary.on_leave_today }}</p>
+      <p class="dr-card__hint">Approved leave</p>
     </div>
-    <div class="dr-card">
-      <div class="dr-card__icon dr-card__icon--sky"><i data-lucide="percent" class="h-5 w-5"></i></div>
-      <div><p class="dr-card__label">Attendance %</p><p class="dr-card__value dr-text-sky">{{ summary.attendance_pct }}%</p></div>
+    <div class="dr-card dr-card--sky">
+      <div class="dr-card__top">
+        <p class="dr-card__label">Attendance</p>
+        <span class="dr-card__icon"><i data-lucide="percent" class="h-4 w-4"></i></span>
+      </div>
+      <p class="dr-card__value">{{ summary.attendance_pct }}%</p>
+      <p class="dr-card__hint">Present vs. headcount</p>
     </div>
   </div>
 
-  {# ── Filters ── #}
+  {# ── Filters ─────────────────────────────────────────────────────────── #}
   <form method="get" action="{% url 'dashboard:digital_register' %}" class="dr-filters" id="dr-filter-form">
-    <div class="dr-filter">
-      <label class="dr-filter__label">Month</label>
-      <select name="month" class="dr-select" onchange="drClearRange();this.form.submit()">
-        {% for num, name in month_choices %}
-        <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="dr-filter">
-      <label class="dr-filter__label">Year</label>
-      <select name="year" class="dr-select" onchange="drClearRange();this.form.submit()">
-        {% for y in year_choices %}
-        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="dr-filter">
-      <label class="dr-filter__label">{{ filter_options.dept_label|default:"Department" }}</label>
-      <select name="department" class="dr-select" onchange="this.form.submit()">
-        <option value="">All {{ filter_options.dept_label_plural|default:"departments"|lower }}</option>
-        {% for d in filter_options.departments %}
-        <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="dr-filter">
-      <label class="dr-filter__label">Employee</label>
-      <select name="employee" class="dr-select" onchange="this.form.submit()">
-        <option value="">All employees</option>
-        {% for e in filter_options.employees %}
-        <option value="{{ e.id }}" {% if selected_employee == e.id|stringformat:'s' %}selected{% endif %}>{{ e.display_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="dr-filter dr-filter--range">
-      <label class="dr-filter__label">Custom range</label>
-      <div class="dr-range">
-        <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="dr-date" id="dr-start">
-        <span class="dr-range__sep">→</span>
-        <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="dr-date" id="dr-end">
-        <button type="submit" class="dr-btn dr-btn--primary dr-btn--sm">Apply</button>
+    <div class="dr-filters__row">
+      <div class="dr-field">
+        <label class="dr-field__label" for="dr-month">Month</label>
+        <select name="month" id="dr-month" class="dr-select" onchange="drClearRange();this.form.submit()">
+          {% for num, name in month_choices %}
+          <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dr-field">
+        <label class="dr-field__label" for="dr-year">Year</label>
+        <select name="year" id="dr-year" class="dr-select" onchange="drClearRange();this.form.submit()">
+          {% for y in year_choices %}
+          <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dr-field">
+        <label class="dr-field__label" for="dr-dept">{{ filter_options.dept_label|default:"Department" }}</label>
+        <select name="department" id="dr-dept" class="dr-select" onchange="this.form.submit()">
+          <option value="">All {{ filter_options.dept_label_plural|default:"departments"|lower }}</option>
+          {% for d in filter_options.departments %}
+          <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dr-field">
+        <label class="dr-field__label" for="dr-emp">Employee</label>
+        <select name="employee" id="dr-emp" class="dr-select" onchange="this.form.submit()">
+          <option value="">All employees</option>
+          {% for e in filter_options.employees %}
+          <option value="{{ e.id }}" {% if selected_employee == e.id|stringformat:'s' %}selected{% endif %}>{{ e.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dr-field">
+        <label class="dr-field__label" for="dr-start">From</label>
+        <input type="date" name="start_date" id="dr-start" class="dr-date" value="{{ start_date|date:'Y-m-d' }}">
+      </div>
+      <div class="dr-field">
+        <label class="dr-field__label" for="dr-end">To</label>
+        <input type="date" name="end_date" id="dr-end" class="dr-date" value="{{ end_date|date:'Y-m-d' }}">
       </div>
     </div>
-    <div class="dr-filter dr-filter--search">
-      <label class="dr-filter__label">Search</label>
+
+    <div class="dr-filters__actions">
       <div class="dr-search">
         <i data-lucide="search" class="dr-search__icon h-4 w-4"></i>
-        <input type="text" id="dr-search-input" placeholder="Filter by name or ID…"
-               value="{{ search_term }}" autocomplete="off" class="dr-search__input">
+        <input type="text" name="search" id="dr-search-input" class="dr-search__input"
+               placeholder="Filter by name or employee ID…" value="{{ search_term }}" autocomplete="off">
       </div>
+      <button type="submit" class="dr-action dr-action--primary">
+        <i data-lucide="filter" class="h-3.5 w-3.5"></i>Apply
+      </button>
+      <a href="{% url 'dashboard:digital_register' %}" class="dr-action">
+        <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>Reset
+      </a>
+      <span class="dr-filters__summary">
+        <i data-lucide="calendar-check" class="h-3.5 w-3.5"></i>
+        {{ start_date|date:"d M Y" }} – {{ end_date|date:"d M Y" }}
+      </span>
     </div>
   </form>
   <script>
@@ -115,101 +170,113 @@
     }
   </script>
 
-  {# ── Legend ── #}
+  {# ── Legend ──────────────────────────────────────────────────────────── #}
   <div class="dr-legend">
+    <span class="dr-legend__title">Legend</span>
     {% for code, label in legend %}
     <span class="dr-legend__item">
       <span class="dr-chip dr-{{ code|lower }}">{{ code }}</span>{{ label }}
     </span>
     {% endfor %}
+    <span class="dr-legend__item">
+      <span class="dr-chip dr-blank">–</span>Not marked
+    </span>
   </div>
 
-  {# ── Register table (desktop) ── #}
+  {# ── Register table (desktop) ────────────────────────────────────────── #}
   <div class="dr-book hidden md:block">
     <div class="dr-book__scroll" id="dr-scroll">
       <table class="dr-table" id="dr-table">
         <thead>
           <tr>
-            <th class="dr-th dr-th--id dr-sticky-col dr-sticky-col--1">ID</th>
-            <th class="dr-th dr-th--name dr-sticky-col dr-sticky-col--2">Employee Name</th>
+            <th scope="col" class="dr-th dr-th--emp dr-th--label dr-sticky-col">Employee</th>
             {% for h in day_headers %}
-            <th class="dr-th dr-th--day {% if h.is_today %}dr-th--today{% endif %}">
+            <th scope="col" class="dr-th dr-th--day{% if h.is_weekend %} dr-th--weekend{% endif %}{% if h.is_week_start and not forloop.first %} dr-week-start{% endif %}{% if h.is_today %} dr-th--today{% endif %}">
               <span class="dr-th__dnum">{{ h.day }}</span>
-              <span class="dr-th__dwk">{{ h.weekday }}</span>
+              <span class="dr-th__dwk">{{ h.weekday|slice:":2" }}</span>
             </th>
             {% endfor %}
-            <th class="dr-th dr-th--tot dr-tot-p">P</th>
-            <th class="dr-th dr-th--tot dr-tot-a">A</th>
-            <th class="dr-th dr-th--tot dr-tot-l">L</th>
+            <th scope="col" class="dr-th dr-th--tot dr-tot dr-tot--p" title="Present days">P</th>
+            <th scope="col" class="dr-th dr-th--tot dr-tot dr-tot--a" title="Absent days">A</th>
+            <th scope="col" class="dr-th dr-th--tot dr-tot dr-tot--l" title="Leave days">L</th>
           </tr>
         </thead>
         <tbody>
           {% for row in rows %}
           <tr class="dr-tr" data-search="{{ row.name|lower }} {{ row.employee_id|lower }}">
-            <td class="dr-td dr-td--id dr-sticky-col dr-sticky-col--1">{{ row.employee_id }}</td>
-            <td class="dr-td dr-td--name dr-sticky-col dr-sticky-col--2">
+            <th scope="row" class="dr-td dr-td--emp dr-sticky-col">
               <span class="dr-emp-name">{{ row.name }}</span>
-              <span class="dr-emp-dept">{{ row.department }}</span>
-            </td>
+              <span class="dr-emp-meta"><span class="dr-emp-id">{{ row.employee_id }}</span> · {{ row.department }}</span>
+            </th>
             {% for cell in row.cells %}
-            <td class="dr-td dr-cell {{ cell.cls }} {% if cell.is_today %}dr-cell--today{% endif %}"
+            <td class="dr-td dr-cell{% if cell.is_weekend %} dr-cell--weekend{% endif %}{% if cell.is_week_start and not forloop.first %} dr-week-start{% endif %}{% if cell.is_today %} dr-cell--today{% endif %}"
                 {% if cell.tip %}data-tip-name="{{ row.name }}" data-tip-date="{{ cell.iso }}" data-tip-status="{{ cell.label }}" data-tip-in="{{ cell.tip.in }}" data-tip-out="{{ cell.tip.out }}" data-tip-hours="{{ cell.tip.hours }}"{% endif %}>
-              {{ cell.code }}
+              <span class="dr-chip {{ cell.cls }}">{{ cell.code|default:"–" }}</span>
             </td>
             {% endfor %}
-            <td class="dr-td dr-td--tot dr-tot-p">{{ row.present_days }}</td>
-            <td class="dr-td dr-td--tot dr-tot-a">{{ row.absent_days }}</td>
-            <td class="dr-td dr-td--tot dr-tot-l">{{ row.leave_days }}</td>
+            <td class="dr-td dr-td--tot dr-tot dr-tot--p dr-tot-p">{{ row.present_days }}</td>
+            <td class="dr-td dr-td--tot dr-tot dr-tot--a dr-tot-a">{{ row.absent_days }}</td>
+            <td class="dr-td dr-td--tot dr-tot dr-tot--l dr-tot-l">{{ row.leave_days }}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="{{ num_days|add:5 }}" class="dr-empty">No employees match your filters.</td></tr>
+          <tr>
+            <td colspan="{{ num_days|add:4 }}" class="dr-empty">
+              <i data-lucide="calendar-off" class="dr-empty__icon h-7 w-7"></i>
+              No employees match your filters.
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
+    <div class="dr-noresults" id="dr-noresults">
+      No employees on this page match “<span id="dr-noresults-term"></span>”.
+      Press Enter to search every page.
+    </div>
+
     {# Page footer / pagination #}
     <div class="dr-book__footer">
       <span class="dr-book__pageinfo">
-        Showing {{ showing_from }}–{{ showing_to }} of {{ total_employees }} employees
+        Showing <strong>{{ showing_from }}–{{ showing_to }}</strong> of <strong>{{ total_employees }}</strong> employees
         · {{ start_date|date:"d M Y" }} – {{ end_date|date:"d M Y" }}
       </span>
       {% if total_pages > 1 %}
       <div class="dr-pager">
-        {% if has_prev %}<a href="?{{ filter_query }}&page={{ page|add:'-1' }}" class="dr-pager__btn"><i data-lucide="chevron-left" class="h-4 w-4"></i></a>{% endif %}
+        {% if has_prev %}<a href="?{{ filter_query }}&amp;page={{ page|add:'-1' }}" class="dr-pager__btn" aria-label="Previous page"><i data-lucide="chevron-left" class="h-4 w-4"></i></a>{% endif %}
         <span class="dr-pager__num">Page {{ page }} / {{ total_pages }}</span>
-        {% if has_next %}<a href="?{{ filter_query }}&page={{ page|add:'1' }}" class="dr-pager__btn"><i data-lucide="chevron-right" class="h-4 w-4"></i></a>{% endif %}
+        {% if has_next %}<a href="?{{ filter_query }}&amp;page={{ page|add:'1' }}" class="dr-pager__btn" aria-label="Next page"><i data-lucide="chevron-right" class="h-4 w-4"></i></a>{% endif %}
       </div>
       {% endif %}
     </div>
   </div>
 
-  {# ── Mobile cards ── #}
+  {# ── Mobile cards ────────────────────────────────────────────────────── #}
   <div class="dr-mobile md:hidden">
     {% for row in rows %}
     <article class="dr-mcard" data-search="{{ row.name|lower }} {{ row.employee_id|lower }}">
       <header class="dr-mcard__head">
-        <div>
+        <div class="min-w-0">
           <p class="dr-mcard__name">{{ row.name }}</p>
           <p class="dr-mcard__id">{{ row.employee_id }} · {{ row.department }}</p>
         </div>
         <div class="dr-mcard__tot">
-          <span class="dr-tot-p">{{ row.present_days }}P</span>
-          <span class="dr-tot-a">{{ row.absent_days }}A</span>
-          <span class="dr-tot-l">{{ row.leave_days }}L</span>
+          <span class="dr-mtot dr-tot-p">{{ row.present_days }}P</span>
+          <span class="dr-mtot dr-tot-a">{{ row.absent_days }}A</span>
+          <span class="dr-mtot dr-tot-l">{{ row.leave_days }}L</span>
         </div>
       </header>
       <div class="dr-mcard__grid">
         {% for cell in row.cells %}
-        <span class="dr-mcell {{ cell.cls }} {% if cell.is_today %}dr-mcell--today{% endif %}">
-          <span class="dr-mcell__d">{{ forloop.counter }}</span>
-          <span class="dr-mcell__c">{{ cell.code|default:"·" }}</span>
+        <span class="dr-mcell {{ cell.cls }}{% if cell.is_today %} dr-mcell--today{% endif %}">
+          <span class="dr-mcell__d">{{ cell.day }}</span>
+          <span class="dr-mcell__c">{{ cell.code|default:"–" }}</span>
         </span>
         {% endfor %}
       </div>
     </article>
     {% empty %}
-    <div class="dr-empty">No employees match your filters.</div>
+    <div class="dr-mcard dr-empty">No employees match your filters.</div>
     {% endfor %}
   </div>
 

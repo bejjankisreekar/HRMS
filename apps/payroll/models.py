@@ -385,10 +385,28 @@ class TaxConfiguration(models.Model):
     financial_year_start = models.DateField()
     regime = models.CharField(max_length=20, default="NEW")
     standard_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("75000"))
+    cess_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("4"),
+        help_text="Health and education cess applied on top of computed tax.",
+    )
+    rebate_87a_income_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("700000"),
+        help_text="Taxable income at or below this gets the 87A rebate. 0 disables it.",
+    )
+    rebate_87a_max = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("25000"),
+        help_text="Maximum 87A rebate. Caps at the tax due.",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-financial_year_start"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "financial_year_start", "regime"],
+                name="unique_tax_config_per_org_fy_regime",
+            ),
+        ]
 
 
 class TaxSlab(models.Model):
@@ -400,6 +418,206 @@ class TaxSlab(models.Model):
 
     class Meta:
         ordering = ["min_income"]
+
+
+class TaxRegime(models.TextChoices):
+    OLD = "OLD", "Old regime"
+    NEW = "NEW", "New regime"
+
+
+class TaxDeclaration(models.Model):
+    """One employee's investment declaration for one financial year.
+
+    Only APPROVED declarations reduce taxable income — a submitted-but-unverified
+    claim must not cut someone's TDS before HR has seen the proof.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        SUBMITTED = "SUBMITTED", "Submitted"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="tax_declarations",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tax_declarations",
+    )
+    financial_year_start = models.DateField(help_text="1 April of the FY this declaration covers.")
+    regime = models.CharField(max_length=8, choices=TaxRegime.choices, default=TaxRegime.NEW)
+
+    # Old-regime exemptions and deductions. Ignored under the new regime.
+    hra_rent_paid = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="Total annual rent paid, for the HRA exemption.",
+    )
+    metro_city = models.BooleanField(
+        default=False, help_text="HRA exemption is 50% of basic in metros, 40% elsewhere.",
+    )
+    section_80c = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="EPF, PPF, ELSS, life insurance, tuition fees, principal repayment.",
+    )
+    section_80d = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="Health insurance premium — self, family and parents.",
+    )
+    section_80ccd_1b = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="Additional NPS contribution.",
+    )
+    home_loan_interest = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="Section 24(b) interest on a self-occupied house.",
+    )
+    other_exemptions = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="Any other approved exemption (80E, 80G, …).",
+    )
+    other_income = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0"),
+        help_text="Income from other sources to include in the projection.",
+    )
+
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tax_declarations_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-financial_year_start", "user__first_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "financial_year_start"],
+                name="unique_tax_declaration_per_user_fy",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} — FY starting {self.financial_year_start}"
+
+    @property
+    def is_effective(self) -> bool:
+        """Only an approved declaration may reduce taxable income."""
+        return self.status == self.Status.APPROVED
+
+
+class TaxComputation(models.Model):
+    """Audit trail of what the engine decided for one employee in one month.
+
+    Stored so a payslip's TDS can always be explained after the fact, and so the
+    year-to-date catch-up has a record to read back.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="tax_computations",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tax_computations",
+    )
+    payslip = models.OneToOneField(
+        "Payslip",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="tax_computation",
+    )
+    financial_year_start = models.DateField()
+    regime = models.CharField(max_length=8, choices=TaxRegime.choices, default=TaxRegime.NEW)
+
+    projected_gross = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    total_exemptions = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    taxable_income = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    annual_tax = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    rebate_applied = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    cess = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    tds_paid_till_date = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    months_remaining = models.PositiveSmallIntegerField(default=12)
+    monthly_tds = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+    breakdown = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user} — TDS {self.monthly_tds}"
+
+
+class Form16Certificate(models.Model):
+    """An issued Form 16 for one employee and one financial year.
+
+    The figures are snapshotted at issue time rather than recomputed on read: a TDS
+    certificate is a statement of what was actually deducted, and must not drift if
+    a later payroll correction changes the underlying payslips.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="form16_certificates",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="form16_certificates",
+    )
+    financial_year_start = models.DateField()
+    certificate_number = models.CharField(max_length=40, blank=True)
+
+    gross_salary = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    total_exemptions = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    taxable_income = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    total_tax = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    tds_deducted = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    balance_payable = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+
+    snapshot = models.JSONField(default=dict, blank=True)
+    issued_at = models.DateTimeField(auto_now_add=True)
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="form16_certificates_issued",
+    )
+
+    class Meta:
+        ordering = ["-financial_year_start", "user__first_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "financial_year_start"],
+                name="unique_form16_per_user_fy",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Form 16 {self.certificate_number or self.pk} — {self.user}"
+
+    @property
+    def fy_label(self) -> str:
+        return f"{self.financial_year_start.year}-{str(self.financial_year_start.year + 1)[2:]}"
 
 
 class Reimbursement(models.Model):
@@ -644,6 +862,14 @@ class PayrollSettings(models.Model):
         related_name="payroll_settings",
     )
     currency = models.CharField(max_length=3, default="INR")
+    # Deductor identity printed on Form 16. TAN is mandatory on a TDS certificate.
+    tan_number = models.CharField(
+        max_length=15, blank=True, help_text="Employer's TAN, e.g. BLRA12345C. Required on Form 16."
+    )
+    employer_pan = models.CharField(max_length=15, blank=True, help_text="Employer's PAN.")
+    deductor_name = models.CharField(
+        max_length=150, blank=True, help_text="Name of the deductor as registered with TRACES. Defaults to the organization name."
+    )
     decimal_precision = models.PositiveSmallIntegerField(default=2)
     rounding_rule = models.CharField(max_length=10, choices=RoundingRule.choices, default=RoundingRule.NEAREST)
     auto_payroll_enabled = models.BooleanField(default=False)

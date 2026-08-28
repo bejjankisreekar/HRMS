@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from apps.organizations.models import Organization
 from apps.subscriptions.models import Plan, PlanMenuItem, Subscription
+from apps.subscriptions import plan_features
 from apps.subscriptions.plan_catalog import FEATURE_MIN_PLAN
 from apps.subscriptions.services import feature_control as fc
 
@@ -24,12 +25,7 @@ def get_org_plan(org: Organization | None) -> Plan | None:
 
 
 def _org_plan_slug_fallback(org: Organization) -> str:
-    mapping = {
-        Organization.SubscriptionPlan.BASIC: "basic",
-        Organization.SubscriptionPlan.PROFESSIONAL: "professional",
-        Organization.SubscriptionPlan.GROWTH: "growth",
-    }
-    return mapping.get(org.subscription_plan, "basic")
+    return plan_features.enum_to_slug(org.subscription_plan)
 
 
 def get_enabled_feature_keys(org: Organization | None, role: str | None = None) -> set[str]:

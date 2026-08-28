@@ -13,7 +13,11 @@ class Command(BaseCommand):
         email = getattr(settings, "SUPERADMIN_EMAIL", None)
         password = getattr(settings, "SUPERADMIN_PASSWORD", None)
         if not email or not password:
-            self.stderr.write("Set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD in .env")
+            self.stderr.write(
+                "No superadmin credentials configured. Set superadmin.email and "
+                "superadmin.password in config.json (see config.json.example), or "
+                "SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD in the environment."
+            )
             return
 
         base = slugify(getattr(settings, "SUPERADMIN_USERNAME", "") or "superadmin")[:50] or "superadmin"

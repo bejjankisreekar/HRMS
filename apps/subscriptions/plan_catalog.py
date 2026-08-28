@@ -9,6 +9,8 @@ Three plans: Basic, Professional, Growth.
 
 from __future__ import annotations
 
+from . import plan_features as _plan_features
+
 # ── Feature catalog (key → metadata) ───────────────────────────────────────
 
 FEATURE_CATALOG: dict[str, dict] = {
@@ -61,77 +63,10 @@ FEATURE_CATALOG: dict[str, dict] = {
     "white_label": {"name": "White Label Branding", "category": "advanced"},
 }
 
-PLAN_FEATURES: dict[str, list[str]] = {
-    "basic": [
-        "dashboard",
-        "employees",
-        "departments",
-        "attendance",
-        "leave",
-        "payroll_basic",
-        "holidays",
-        "announcements",
-        "employee_self_service",
-        "reports_basic",
-        "org_settings",
-    ],
-    "professional": [
-        "dashboard",
-        "employees",
-        "departments",
-        "attendance",
-        "leave",
-        "payroll_basic",
-        "payroll_advanced",
-        "holidays",
-        "announcements",
-        "employee_self_service",
-        "reports_basic",
-        "reports_advanced",
-        "org_settings",
-        "performance",
-        "documents",
-        "shifts",
-        "expenses",
-        "org_hierarchy",
-        "grades",
-        "designations",
-        "analytics_basic",
-    ],
-    "growth": [],
-}
-
-_growth_extra = [
-    "payroll_growth",
-    "assets",
-    "projects",
-    "tasks",
-    "timesheets",
-    "workflows",
-    "audit_logs",
-    "api_access",
-    "mobile_app",
-    "biometric",
-    "analytics_advanced",
-    "custom_reports",
-    "helpdesk",
-    "integrations",
-    "multi_branch",
-    "multi_company",
-    "lms",
-    "compliance",
-    "workforce_planning",
-    "succession",
-    "security_center",
-    "sso",
-    "custom_roles",
-    "ai_analytics",
-    "executive_dashboard",
-    "white_label",
-]
-PLAN_FEATURES["growth"] = list(
-    dict.fromkeys(PLAN_FEATURES["professional"] + _growth_extra)
-)
+# Which features each plan includes now lives in `plan_features.py` — three plain
+# lists, one per plan, edited directly. Re-exported here so existing imports of
+# `plan_catalog.PLAN_FEATURES` keep working.
+PLAN_FEATURES = _plan_features.PLAN_FEATURES
 
 PLAN_LIMITS: dict[str, dict] = {
     "basic": {"employee_limit": 50, "storage_limit_mb": 5120},
@@ -166,6 +101,8 @@ _PAYROLL_BASIC_EMPLOYEE: list[MenuDef] = [
 # Professional tier adds: statutory/tax + deductions + revisions + reports.
 _PAYROLL_ADVANCED_ADMIN: list[MenuDef] = [
     ("Tax Management", "percent", "payroll:tax_management", "payroll_advanced", "", ("payroll:tax_management",), _ADMIN_HR, "Payroll"),
+    ("Tax Declarations", "file-check", "payroll:tax_declaration_review", "payroll_advanced", "", ("payroll:tax_declaration_review", "payroll:tax_projection"), _ADMIN_HR, "Payroll"),
+    ("My Tax Declaration", "receipt-text", "payroll:tax_declaration", "payroll_advanced", "", ("payroll:tax_declaration",), _EMPLOYEE, "Payroll"),
     ("PF & ESI", "shield-check", "payroll:compliance", "payroll_advanced", "report=pf", ("payroll:compliance",), _ADMIN_HR, "Payroll"),
     ("Professional Tax", "landmark", "payroll:compliance", "payroll_advanced", "report=pt", ("payroll:compliance",), _ADMIN_HR, "Payroll"),
     ("Deductions", "minus-circle", "payroll:deductions", "payroll_advanced", "", ("payroll:deductions",), _ADMIN_HR, "Payroll"),
@@ -219,7 +156,6 @@ ADMIN_MENUS: dict[str, list[MenuDef]] = {
         *PAYROLL_MENU_BASIC,
         ("Holidays", "calendar-days", "dashboard:work_calendar", "holidays", "", ("dashboard:work_calendar", "leaves:management"), ("ADMIN", "HR")),
         ("Announcements", "megaphone", "dashboard:settings", "announcements", "", ("dashboard:settings",), ("ADMIN", "HR")),
-        ("Reports", "bar-chart-3", "attendance:reports", "reports_basic", "", ("attendance:reports", "dashboard:attendance_report"), ("ADMIN",)),
         ("Organization Settings", "building", "dashboard:settings", "org_settings", "", ("dashboard:settings", "dashboard:departments"), ("ADMIN",)),
         _EMPLOYEE_SETTINGS,
     ],
@@ -235,11 +171,9 @@ ADMIN_MENUS: dict[str, list[MenuDef]] = {
         *PAYROLL_MENU_PROFESSIONAL,
         ("Expenses", "receipt", "dashboard:settings", "expenses", "", ("dashboard:settings",), ("ADMIN", "HR")),
         ("Performance", "target", "dashboard:settings", "performance", "", ("dashboard:settings",), ("ADMIN", "HR")),
-        ("Document Generator", "file-text", "documents:management", "documents", "", ("documents:management", "documents:template_create", "documents:template_edit", "documents:generate", "documents:generated_detail", "documents:audit"), ("ADMIN", "HR")),
         ("Holidays", "calendar-days", "dashboard:work_calendar", "holidays", "", ("dashboard:work_calendar", "leaves:management"), ("ADMIN", "HR")),
         ("Announcements", "megaphone", "dashboard:settings", "announcements", "", ("dashboard:settings",), ("ADMIN", "HR")),
-        ("Reports", "file-bar-chart", "attendance:reports", "reports_advanced", "", ("attendance:reports",), ("ADMIN",)),
-        ("Analytics", "line-chart", "attendance:reports", "analytics_basic", "", ("attendance:reports",), ("ADMIN",)),
+        ("HR Analytics", "chart-no-axes-combined", "dashboard:hr_analytics", "analytics_basic", "", ("dashboard:hr_analytics", "attendance:reports", "attendance:reports_employee"), _ADMIN_HR),
         ("Organization Settings", "building", "dashboard:settings", "org_settings", "", ("dashboard:settings", "dashboard:departments"), ("ADMIN",)),
         _EMPLOYEE_SETTINGS,
     ],
@@ -250,7 +184,6 @@ ADMIN_MENUS: dict[str, list[MenuDef]] = {
         ("Workforce Management", "users-round", "dashboard:staff_list", "workforce_planning", "", ("dashboard:staff_list",), ("ADMIN",)),
         ("Employees", "users", "dashboard:staff_list", "employees", "", ("dashboard:staff_list",), ("ADMIN", "HR")),
         ("Tasks", "check-square", "dashboard:settings", "tasks", "", ("dashboard:settings",), ("HR",)),
-        ("Assets", "package", "dashboard:settings", "assets", "", ("dashboard:settings",), ("ADMIN", "HR")),
         ("Learning Management", "graduation-cap", "dashboard:settings", "lms", "", ("dashboard:settings",), ("ADMIN", "HR")),
         ("Grades & Hierarchy", "network", "dashboard:grades:hub", "grades", "", ("dashboard:grades:hub",), ("ADMIN",)),
         ("Attendance", "calendar-check", "dashboard:attendance", "attendance", "", ("dashboard:attendance",), ("ADMIN", "HR", "EMPLOYEE")),
@@ -262,11 +195,9 @@ ADMIN_MENUS: dict[str, list[MenuDef]] = {
         ("Workforce Planning", "trending-up", "dashboard:settings", "workforce_planning", "", ("dashboard:settings",), ("ADMIN",)),
         ("Succession Planning", "git-branch", "dashboard:settings", "succession", "", ("dashboard:settings",), ("ADMIN",)),
         ("Compliance Center", "shield-check", "dashboard:settings", "compliance", "", ("dashboard:settings",), ("ADMIN",)),
-        ("Document Generator", "file-text", "documents:management", "documents", "", ("documents:management", "documents:template_create", "documents:template_edit", "documents:generate", "documents:generated_detail", "documents:audit"), ("ADMIN", "HR")),
         ("Helpdesk", "life-buoy", "dashboard:settings", "helpdesk", "", ("dashboard:settings",), ("ADMIN", "HR")),
         ("Workflows", "workflow", "dashboard:settings", "workflows", "", ("dashboard:settings",), ("ADMIN",)),
-        ("Reports", "file-bar-chart", "attendance:reports", "custom_reports", "", ("attendance:reports",), ("ADMIN",)),
-        ("Analytics Hub", "brain", "attendance:reports", "ai_analytics", "", ("attendance:reports",), ("ADMIN",)),
+        ("HR Analytics", "chart-no-axes-combined", "dashboard:hr_analytics", "ai_analytics", "", ("dashboard:hr_analytics", "attendance:reports", "attendance:reports_employee"), _ADMIN_HR),
         ("Audit Logs", "clipboard-list", "dashboard:settings", "audit_logs", "", ("dashboard:settings",), ("ADMIN",)),
         ("Integrations", "plug", "dashboard:settings", "integrations", "", ("dashboard:settings",), ("ADMIN",)),
         ("Security Center", "lock", "dashboard:settings", "security_center", "", ("dashboard:settings",), ("ADMIN",)),
@@ -292,7 +223,4 @@ ADDON_FEATURE_KEYS: dict[str, list[str]] = {
     "multi-branch": ["multi_branch"],
 }
 
-FEATURE_MIN_PLAN: dict[str, str] = {}
-for _slug in ("basic", "professional", "growth"):
-    for _key in PLAN_FEATURES[_slug]:
-        FEATURE_MIN_PLAN.setdefault(_key, _slug)
+FEATURE_MIN_PLAN: dict[str, str] = _plan_features.feature_min_plan()

@@ -62,25 +62,41 @@
     if (!input) return;
     var rows = document.querySelectorAll(".dr-tr[data-search]");
     var cards = document.querySelectorAll(".dr-mcard[data-search]");
+    var empty = document.getElementById("dr-noresults");
+    var emptyTerm = document.getElementById("dr-noresults-term");
+
     function filter() {
       var q = input.value.trim().toLowerCase();
+      var hits = 0;
       [].forEach.call(rows, function (r) {
-        r.style.display = !q || r.dataset.search.indexOf(q) !== -1 ? "" : "none";
+        var show = !q || r.dataset.search.indexOf(q) !== -1;
+        r.style.display = show ? "" : "none";
+        if (show) hits++;
       });
       [].forEach.call(cards, function (c) {
         c.style.display = !q || c.dataset.search.indexOf(q) !== -1 ? "" : "none";
       });
+      // Rows on this page only — Enter runs the same term against every page.
+      if (empty) {
+        var blank = q && hits === 0 && rows.length > 0;
+        empty.classList.toggle("is-shown", !!blank);
+        if (blank && emptyTerm) emptyTerm.textContent = input.value.trim();
+      }
     }
+
     input.addEventListener("input", filter);
-    // Don't submit the form on Enter (keep client-side filter snappy)
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") e.preventDefault();
-    });
+    filter();
+  }
+
+  function initPrint() {
+    var btn = document.querySelector("[data-dr-print]");
+    if (btn) btn.addEventListener("click", function () { window.print(); });
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     initTooltip();
     initSearch();
+    initPrint();
     if (window.lucide) window.lucide.createIcons();
   });
 })();

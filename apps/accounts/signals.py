@@ -18,8 +18,14 @@ def _allocate_superadmin_username(base: str) -> str:
 @receiver(post_migrate)
 def ensure_default_superadmin(sender, **kwargs):
     """
-    Bootstrap a default platform Super Admin using environment variables.
-    Runs after migrations; repairs existing superadmin if username is missing.
+    Bootstrap a default platform Super Admin from settings.
+
+    Credentials come from config.json (or the matching SUPERADMIN_* environment
+    variables, which take precedence) - see config.json.example. When no password
+    is configured this returns without creating anything, which is deliberate:
+    booting with a known default password is worse than having no Super Admin.
+
+    Runs after migrations; repairs an existing superadmin if its username is missing.
     """
     email = getattr(settings, "SUPERADMIN_EMAIL", None)
     password = getattr(settings, "SUPERADMIN_PASSWORD", None)

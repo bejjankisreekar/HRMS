@@ -1,0 +1,20 @@
+{% if field_form.non_field_errors %}
+<div class="grd-form-alert">{{ field_form.non_field_errors.0 }}</div>
+{% endif %}
+
+<div class="grd-form-grid">
+  {% include "dashboard/grades/_field.html" with field=field_form.from_grade wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.to_grade wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.sort_order wide=0 %}
+
+  <div class="grd-field">
+    <label class="platform-label" for="{{ field_form.is_active.id_for_label }}">{{ field_form.is_active.label }}</label>
+    <label class="grd-switch" for="{{ field_form.is_active.id_for_label }}">
+      {{ field_form.is_active }}
+      <span>Step is available for promotions</span>
+    </label>
+    {% if field_form.is_active.errors %}<p class="grd-field__err">{{ field_form.is_active.errors.0 }}</p>{% endif %}
+  </div>
+
+  {% include "dashboard/grades/_field.html" with field=field_form.requirements wide=1 %}
+</div>

@@ -1,0 +1,35 @@
+{% if field_form.non_field_errors %}
+<div class="grd-form-alert">{{ field_form.non_field_errors.0 }}</div>
+{% endif %}
+
+<div class="grd-form-grid">
+  {% include "dashboard/grades/_field.html" with field=field_form.name wide=1 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.code wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.category wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.level_number wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.priority_order wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.parent_grade wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.reporting_grade wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.salary_band_min wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.salary_band_max wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.status wide=0 %}
+  {% include "dashboard/grades/_field.html" with field=field_form.description wide=1 %}
+
+  <div class="grd-field grd-field--full" data-grd-picker>
+    <div class="grd-picker__head">
+      <label class="platform-label" for="{{ field_form.departments.auto_id }}_0">{{ field_form.departments.label }}</label>
+      <span class="grd-picker__count" data-grd-picker-count>0 selected</span>
+    </div>
+    <div class="grd-picker__tools">
+      <input type="search" class="grd-picker__search" placeholder="Search departments…" data-grd-picker-search aria-label="Search departments">
+      <button type="button" class="grd-picker__link" data-grd-picker-all>Select all</button>
+      <button type="button" class="grd-picker__link" data-grd-picker-none>Clear</button>
+    </div>
+    <div class="grd-picker__box">
+      {{ field_form.departments }}
+      <p class="grd-picker__empty" data-grd-picker-empty hidden>No departments match that search.</p>
+    </div>
+    <p class="grd-field__hint">Tick every department this grade applies to — no Ctrl-clicking needed.</p>
+    {% if field_form.departments.errors %}<p class="grd-field__err">{{ field_form.departments.errors.0 }}</p>{% endif %}
+  </div>
+</div>

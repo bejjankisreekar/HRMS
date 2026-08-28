@@ -1,0 +1,127 @@
+{% load humanize %}<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 1.4cm 1.2cm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #111827; }
+    h1 { font-size: 13pt; margin: 0 0 2px; text-align: center; }
+    .sub { text-align: center; font-size: 8pt; color: #4b5563; margin-bottom: 10px; }
+    .rule { border-bottom: 1.5px solid #111827; margin: 6px 0 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    .party td { vertical-align: top; padding: 3px 4px; font-size: 8.5pt; }
+    .party .label { color: #6b7280; font-size: 7.5pt; text-transform: uppercase; }
+    .box { border: 1px solid #d1d5db; padding: 6px 8px; }
+    h2 { font-size: 9.5pt; margin: 12px 0 5px; padding-bottom: 3px; border-bottom: 1px solid #d1d5db; }
+    .lines td { padding: 3px 4px; border-bottom: 1px solid #f3f4f6; }
+    .lines td.amt { text-align: right; white-space: nowrap; }
+    .lines tr.total td { font-weight: bold; border-top: 1px solid #9ca3af; border-bottom: 1px solid #9ca3af; }
+    .grid th { background: #f3f4f6; font-size: 7.5pt; text-transform: uppercase; padding: 4px; text-align: left; border: 1px solid #e5e7eb; }
+    .grid td { padding: 4px; border: 1px solid #e5e7eb; font-size: 8pt; }
+    .grid td.amt { text-align: right; }
+    .note { margin-top: 10px; font-size: 7.5pt; color: #6b7280; }
+    .sign { margin-top: 26px; font-size: 8pt; }
+  </style>
+</head>
+<body>
+  <h1>FORM NO. 16</h1>
+  <div class="sub">
+    [See rule 31(1)(a)] &middot; PART B &mdash; Annexure<br>
+    Certificate under section 203 of the Income-tax Act, 1961 for tax deducted at source on salary
+  </div>
+  <div class="rule"></div>
+
+  <table class="party">
+    <tr>
+      <td width="50%" class="box">
+        <div class="label">Name and address of the employer</div>
+        <strong>{{ f16.employer.name }}</strong><br>
+        {{ f16.employer.address }}<br>
+        <div class="label" style="margin-top:4px">TAN</div>{{ f16.employer.tan|default:"—" }}
+        <div class="label" style="margin-top:4px">PAN of the deductor</div>{{ f16.employer.pan|default:"—" }}
+      </td>
+      <td width="50%" class="box">
+        <div class="label">Name and designation of the employee</div>
+        <strong>{{ f16.employee.name }}</strong><br>
+        {{ f16.employee.designation|default:"—" }}<br>
+        <div class="label" style="margin-top:4px">PAN of the employee</div>{{ f16.employee.pan|default:"—" }}
+        <div class="label" style="margin-top:4px">Employee ID</div>{{ f16.employee.employee_id|default:"—" }}
+      </td>
+    </tr>
+    <tr>
+      <td class="box">
+        <div class="label">Financial year</div>{{ f16.fy_label }}
+      </td>
+      <td class="box">
+        <div class="label">Assessment year</div>{{ f16.assessment_year }}
+      </td>
+    </tr>
+  </table>
+
+  <h2>Summary of tax deducted at source</h2>
+  <table class="grid">
+    <thead>
+      <tr><th>Quarter</th><th>Period</th><th style="text-align:right">Amount deducted (₹)</th></tr>
+    </thead>
+    <tbody>
+      {% for q in f16.quarters %}
+      <tr><td>{{ q.code }}</td><td>{{ q.label }}</td><td class="amt">{{ q.amount|floatformat:2|intcomma }}</td></tr>
+      {% endfor %}
+      <tr><td colspan="2"><strong>Total</strong></td><td class="amt"><strong>{{ f16.tds_deducted|floatformat:2|intcomma }}</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Details of salary paid and tax computed</h2>
+  <table class="lines">
+    <tr><td>1. Gross salary</td><td class="amt">{{ f16.gross_salary|floatformat:2|intcomma }}</td></tr>
+    {% if f16.exemption_detail.hra_exemption %}
+    <tr><td>2. Less: allowances exempt u/s 10(13A) — house rent allowance</td><td class="amt">({{ f16.exemption_detail.hra_exemption|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    <tr><td>3. Less: standard deduction u/s 16(ia)</td><td class="amt">({{ f16.standard_deduction|floatformat:2|intcomma }})</td></tr>
+    <tr><td>4. Less: tax on employment u/s 16(iii)</td><td class="amt">({{ f16.professional_tax|floatformat:2|intcomma }})</td></tr>
+    {% if f16.exemption_detail.section_80c %}
+    <tr><td>5. Less: deduction u/s 80C</td><td class="amt">({{ f16.exemption_detail.section_80c|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    {% if f16.exemption_detail.section_80d %}
+    <tr><td>6. Less: deduction u/s 80D — health insurance premium</td><td class="amt">({{ f16.exemption_detail.section_80d|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    {% if f16.exemption_detail.section_80ccd_1b %}
+    <tr><td>7. Less: deduction u/s 80CCD(1B) — NPS contribution</td><td class="amt">({{ f16.exemption_detail.section_80ccd_1b|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    {% if f16.exemption_detail.home_loan_interest %}
+    <tr><td>8. Less: interest on housing loan u/s 24(b)</td><td class="amt">({{ f16.exemption_detail.home_loan_interest|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    {% if f16.exemption_detail.other_exemptions %}
+    <tr><td>9. Less: other deductions under Chapter VI-A</td><td class="amt">({{ f16.exemption_detail.other_exemptions|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    <tr class="total"><td>Total taxable income</td><td class="amt">{{ f16.taxable_income|floatformat:2|intcomma }}</td></tr>
+    <tr><td>Tax on total income</td><td class="amt">{{ f16.tax_before_rebate|floatformat:2|intcomma }}</td></tr>
+    {% if f16.rebate_87a %}
+    <tr><td>Less: rebate u/s 87A</td><td class="amt">({{ f16.rebate_87a|floatformat:2|intcomma }})</td></tr>
+    {% endif %}
+    <tr><td>Add: health and education cess</td><td class="amt">{{ f16.cess|floatformat:2|intcomma }}</td></tr>
+    <tr class="total"><td>Total tax payable</td><td class="amt">{{ f16.total_tax|floatformat:2|intcomma }}</td></tr>
+    <tr><td>Less: tax deducted at source</td><td class="amt">({{ f16.tds_deducted|floatformat:2|intcomma }})</td></tr>
+    <tr class="total">
+      <td>{% if f16.balance_payable > 0 %}Balance tax payable{% else %}Excess tax deducted{% endif %}</td>
+      <td class="amt">{{ f16.balance_payable|floatformat:2|intcomma }}</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    Tax regime opted: <strong>{{ f16.regime }}</strong>.
+    Certificate covers {{ f16.months_paid }} month{{ f16.months_paid|pluralize }} of salary paid in FY {{ f16.fy_label }}.
+    {% if certificate %}Certificate number {{ certificate.certificate_number }}, issued {{ certificate.issued_at|date:"d M Y" }}.{% endif %}
+    <br>
+    Part A of Form 16, containing challan-wise details of tax deposited with the Government, must be downloaded from the TRACES portal. The quarterly figures above are the deductor's own records, provided for reconciliation.
+  </div>
+
+  <div class="sign">
+    Place: {{ f16.employer.address|truncatewords:3 }}<br>
+    Date: {{ generated_on|date:"d M Y" }}
+    <br><br><br>
+    _______________________________<br>
+    Signature of the person responsible for deduction of tax
+  </div>
+</body>
+</html>

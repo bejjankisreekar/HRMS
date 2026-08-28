@@ -6,7 +6,8 @@ downloadable PDF and the on-screen preview are driven from here.
 To ADD A NEW FORMAT (no migration needed — choices are read via a callable):
   1. Create the PDF template:      templates/payroll/payslip_pdf_<code>.html
   2. Create the preview partial:   templates/payroll/preview/_<code>.html
-  3. Add one entry to PAYSLIP_FORMATS below (code -> label / pdf / preview).
+  3. Add one entry to PAYSLIP_FORMATS below (code -> id / label / pdf / preview).
+     Give it the next free "id" (e.g. PS-06) so it has a short reference tag.
 
 Both templates receive the same context:
   payslip, employee (== payslip.user), org / organization, earnings, deductions,
@@ -16,28 +17,35 @@ from __future__ import annotations
 
 DEFAULT_PAYSLIP_FORMAT = "CLASSIC"
 
+# "id" is a short, human-friendly reference tag shown in the selector so you can
+# say "use PS-04" and everyone knows which layout is meant. Keep ids stable.
 PAYSLIP_FORMATS: dict[str, dict[str, str]] = {
     "CLASSIC": {
+        "id": "PS-01",
         "label": "Classic — detailed two-column",
         "pdf": "payroll/payslip_pdf.html",
         "preview": "payroll/preview/_classic.html",
     },
     "MODERN": {
+        "id": "PS-02",
         "label": "Modern — accent banner",
         "pdf": "payroll/payslip_pdf_modern.html",
         "preview": "payroll/preview/_modern.html",
     },
     "COMPACT": {
+        "id": "PS-03",
         "label": "Compact — single table",
         "pdf": "payroll/payslip_pdf_compact.html",
         "preview": "payroll/preview/_compact.html",
     },
     "CORPORATE": {
+        "id": "PS-04",
         "label": "Corporate — centered header, boxed",
         "pdf": "payroll/payslip_pdf_corporate.html",
         "preview": "payroll/preview/_corporate.html",
     },
     "STATEMENT": {
+        "id": "PS-05",
         "label": "Statement — 4-column table, amount in words & signatures",
         "pdf": "payroll/payslip_pdf_statement.html",
         "preview": "payroll/preview/_statement.html",
@@ -48,10 +56,15 @@ PAYSLIP_FORMATS: dict[str, dict[str, str]] = {
 def payslip_format_choices():
     """(code, label) pairs for the model field / form select.
 
-    Passed as a *callable* to the model field so adding formats to
-    PAYSLIP_FORMATS never requires a new migration.
+    The label is prefixed with the format's short id (e.g. "PS-04 · Corporate …")
+    so admins can recognise/reference each layout easily. Passed as a *callable*
+    to the model field so adding formats to PAYSLIP_FORMATS never requires a
+    new migration.
     """
-    return [(code, cfg["label"]) for code, cfg in PAYSLIP_FORMATS.items()]
+    return [
+        (code, f"{cfg['id']} · {cfg['label']}")
+        for code, cfg in PAYSLIP_FORMATS.items()
+    ]
 
 
 def _config(code: str) -> dict[str, str]:

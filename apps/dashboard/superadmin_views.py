@@ -12,6 +12,7 @@ from apps.organizations.models import Organization
 from apps.organizations.services import delete_organization_and_tenant
 from apps.storage.analytics import build_org_storage_context
 from apps.storage.scanner import sync_organization_files
+from apps.subscriptions import plan_features
 from apps.subscriptions.models import Subscription
 from apps.subscriptions.services.org_features import build_org_feature_matrix
 
@@ -45,7 +46,9 @@ class SuperAdminDashboardView(SuperAdminRequiredMixin, ListView):
                 subscription_status=Organization.SubscriptionStatus.ACTIVE
             ).count(),
             "trials": orgs.filter(subscription_status=Organization.SubscriptionStatus.TRIAL).count(),
-            "growth": Subscription.objects.filter(plan__slug="growth", plan__is_active=True).count(),
+            "growth": Subscription.objects.filter(
+                plan__slug=plan_features.GROWTH_SLUG, plan__is_active=True
+            ).count(),
         }
         context["plan_breakdown"] = (
             orgs.values("subscription_plan")

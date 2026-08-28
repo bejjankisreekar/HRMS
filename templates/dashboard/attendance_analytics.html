@@ -15,6 +15,9 @@
 
 {% block content %}
 <div class="attendance-page w-full space-y-6">
+  <a href="{% url 'dashboard:hr_analytics' %}" class="ar-back ar-no-print">
+    <i data-lucide="arrow-left" class="h-3.5 w-3.5"></i> Back to HR Analytics
+  </a>
   <div class="attendance-hero ar-no-print">
     <div class="attendance-hero-inner flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
       <div class="flex items-start gap-4">

@@ -1,0 +1,726 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras %}
+{% block title %}HR Analytics · {{ org.name }}{% endblock %}
+
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static_v 'hr-analytics.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+{{ boot_json|json_script:"hra-boot" }}
+<script src="{% static_v 'hr-analytics.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="hra w-full" data-hra>
+
+  {# ── Hero / command bar ────────────────────────────────────────────── #}
+  <header class="hra-hero">
+    <div class="hra-hero__grid" aria-hidden="true"></div>
+    <div class="hra-hero__inner">
+      <div class="flex items-start gap-4 min-w-0">
+        <div class="hra-hero__mark"><i data-lucide="chart-no-axes-combined" class="h-6 w-6"></i></div>
+        <div class="min-w-0">
+          <p class="hra-hero__eyebrow">People Intelligence</p>
+          <h1 class="hra-hero__title">HR Analytics</h1>
+          <p class="hra-hero__sub">
+            Headcount, attrition, attendance, cost and representation for {{ org.name }} —
+            measured the way the HR function reports it.
+          </p>
+          <div class="hra-hero__meta">
+            <span class="hra-pill">
+              <i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+              <span data-hra-period-label>{{ filters.label }}</span>
+            </span>
+            <span class="hra-pill">
+              <i data-lucide="users" class="h-3.5 w-3.5"></i>
+              <span data-hra-hero-headcount>—</span> active
+            </span>
+            <span class="hra-pill">
+              <i data-lucide="building-2" class="h-3.5 w-3.5"></i>
+              <span data-hra-hero-depts>—</span> departments
+            </span>
+            <span class="hra-pill">
+              <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+              Updated <span data-hra-updated>just now</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hra-hero__actions">
+        <button type="button" class="hra-btn" data-hra-refresh>
+          <i data-lucide="refresh-cw" class="h-4 w-4"></i>Refresh
+        </button>
+        <div class="hra-menu" data-hra-menu>
+          <button type="button" class="hra-btn hra-btn--solid" data-hra-menu-toggle>
+            <i data-lucide="download" class="h-4 w-4"></i>Export
+            <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>
+          </button>
+          <div class="hra-menu__list" data-hra-menu-list>
+            <a class="hra-menu__item" data-hra-export="xlsx" href="?{{ filter_query }}&amp;export=xlsx">
+              <i data-lucide="sheet" class="h-4 w-4"></i>Excel workbook (3 sheets)
+            </a>
+            <a class="hra-menu__item" data-hra-export="csv" href="?{{ filter_query }}&amp;export=csv">
+              <i data-lucide="file-text" class="h-4 w-4"></i>Scorecard CSV
+            </a>
+            <button type="button" class="hra-menu__item" data-hra-print>
+              <i data-lucide="printer" class="h-4 w-4"></i>Print / save as PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {# ── Filters ───────────────────────────────────────────────────────── #}
+  <form class="hra-filters" method="get" data-hra-filters>
+    <div class="hra-filters__row">
+      <label class="hra-field">
+        <span class="hra-field__label">Period</span>
+        <select name="period" class="hra-select" data-hra-period>
+          {% for p in options.periods %}
+            <option value="{{ p.value }}" {% if filters.period == p.value %}selected{% endif %}>{{ p.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="hra-field" data-hra-custom {% if filters.period != "custom" %}hidden{% endif %}>
+        <span class="hra-field__label">From</span>
+        <input type="date" name="from" class="hra-input" value="{{ filters.date_from|date:'Y-m-d' }}">
+      </label>
+
+      <label class="hra-field" data-hra-custom {% if filters.period != "custom" %}hidden{% endif %}>
+        <span class="hra-field__label">To</span>
+        <input type="date" name="to" class="hra-input" value="{{ filters.date_to|date:'Y-m-d' }}">
+      </label>
+
+      <label class="hra-field">
+        <span class="hra-field__label">Department</span>
+        <select name="department" class="hra-select">
+          <option value="">All departments</option>
+          {% for d in options.departments %}
+            <option value="{{ d.id }}" {% if filters.department == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="hra-field">
+        <span class="hra-field__label">Employment type</span>
+        <select name="employment_type" class="hra-select">
+          <option value="">All types</option>
+          {% for t in options.employment_types %}
+            <option value="{{ t.value }}" {% if filters.employment_type == t.value %}selected{% endif %}>{{ t.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="hra-field">
+        <span class="hra-field__label">Work mode</span>
+        <select name="work_mode" class="hra-select">
+          <option value="">All modes</option>
+          {% for m in options.work_modes %}
+            <option value="{{ m.value }}" {% if filters.work_mode == m.value %}selected{% endif %}>{{ m.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      {% if options.locations %}
+      <label class="hra-field">
+        <span class="hra-field__label">Location</span>
+        <select name="location" class="hra-select">
+          <option value="">All locations</option>
+          {% for l in options.locations %}
+            <option value="{{ l.value }}" {% if filters.location == l.value %}selected{% endif %}>{{ l.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endif %}
+    </div>
+
+    <div class="hra-filters__actions">
+      <button type="submit" class="hra-action hra-action--primary">
+        <i data-lucide="filter" class="h-4 w-4"></i>Apply filters
+      </button>
+      <a href="{% url 'dashboard:hr_analytics' %}" class="hra-action">
+        <i data-lucide="rotate-ccw" class="h-4 w-4"></i>Reset
+      </a>
+      <span class="hra-filters__summary">
+        <i data-lucide="info" class="h-3.5 w-3.5"></i>
+        {{ filters.date_from|date:"d M Y" }} – {{ filters.date_to|date:"d M Y" }}
+        · workforce = employee &amp; {{ hr_role_label|default:"HR" }} records
+      </span>
+    </div>
+  </form>
+
+  {# ── KPI band ──────────────────────────────────────────────────────── #}
+  <div class="hra-kpis" data-hra-kpis>
+    {% for i in "12345678" %}
+      <div class="hra-kpi">
+        <div class="hra-kpi__top">
+          <span class="hra-kpi__label hra-skeleton" style="width:6rem;height:.7rem">&nbsp;</span>
+          <span class="hra-kpi__icon hra-skeleton">&nbsp;</span>
+        </div>
+        <div class="hra-kpi__value hra-skeleton" style="width:4.5rem;height:1.6rem">&nbsp;</div>
+        <div class="hra-kpi__foot"><span class="hra-kpi__hint hra-skeleton" style="width:8rem;height:.7rem">&nbsp;</span></div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# ── Tabs ──────────────────────────────────────────────────────────── #}
+  <nav class="hra-tabs" aria-label="Analytics sections">
+    <button type="button" class="hra-tab hra-tab--active" data-hra-tab="overview">
+      <i data-lucide="layout-dashboard" class="h-4 w-4"></i>Executive overview
+    </button>
+    <button type="button" class="hra-tab" data-hra-tab="workforce">
+      <i data-lucide="users" class="h-4 w-4"></i>Workforce
+    </button>
+    <button type="button" class="hra-tab" data-hra-tab="attrition">
+      <i data-lucide="user-minus" class="h-4 w-4"></i>Attrition &amp; retention
+    </button>
+    <button type="button" class="hra-tab" data-hra-tab="attendance">
+      <i data-lucide="calendar-check" class="h-4 w-4"></i>Attendance &amp; leave
+    </button>
+    <button type="button" class="hra-tab" data-hra-tab="compensation">
+      <i data-lucide="wallet" class="h-4 w-4"></i>Compensation
+    </button>
+    <button type="button" class="hra-tab" data-hra-tab="diversity">
+      <i data-lucide="scale" class="h-4 w-4"></i>Diversity
+    </button>
+    <button type="button" class="hra-tab" data-hra-tab="scorecard">
+      <i data-lucide="table-2" class="h-4 w-4"></i>Department scorecard
+    </button>
+    {# Opens the full attendance reports page — deliberately not a data-hra-tab, so
+       the section JS leaves it alone and it never renders as "active". #}
+    <a href="{% url 'attendance:reports' %}" class="hra-tab hra-tab--link">
+      <i data-lucide="file-bar-chart" class="h-4 w-4"></i>Reports
+      <i data-lucide="arrow-up-right" class="h-3 w-3 hra-tab__out"></i>
+    </a>
+  </nav>
+
+  {# ══ Executive overview ════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="overview" data-active="true">
+    <div class="hra-grid">
+      <div class="hra-card hra-col-4" data-hra-card="ov-headcount">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Headcount movement</h2>
+            <p class="hra-card__sub">Closing headcount against joiners and exits, month by month.</p>
+          </div>
+          <span class="hra-card__badge" data-hra-badge="ov-net">—</span>
+        </div>
+        <div class="hra-chart hra-chart--tall"><canvas data-hra-chart="ov-headcount"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-2" data-hra-card="ov-tenure">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Tenure profile</h2>
+            <p class="hra-card__sub">How long the current workforce has been with the company.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="ov-tenure"></canvas></div>
+        <div class="hra-stats hra-stats--3" style="margin-top:.85rem">
+          <div class="hra-stat">
+            <div class="hra-stat__label">Avg tenure</div>
+            <div class="hra-stat__value" data-hra-stat="ov-avg-tenure">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Median</div>
+            <div class="hra-stat__value" data-hra-stat="ov-med-tenure">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">On notice</div>
+            <div class="hra-stat__value" data-hra-stat="ov-notice">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hra-card hra-col-3" data-hra-card="ov-attrition">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Attrition rate trend</h2>
+            <p class="hra-card__sub">Monthly separations as a share of average headcount.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="ov-attrition"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3" data-hra-card="ov-dept">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Departmental mix</h2>
+            <p class="hra-card__sub">Where the current workforce sits.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="ov-dept"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-6" data-hra-card="ov-insights">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">What the numbers are saying</h2>
+            <p class="hra-card__sub">Automatically ranked findings for the selected period.</p>
+          </div>
+          <span class="hra-card__badge">Generated</span>
+        </div>
+        <div class="hra-insights" data-hra-insights></div>
+      </div>
+    </div>
+  </section>
+
+  {# ══ Workforce ═════════════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="workforce">
+    <div class="hra-grid">
+      <div class="hra-card hra-col-6">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Headcount, hiring and exits</h2>
+            <p class="hra-card__sub">Bars show gross joiners and exits; the line is closing headcount.</p>
+          </div>
+        </div>
+        <div class="hra-chart hra-chart--tall"><canvas data-hra-chart="wf-trend"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3" data-hra-card="wf-dept">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Headcount by department</h2>
+            <p class="hra-card__sub">Active employees per department.</p>
+          </div>
+        </div>
+        <div class="hra-chart hra-chart--tall"><canvas data-hra-chart="wf-dept"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Organisation shape</h2>
+            <p class="hra-card__sub">Span of control and the manager-to-IC balance.</p>
+          </div>
+        </div>
+        <div class="hra-stats hra-stats--4">
+          <div class="hra-stat">
+            <div class="hra-stat__label">People managers</div>
+            <div class="hra-stat__value" data-hra-stat="wf-managers">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Avg span</div>
+            <div class="hra-stat__value" data-hra-stat="wf-span">—</div>
+            <div class="hra-stat__note">reports per manager</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Widest span</div>
+            <div class="hra-stat__value" data-hra-stat="wf-widest">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Individual contributors</div>
+            <div class="hra-stat__value" data-hra-stat="wf-ic">—</div>
+          </div>
+        </div>
+        <div class="hra-chart hra-chart--sm" style="margin-top:.85rem"><canvas data-hra-chart="wf-grades"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head"><div><h2 class="hra-card__title">Employment type</h2></div></div>
+        <div class="hra-chart hra-chart--sm"><canvas data-hra-chart="wf-type"></canvas></div>
+      </div>
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head"><div><h2 class="hra-card__title">Work mode</h2></div></div>
+        <div class="hra-chart hra-chart--sm"><canvas data-hra-chart="wf-mode"></canvas></div>
+      </div>
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head"><div><h2 class="hra-card__title">Employment status</h2></div></div>
+        <div class="hra-chart hra-chart--sm"><canvas data-hra-chart="wf-status"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Tenure distribution</h2>
+            <p class="hra-card__sub">Concentration risk shows up as a single dominant band.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="wf-tenure"></canvas></div>
+      </div>
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Work locations</h2>
+            <p class="hra-card__sub">Distribution across offices and sites on record.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="wf-locations"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  {# ══ Attrition ═════════════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="attrition">
+    <div class="hra-grid">
+      <div class="hra-card hra-col-6">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Attrition rate and separation volume</h2>
+            <p class="hra-card__sub">Line = monthly attrition rate. Bars = voluntary vs involuntary exits.</p>
+          </div>
+          <span class="hra-card__badge" data-hra-badge="at-annual">—</span>
+        </div>
+        <div class="hra-chart hra-chart--tall"><canvas data-hra-chart="at-trend"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Separation type</h2>
+          <p class="hra-card__sub">Regretted vs managed exits.</p></div>
+        </div>
+        <div class="hra-chart hra-chart--sm"><canvas data-hra-chart="at-split"></canvas></div>
+      </div>
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Reasons for leaving</h2>
+          <p class="hra-card__sub">As captured on the offboarding record.</p></div>
+        </div>
+        <div class="hra-chart hra-chart--sm"><canvas data-hra-chart="at-reasons"></canvas></div>
+      </div>
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Tenure at exit</h2>
+          <p class="hra-card__sub">A tall first bar means early-life attrition.</p></div>
+        </div>
+        <div class="hra-chart hra-chart--sm"><canvas data-hra-chart="at-tenure"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Attrition hot spots</h2>
+            <p class="hra-card__sub">Rate per department over the selected period.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="at-dept"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Recent separations</h2>
+            <p class="hra-card__sub">Most recent last working days on record.</p>
+          </div>
+        </div>
+        <div class="hra-table-wrap" style="max-height:20rem;overflow-y:auto">
+          <table class="hra-table">
+            <thead>
+              <tr>
+                <th>Employee</th><th>Department</th><th>Last day</th><th>Reason</th><th>Tenure</th>
+              </tr>
+            </thead>
+            <tbody data-hra-table="at-recent"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ══ Attendance & leave ════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="attendance">
+    <div class="hra-grid">
+      <div class="hra-card hra-col-4">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Attendance vs absenteeism</h2>
+            <p class="hra-card__sub">Share of scheduled capacity, with average hours worked overlaid.</p>
+          </div>
+        </div>
+        <div class="hra-chart hra-chart--tall"><canvas data-hra-chart="att-trend"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Day-status mix</h2>
+          <p class="hra-card__sub">Every marked day in the period.</p></div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="att-mix"></canvas></div>
+        <div class="hra-stats" style="margin-top:.85rem">
+          <div class="hra-stat">
+            <div class="hra-stat__label">Working days</div>
+            <div class="hra-stat__value" data-hra-stat="att-workdays">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Overtime</div>
+            <div class="hra-stat__value" data-hra-stat="att-ot">—</div>
+            <div class="hra-stat__note">hours beyond 9h/day</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Department attendance</h2>
+            <p class="hra-card__sub">Attendance, absence and lateness rates side by side.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="att-dept"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Leave utilisation by type</h2>
+            <p class="hra-card__sub">Allocated versus consumed for the current leave year.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="att-leave"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-6">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Leave operations</h2>
+            <p class="hra-card__sub">Consumption, accrued liability and approval responsiveness.</p>
+          </div>
+        </div>
+        <div class="hra-stats hra-stats--4">
+          <div class="hra-stat">
+            <div class="hra-stat__label">Utilisation</div>
+            <div class="hra-stat__value" data-hra-stat="lv-util">—</div>
+            <div class="hra-stat__note">of allocated days consumed</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Unused balance</div>
+            <div class="hra-stat__value" data-hra-stat="lv-unused">—</div>
+            <div class="hra-stat__note">days carried on the books</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Accrued liability</div>
+            <div class="hra-stat__value" data-hra-stat="lv-liability">—</div>
+            <div class="hra-stat__note">unused days at avg day rate</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Approval turnaround</div>
+            <div class="hra-stat__value" data-hra-stat="lv-turnaround">—</div>
+            <div class="hra-stat__note"><span data-hra-stat="lv-pending">—</span> requests pending</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ══ Compensation ══════════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="compensation">
+    <div class="hra-grid">
+      <div class="hra-card hra-col-4">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Payroll cost trend</h2>
+            <p class="hra-card__sub">Gross, net and deductions per processed run, with cost per employee.</p>
+          </div>
+          <span class="hra-card__badge" data-hra-badge="cp-runrate">—</span>
+        </div>
+        <div class="hra-chart hra-chart--tall"><canvas data-hra-chart="cp-trend"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Cost summary</h2>
+          <p class="hra-card__sub">Totals across processed runs in the period.</p></div>
+        </div>
+        <div class="hra-stats">
+          <div class="hra-stat">
+            <div class="hra-stat__label">Gross payroll</div>
+            <div class="hra-stat__value" data-hra-stat="cp-gross">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Net paid</div>
+            <div class="hra-stat__value" data-hra-stat="cp-net">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Deductions</div>
+            <div class="hra-stat__value" data-hra-stat="cp-deductions">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Employer PF</div>
+            <div class="hra-stat__value" data-hra-stat="cp-employer">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Annualised cost</div>
+            <div class="hra-stat__value" data-hra-stat="cp-annual">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Overtime spend</div>
+            <div class="hra-stat__value" data-hra-stat="cp-ot">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Salary band distribution</h2>
+            <p class="hra-card__sub">Active employees by monthly CTC band.</p>
+          </div>
+          <span class="hra-card__badge" data-hra-badge="cp-median">—</span>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="cp-bands"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Average CTC by department</h2>
+            <p class="hra-card__sub">Mean monthly cost to company for active staff.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="cp-dept"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Pay by grade</h2>
+            <p class="hra-card__sub">Average CTC down the seniority ladder.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="cp-grade"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Payout status</h2>
+            <p class="hra-card__sub">Payslip settlement for runs in the period.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="cp-payment"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  {# ══ Diversity ═════════════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="diversity">
+    <div class="hra-grid">
+      <div class="hra-card hra-col-2">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Gender representation</h2>
+          <p class="hra-card__sub">Active workforce.</p></div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="dv-gender"></canvas></div>
+        <div class="hra-legend" data-hra-legend="dv-gender"></div>
+      </div>
+
+      <div class="hra-card hra-col-4">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Representation by department</h2>
+            <p class="hra-card__sub">Stacked headcount — the shape of each team.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="dv-dept"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Age profile</h2>
+            <p class="hra-card__sub">Generational balance and succession exposure.</p>
+          </div>
+          <span class="hra-card__badge" data-hra-badge="dv-age">—</span>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="dv-age"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Hiring diversity</h2>
+            <p class="hra-card__sub">Gender split of joiners over the trend window.</p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="dv-hiring"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div>
+            <h2 class="hra-card__title">Mean pay gap by department</h2>
+            <p class="hra-card__sub">
+              Positive = male average CTC is higher. A raw gap reflects role and seniority mix,
+              not necessarily unequal pay for the same job.
+            </p>
+          </div>
+        </div>
+        <div class="hra-chart"><canvas data-hra-chart="dv-gap"></canvas></div>
+      </div>
+
+      <div class="hra-card hra-col-3">
+        <div class="hra-card__head">
+          <div><h2 class="hra-card__title">Equity indicators</h2></div>
+        </div>
+        <div class="hra-stats">
+          <div class="hra-stat">
+            <div class="hra-stat__label">Female representation</div>
+            <div class="hra-stat__value" data-hra-stat="dv-female">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Female in leadership</div>
+            <div class="hra-stat__value" data-hra-stat="dv-lead">—</div>
+            <div class="hra-stat__note"><span data-hra-stat="dv-leaders">—</span> leadership roles</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Org-wide mean pay gap</div>
+            <div class="hra-stat__value" data-hra-stat="dv-gap">—</div>
+          </div>
+          <div class="hra-stat">
+            <div class="hra-stat__label">Average age</div>
+            <div class="hra-stat__value" data-hra-stat="dv-avgage">—</div>
+            <div class="hra-stat__note"><span data-hra-stat="dv-under35">—</span> under 35</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ══ Scorecard ═════════════════════════════════════════════════════ #}
+  <section class="hra-section hra-stack" data-hra-section="scorecard">
+    <div class="hra-card">
+      <div class="hra-card__head">
+        <div>
+          <h2 class="hra-card__title">Department scorecard</h2>
+          <p class="hra-card__sub">
+            Every headline metric per department for {{ filters.label|lower }}.
+            Click a column heading to sort.
+          </p>
+        </div>
+        <span class="hra-card__badge" data-hra-badge="sc-days">—</span>
+      </div>
+      <div class="hra-table-wrap">
+        <table class="hra-table" data-hra-scorecard>
+          <thead>
+            <tr>
+              <th data-sort-key="department">Department</th>
+              <th data-sort-key="opening">Opening</th>
+              <th data-sort-key="headcount">Closing</th>
+              <th data-sort-key="joiners">Joiners</th>
+              <th data-sort-key="leavers">Exits</th>
+              <th data-sort-key="net_change">Net</th>
+              <th data-sort-key="attrition_rate">Attrition %</th>
+              <th data-sort-key="avg_tenure">Avg tenure</th>
+              <th data-sort-key="attendance_rate">Attendance %</th>
+              <th data-sort-key="absenteeism_rate">Absent %</th>
+              <th data-sort-key="avg_ctc">Avg CTC</th>
+              <th data-sort-key="monthly_cost">Monthly cost</th>
+              <th data-sort-key="female_share">Female %</th>
+              <th data-sort-key="on_notice">On notice</th>
+            </tr>
+          </thead>
+          <tbody data-hra-table="scorecard"></tbody>
+          <tfoot data-hra-table="scorecard-total"></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

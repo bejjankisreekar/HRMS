@@ -35,7 +35,7 @@ class GradeForm(forms.ModelForm):
             "status": forms.Select(attrs={"class": _INP}),
             "salary_band_min": forms.NumberInput(attrs={"class": _INP, "step": "0.01"}),
             "salary_band_max": forms.NumberInput(attrs={"class": _INP, "step": "0.01"}),
-            "departments": forms.SelectMultiple(attrs={"class": _INP, "size": 4}),
+            "departments": forms.CheckboxSelectMultiple(attrs={"class": "grd-check"}),
         }
 
     def __init__(self, *args, organization: Organization, instance=None, **kwargs):
@@ -46,7 +46,9 @@ class GradeForm(forms.ModelForm):
         self.fields["reporting_grade"].queryset = grade_qs
         self.fields["parent_grade"].required = False
         self.fields["reporting_grade"].required = False
-        self.fields["departments"].queryset = Department.objects.filter(organization=organization, is_active=True)
+        self.fields["departments"].queryset = Department.objects.filter(
+            organization=organization, is_active=True
+        ).order_by("name")
         if not instance:
             self.fields["status"].initial = GradeStatus.ACTIVE
 
@@ -97,7 +99,7 @@ class CareerPathForm(forms.ModelForm):
             "to_grade": forms.Select(attrs={"class": _INP}),
             "sort_order": forms.NumberInput(attrs={"class": _INP}),
             "requirements": forms.Textarea(attrs={"class": _INP, "rows": 2}),
-            "is_active": forms.CheckboxInput(),
+            "is_active": forms.CheckboxInput(attrs={"class": "grd-check"}),
         }
 
     def __init__(self, *args, organization: Organization, **kwargs):

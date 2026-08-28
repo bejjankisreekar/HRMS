@@ -3,17 +3,18 @@
 <article class="pr-glass p-8 text-slate-900 dark:text-slate-100">
   <div class="text-center">
     <h1 class="text-xl font-bold">Payslip</h1>
-    <p class="text-sm">{{ organization.name }}</p>
+    <p class="mt-1 text-base font-semibold">{{ organization.name }}</p>
     {% if organization.address %}<p class="text-xs text-slate-500">{{ organization.address }}</p>{% endif %}
+    <p class="mt-2 text-sm font-medium">Payslip for the month of {{ payslip.payroll_run.period_label }}</p>
   </div>
 
-  <div class="mt-6 grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
-    <div class="flex"><span class="w-36 text-slate-500">Date of Joining</span><span>: {% if payslip.user.date_of_joining %}{{ payslip.user.date_of_joining|date:"Y-m-d" }}{% else %}{{ payslip.user.date_joined|date:"Y-m-d" }}{% endif %}</span></div>
-    <div class="flex"><span class="w-36 text-slate-500">Employee name</span><span>: {{ payslip.user.display_name }}</span></div>
-    <div class="flex"><span class="w-36 text-slate-500">Pay Period</span><span>: {{ payslip.payroll_run.period_label }}</span></div>
-    <div class="flex"><span class="w-36 text-slate-500">Designation</span><span>: {{ payslip.user.designation|default:"—" }}</span></div>
-    <div class="flex"><span class="w-36 text-slate-500">Worked Days</span><span>: {{ payslip.attendance_days }}</span></div>
-    <div class="flex"><span class="w-36 text-slate-500">Department</span><span>: {{ payslip.user.department_name|default:"—" }}</span></div>
+  <div class="mt-6 grid grid-cols-2 gap-x-10 gap-y-2 text-sm">
+    <div><span class="text-slate-500">Date of Joining</span> : {% if payslip.user.date_of_joining %}{{ payslip.user.date_of_joining|date:"Y-m-d" }}{% else %}{{ payslip.user.date_joined|date:"Y-m-d" }}{% endif %}</div>
+    <div><span class="text-slate-500">Employee name</span> : {{ payslip.user.display_name }}</div>
+    <div><span class="text-slate-500">Pay Period</span> : {{ payslip.payroll_run.period_label }}</div>
+    <div><span class="text-slate-500">Designation</span> : {{ payslip.user.designation|default:"—" }}</div>
+    <div><span class="text-slate-500">Worked Days</span> : {{ payslip.attendance_days }}</div>
+    <div><span class="text-slate-500">Department</span> : {{ payslip.user.department_name|default:"—" }}</div>
   </div>
 
   <table class="mt-6 w-full border border-slate-400 text-sm dark:border-white/30">

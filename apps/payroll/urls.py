@@ -8,6 +8,8 @@ from .deductions_views import (
     PayrollReportView,
     PayrollReportsHubView,
 )
+from .form16_views import Form16DetailView, Form16ListView, Form16PDFView
+from .tax_views import TaxDeclarationReviewView, TaxDeclarationView, TaxProjectionView
 from .views import (
     BulkSalaryStructureView,
     EmployeeFinancialsView,
@@ -44,6 +46,9 @@ urlpatterns = [
     path("runs/", PayrollRunsView.as_view(), name="runs"),
     path("payslips/", PayslipsView.as_view(), name="payslips"),
     path("tax-management/", TaxManagementView.as_view(), name="tax_management"),
+    path("tax-declaration/", TaxDeclarationView.as_view(), name="tax_declaration"),
+    path("tax-declarations/", TaxDeclarationReviewView.as_view(), name="tax_declaration_review"),
+    path("tax-projection/", TaxProjectionView.as_view(), name="tax_projection"),
     path("loans/", LoansAdvancesView.as_view(), name="loans"),
     path("reimbursements/", ReimbursementsView.as_view(), name="reimbursements"),
     path("revisions/", SalaryRevisionsView.as_view(), name="revisions"),
@@ -51,14 +56,11 @@ urlpatterns = [
     # My Salary was merged into the Payroll Dashboard; keep the URL as a redirect
     # so old bookmarks and notification links don't 404.
     path("my-salary/", RedirectView.as_view(pattern_name="payroll:dashboard", query_string=True), name="my_salary"),
-    path(
-        "form16/",
-        PayrollPlaceholderView.as_view(
-            feature_name="Form 16",
-            feature_description="Generate, download, and email Form 16 certificates by financial year — coming in a future release.",
-        ),
-        name="form16",
-    ),
+    path("form16/", Form16ListView.as_view(), name="form16"),
+    path("form16/me/", Form16DetailView.as_view(), name="form16_mine"),
+    path("form16/me/pdf/", Form16PDFView.as_view(), name="form16_mine_pdf"),
+    path("form16/<uuid:pk>/", Form16DetailView.as_view(), name="form16_detail"),
+    path("form16/<uuid:pk>/pdf/", Form16PDFView.as_view(), name="form16_pdf"),
     path(
         "bonuses/",
         PayrollPlaceholderView.as_view(

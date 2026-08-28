@@ -61,7 +61,6 @@ urlpatterns = [
     path("", include("apps.lifecycle.urls")),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("documents/", include("apps.documents.urls")),
     path("api/team/", include("apps.team.urls")),
     path("api/payroll/", include("apps.payroll.api_urls")),
     path("api/leaves/", include("apps.leaves.api_urls")),

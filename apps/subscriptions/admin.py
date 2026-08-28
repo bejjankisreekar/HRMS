@@ -73,7 +73,23 @@ class PageDefinitionAdmin(admin.ModelAdmin):
 
 @admin.register(NavigationItem)
 class NavigationItemAdmin(admin.ModelAdmin):
-    list_display = ("label", "plan", "audience", "sort_order", "is_visible")
+    """The live source of left-nav order. Edit ``sort_order`` inline and save."""
+
+    list_display = ("sort_order", "label", "audience", "plan", "feature_key", "url_name", "is_visible")
+    list_display_links = ("label",)
+    list_editable = ("sort_order", "is_visible")
+    list_filter = ("audience", "plan", "is_visible")
+    search_fields = ("label", "feature_key", "url_name")
+    ordering = ("audience", "sort_order", "label")
+    list_per_page = 100
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # Nav is cached per org — without this the new order only appears once the
+        # cache expires.
+        from apps.subscriptions.services.feature_control import invalidate_org_entitlements_for_all
+
+        invalidate_org_entitlements_for_all()
 
 
 @admin.register(OrganizationFeatureOverride)

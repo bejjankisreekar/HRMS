@@ -24,6 +24,7 @@ from apps.subscriptions.org_feature_views import OrganizationFeatureControlView,
 from apps.subscriptions.plan_matrix_views import LegacyFeatureControlRedirectView
 from apps.subscriptions.mixins import UpgradeRequiredView
 from .analytics_views import AttendanceReportLegacyRedirectView, AnalyticsDashboardView, AnalyticsDataView
+from .hr_analytics_views import HRAnalyticsView, HRAnalyticsDataView
 from .digital_register_views import DigitalRegisterView, DigitalRegisterDataView
 from .department_views import DepartmentManageView
 from .topnav_views import (
@@ -215,6 +216,8 @@ urlpatterns = [
     path("attendance/report/", AttendanceReportLegacyRedirectView.as_view(), name="attendance_report"),
     path("analytics/", AnalyticsDashboardView.as_view(), name="analytics"),
     path("analytics/data/", AnalyticsDataView.as_view(), name="analytics_data"),
+    path("hr-analytics/", HRAnalyticsView.as_view(), name="hr_analytics"),
+    path("hr-analytics/data/", HRAnalyticsDataView.as_view(), name="hr_analytics_data"),
     path("attendance/register/", DigitalRegisterView.as_view(), name="digital_register"),
     path("attendance/register/data/", DigitalRegisterDataView.as_view(), name="digital_register_data"),
     path("attendance/shifts/", AttendanceShiftsView.as_view(), name="attendance_shifts"),

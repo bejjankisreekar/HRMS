@@ -1,4 +1,4 @@
-"""Grade hierarchy tree and analytics."""
+"""Grade hierarchy trees."""
 
 from __future__ import annotations
 
@@ -46,59 +46,6 @@ def build_hierarchy_context(organization: Organization) -> dict:
         "employee_tree": trees.get(GradeCategory.EMPLOYEE, []),
         "management_tree": trees.get(GradeCategory.MANAGEMENT, []),
         "all_trees": trees,
-    }
-
-
-def build_analytics_context(organization: Organization) -> dict:
-    grades = Grade.objects.filter(organization=organization, status=GradeStatus.ACTIVE)
-    by_grade = (
-        User.objects.filter(organization=organization, job_grade__isnull=False)
-        .values("job_grade__name", "job_grade__category")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
-    by_dept = (
-        User.objects.filter(organization=organization)
-        .values("department__name")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:12]
-    )
-    category_dist = (
-        grades.values("category")
-        .annotate(count=Count("id"))
-        .order_by("category")
-    )
-    promotion_count = CareerPathStep.objects.filter(organization=organization, is_active=True).count()
-    designation_count = Designation.objects.filter(organization=organization, status=GradeStatus.ACTIVE).count()
-
-    salary_by_grade = []
-    for g in grades.filter(salary_band_min__isnull=False)[:10]:
-        members = User.objects.filter(organization=organization, job_grade=g).count()
-        salary_by_grade.append(
-            {
-                "name": g.name,
-                "min": float(g.salary_band_min or 0),
-                "max": float(g.salary_band_max or 0),
-                "members": members,
-            }
-        )
-
-    return {
-        "grade_distribution": list(by_grade),
-        "dept_distribution": [{"name": r["department__name"] or "Unassigned", "count": r["count"]} for r in by_dept],
-        "category_chart": {
-            "labels": [GradeCategory(c["category"]).label for c in category_dist],
-            "values": [c["count"] for c in category_dist],
-        },
-        "employee_chart": {
-            "labels": [r["job_grade__name"] for r in by_grade[:10]],
-            "values": [r["count"] for r in by_grade[:10]],
-        },
-        "promotion_count": promotion_count,
-        "designation_count": designation_count,
-        "total_grades": grades.count(),
-        "mapped_employees": User.objects.filter(organization=organization, job_grade__isnull=False).count(),
-        "salary_by_grade": salary_by_grade,
     }
 
 

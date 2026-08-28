@@ -727,7 +727,8 @@ class PayrollNewPagesTests(TestCase):
         self.client.post(reverse("payroll:runs"), {"action": "run_payroll", "year": YEAR, "month": MONTH})
         resp = self.client.get(reverse("payroll:runs"), {"export": "bank", "year": YEAR, "month": MONTH})
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("text/csv", resp["Content-Type"])
+        # The bank file is a formatted .xlsx workbook (see _export_bank_file), not CSV.
+        self.assertIn("spreadsheetml.sheet", resp["Content-Type"])
 
     def test_payslip_pdf_download(self):
         self.client.force_login(self.admin)
@@ -824,3 +825,8 @@ class PayrollNewPagesTests(TestCase):
         )
         structure.refresh_from_db()
         self.assertEqual(structure.grade, grade)
+
+
+# Tax engine, declarations and Form 16 live in their own module for size;
+# re-exported here so `manage.py test apps.payroll` picks them up.
+from .tax_tests import *  # noqa: F401,F403

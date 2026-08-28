@@ -1,4 +1,9 @@
+import json
+import os
+import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 from decouple import Csv, config
 
@@ -7,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 SECRET_KEY = config("DJANGO_SECRET_KEY", default="change-me-in-env")
-DEBUG = config("DJANGO_DEBUG", cast=bool, default=True)
+DEBUG = config("DJANGO_DEBUG", cast=bool, default=False)
 
 # Schema-per-tenant request routing. OFF until every org has been migrated with
 # `manage.py provision_tenant --all`. When True, each request resolves operational
@@ -23,10 +28,61 @@ CSRF_TRUSTED_ORIGINS = config(
 
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
-# Super Admin bootstrap (created automatically on first migrate)
-SUPERADMIN_EMAIL = config("SUPERADMIN_EMAIL", default="superadmin@hrms.com")
-SUPERADMIN_PASSWORD = config("SUPERADMIN_PASSWORD", default="Admin@123")
-SUPERADMIN_USERNAME = config("SUPERADMIN_USERNAME", default="superadmin")
+# ---------------------------------------------------------------------------
+# config.json - file-based settings, sitting under the environment.
+#
+# Precedence: environment variable > config.json > no value.
+# Env always wins, so deployments that inject env vars (Render, Docker) work
+# without this file ever existing. See config.json.example for the shape.
+# ---------------------------------------------------------------------------
+
+CONFIG_JSON_PATH = Path(config("CONFIG_JSON", default=str(BASE_DIR / "config.json")))
+
+
+def _load_config_json(path: Path) -> dict:
+    """Read config.json. Missing is fine; malformed is not - a config file that
+    is silently ignored because of a stray comma is worse than a loud failure."""
+    if not path.is_file():
+        return {}
+    try:
+        with path.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+    except json.JSONDecodeError as exc:
+        raise ImproperlyConfigured(f"{path} is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ImproperlyConfigured(f"{path} must contain a JSON object at the top level.")
+    return data
+
+
+CONFIG_JSON = _load_config_json(CONFIG_JSON_PATH)
+
+
+def json_setting(*keys: str, env: str | None = None, default=None):
+    """Look up a dotted path in config.json, with the environment overriding it.
+
+    json_setting("superadmin", "email", env="SUPERADMIN_EMAIL")
+    """
+    if env:
+        from_env = config(env, default=None)
+        if from_env not in (None, ""):
+            return from_env
+    node = CONFIG_JSON
+    for key in keys:
+        if not isinstance(node, dict) or key not in node:
+            return default
+        node = node[key]
+    return default if node in (None, "") else node
+
+
+# Super Admin bootstrap (created automatically on first migrate).
+# NOTE: there is deliberately no fallback password here. When none is supplied,
+# `apps.accounts.signals.ensure_default_superadmin` returns without creating
+# anything - far safer than booting production with a publicly known password.
+SUPERADMIN_EMAIL = json_setting("superadmin", "email", env="SUPERADMIN_EMAIL")
+SUPERADMIN_PASSWORD = json_setting("superadmin", "password", env="SUPERADMIN_PASSWORD")
+SUPERADMIN_USERNAME = json_setting(
+    "superadmin", "username", env="SUPERADMIN_USERNAME", default="superadmin"
+)
 
 # Application definition
 
@@ -91,6 +147,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.dashboard.context_processors.hrms_sidebar',
+                'apps.dashboard.context_processors.plan_identity',
             ],
         },
     },
@@ -159,7 +216,10 @@ STORAGES = {
 }
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Uploads (payslip PDFs, HR letters, attachments, logos) MUST live on storage that
+# survives a redeploy. Containers have ephemeral filesystems, so point MEDIA_ROOT at
+# a mounted persistent disk in production - see the disk mount in render.yaml.
+MEDIA_ROOT = Path(config("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -198,3 +258,131 @@ DEFAULT_FROM_EMAIL = config(
     default="HRMS Suite <sreekarbejjanki@gmail.com>",
 )
 SALES_INBOX_EMAIL = config("SALES_INBOX_EMAIL", default=CONTACT_INBOX_EMAIL)
+
+
+# ---------------------------------------------------------------------------
+# Security hardening
+#
+# These stay off while DEBUG is on so local http://127.0.0.1 development works,
+# and switch on automatically in production. SECURE_PROXY_SSL_HEADER is required
+# behind a TLS-terminating proxy (Render, Heroku, nginx) - without it Django sees
+# plain HTTP and SECURE_SSL_REDIRECT would loop forever.
+# ---------------------------------------------------------------------------
+
+# Django's test runner forces DEBUG=False, so without this every test-client
+# request would be answered with a 301 to https:// and the suite would fail in CI
+# (but pass locally, where .env sets DEBUG=True) - a genuinely baffling failure.
+TESTING = "test" in sys.argv or "PYTEST_CURRENT_TEST" in os.environ
+
+_SSL_ENABLED = config("DJANGO_SECURE_SSL", cast=bool, default=not DEBUG and not TESTING)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = _SSL_ENABLED
+SESSION_COOKIE_SECURE = _SSL_ENABLED
+CSRF_COOKIE_SECURE = _SSL_ENABLED
+
+# HSTS tells browsers "never use http for this domain again", and is cached hard.
+# Start at 0 and raise deliberately once HTTPS is confirmed working on the domain;
+# a premature long max-age locks users out of a site that cannot serve TLS yet.
+SECURE_HSTS_SECONDS = config("DJANGO_HSTS_SECONDS", cast=int, default=0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config("DJANGO_HSTS_SUBDOMAINS", cast=bool, default=False)
+SECURE_HSTS_PRELOAD = config("DJANGO_HSTS_PRELOAD", cast=bool, default=False)
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = config(
+    "SESSION_EXPIRE_AT_BROWSER_CLOSE", cast=bool, default=False
+)
+SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", cast=int, default=60 * 60 * 12)
+
+# Reuse database connections instead of opening one per request. Keep this below
+# the provider's idle-connection timeout.
+DATABASES["default"]["CONN_MAX_AGE"] = config("DB_CONN_MAX_AGE", cast=int, default=60)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+
+
+# ---------------------------------------------------------------------------
+# Logging - without this, application errors surface only as a 500 page.
+# ---------------------------------------------------------------------------
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {process:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": config("DJANGO_LOG_LEVEL", default="INFO"),
+    },
+    "loggers": {
+        # Unhandled exceptions in views. Django suppresses these when DEBUG is on.
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Fail fast on an unsafe production configuration.
+#
+# A missing env var should stop the deploy, not silently downgrade security.
+# Every check below is skipped while DEBUG is on so local development is
+# unaffected. Set DJANGO_ALLOW_UNSAFE_CONFIG=True to bypass (don't).
+# ---------------------------------------------------------------------------
+
+if not DEBUG and not TESTING and not config(
+    "DJANGO_ALLOW_UNSAFE_CONFIG", cast=bool, default=False
+):
+    _unsafe = []
+
+    if SECRET_KEY in ("", "change-me-in-env") or len(SECRET_KEY) < 50:
+        _unsafe.append(
+            "DJANGO_SECRET_KEY is unset, still the placeholder, or shorter than 50 "
+            "characters. Generate one with: "
+            "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+
+    if not ALLOWED_HOSTS or ALLOWED_HOSTS == ["localhost", "127.0.0.1"]:
+        _unsafe.append(
+            "DJANGO_ALLOWED_HOSTS is unset or still the local default. Set it to the "
+            "real hostname(s) this site is served from."
+        )
+
+    if DATABASES["default"].get("PASSWORD") in ("", "postgres"):
+        _unsafe.append("DB_PASSWORD is unset or the default 'postgres'.")
+
+    # A blank superadmin password is a supported state - it means "do not
+    # auto-create a Super Admin". A weak one is not.
+    if SUPERADMIN_PASSWORD and len(str(SUPERADMIN_PASSWORD)) < 12:
+        _unsafe.append(
+            "The configured Super Admin password is shorter than 12 characters. "
+            "Set superadmin.password in config.json, or SUPERADMIN_PASSWORD in the "
+            "environment, to something strong - this account can reach every tenant."
+        )
+
+    if _unsafe:
+        raise ImproperlyConfigured(
+            "Refusing to start with an unsafe production configuration:\n  - "
+            + "\n  - ".join(_unsafe)
+        )

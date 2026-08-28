@@ -1,0 +1,116 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Form 16 · Payroll{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static_v 'payroll.css' %}">
+<link rel="stylesheet" href="{% static_v 'tax-declaration.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% url 'payroll:dashboard' as payroll_url %}
+  {% include "dashboard/_back_button.html" with back_url=payroll_url back_label="Payroll" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tx-page">
+  <header class="tx-hero">
+    <div>
+      <p class="tx-eyebrow">FY {{ fy_label }} · Assessment year {{ assessment_year }}</p>
+      <h1 class="tx-title">Form 16</h1>
+      <p class="tx-subtitle">Annual TDS certificates, built from payslips actually processed this financial year.</p>
+    </div>
+    <form method="get" class="tx-fy-form">
+      <select name="fy" class="tx-select" onchange="this.form.submit()">
+        {% for year, label in fy_choices %}
+        <option value="{{ year }}" {% if fy_start.year == year %}selected{% endif %}>FY {{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </header>
+
+  {% if tan_missing %}
+  <div class="tx-note">
+    <strong>No TAN configured.</strong> A Form 16 is not valid without the employer's TAN.
+    Add it in <a href="{{ settings_url }}">Payroll settings</a> before issuing certificates.
+  </div>
+  {% endif %}
+
+  <div class="tx-note tx-note--info">
+    <strong>Part A comes from TRACES.</strong> The quarterly figures below are your deduction records, for reconciling against the Part A you download from the income-tax portal. Part B — the salary annexure — is prepared here in full.
+  </div>
+
+  <div class="tx-kpis">
+    <div class="tx-kpi"><span>Employees</span><strong>{{ rows|length }}</strong></div>
+    <div class="tx-kpi"><span>Gross paid</span><strong>₹{{ totals.gross|floatformat:0|intcomma }}</strong></div>
+    <div class="tx-kpi"><span>TDS deducted</span><strong>₹{{ totals.tds|floatformat:0|intcomma }}</strong></div>
+    <div class="tx-kpi tx-kpi--good"><span>Certificates issued</span><strong>{{ issued_count }}</strong></div>
+  </div>
+
+  <section class="tx-panel">
+    <div class="tx-panel-head">
+      <h2 class="tx-panel__title">Certificate register</h2>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="fy" value="{{ fy_start.year }}">
+        <button type="submit" name="action" value="issue_all" class="tx-btn tx-btn--primary">Issue all</button>
+      </form>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="tx-table">
+        <thead>
+          <tr>
+            <th>Employee</th><th>PAN</th><th>Months</th><th>Gross</th><th>Taxable</th>
+            <th>Tax due</th><th>TDS deducted</th><th>Balance</th><th>Certificate</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><strong>{{ row.user.display_name }}</strong></td>
+            <td>{% if row.data.employee.pan %}{{ row.data.employee.pan }}{% else %}<span class="tx-warn">Missing</span>{% endif %}</td>
+            <td>{{ row.data.months_paid }}{% if not row.data.is_complete %} <span class="tx-muted">/12</span>{% endif %}</td>
+            <td>₹{{ row.data.gross_salary|floatformat:0|intcomma }}</td>
+            <td>₹{{ row.data.taxable_income|floatformat:0|intcomma }}</td>
+            <td>₹{{ row.data.total_tax|floatformat:0|intcomma }}{% if row.data.config_estimated %} <span class="tx-warn" title="No slabs configured for this year — estimated">*</span>{% endif %}</td>
+            <td>₹{{ row.data.tds_deducted|floatformat:0|intcomma }}</td>
+            <td>
+              {% if row.data.balance_payable > 0 %}
+              <span class="tx-warn">₹{{ row.data.balance_payable|floatformat:0|intcomma }} short</span>
+              {% elif row.data.balance_payable < 0 %}
+              <span class="tx-ok">₹{{ row.data.balance_payable|floatformat:0|intcomma }}</span>
+              {% else %}
+              <span class="tx-ok">Settled</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.certificate %}
+              <span class="tx-status tx-status--approved">{{ row.certificate.certificate_number }}</span>
+              {% else %}
+              <span class="tx-muted">Not issued</span>
+              {% endif %}
+            </td>
+            <td class="tx-actions-cell">
+              <div class="tx-row-form">
+                <a href="{% url 'payroll:form16_detail' row.user.pk %}?fy={{ fy_start.year }}" class="tx-btn tx-btn--tiny tx-btn--soft">View</a>
+                <a href="{% url 'payroll:form16_pdf' row.user.pk %}?fy={{ fy_start.year }}" class="tx-btn tx-btn--tiny tx-btn--soft">PDF</a>
+                <form method="post">{% csrf_token %}
+                  <input type="hidden" name="fy" value="{{ fy_start.year }}">
+                  <input type="hidden" name="user_id" value="{{ row.user.pk }}">
+                  {% if row.certificate %}
+                  <button type="submit" name="action" value="revoke" class="tx-btn tx-btn--tiny tx-btn--reject">Withdraw</button>
+                  {% else %}
+                  <button type="submit" name="action" value="issue" class="tx-btn tx-btn--tiny tx-btn--approve">Issue</button>
+                  {% endif %}
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="tx-empty">No payroll was processed in FY {{ fy_label }}, so there is nothing to certify.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -17,7 +17,14 @@ from apps.dashboard.staff_import import (
     import_rows,
     parse_csv,
 )
+from django.utils import timezone
+
+import json
+
+from apps.attendance.models import AttendanceReportAudit
+from apps.dashboard import hr_analytics as HA
 from apps.grades.models import Designation, GradeStatus
+from apps.lifecycle.models import OffboardingWorkflow
 from apps.organizations.models import Department, Organization
 
 
@@ -647,3 +654,205 @@ class EmployeeDirectoryTests(TestCase):
         self.assertIn("data-staff-cards", body)   # card view container
         self.assertIn("data-view-toggle", body)    # table/card toggle
         self.assertIn("data-bulk-bar", body)       # bulk action bar
+
+
+class HRAnalyticsTests(TestCase):
+    """HR Analytics engine, views, permissions and exports."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from datetime import date, timedelta
+
+        cls.today = timezone.localdate()
+        cls.org = _make_org("Analytics Co", "ANL1")
+        cls.other_org = _make_org("Rival Co", "ANL2")
+
+        cls.eng = Department.objects.create(organization=cls.org, name="Engineering")
+        cls.ops = Department.objects.create(organization=cls.org, name="Operations")
+
+        cls.admin = _make_user(cls.org, "admin@analytics.co", User.Role.ADMIN)
+        cls.hr = _make_user(cls.org, "hr@analytics.co", User.Role.HR,
+                            department=cls.eng, date_of_joining=cls.today - timedelta(days=900))
+        cls.employee = _make_user(cls.org, "emp@analytics.co", User.Role.EMPLOYEE)
+
+        # Three engineers, one of whom has left, plus one operations hire.
+        cls.staying = _make_user(
+            cls.org, "stay@analytics.co", User.Role.EMPLOYEE,
+            department=cls.eng, gender=User.Gender.FEMALE,
+            employment_type=User.EmploymentType.FULL_TIME,
+            date_of_joining=cls.today - timedelta(days=800),
+            date_of_birth=date(1990, 5, 1), reporting_manager=cls.hr,
+        )
+        cls.recent = _make_user(
+            cls.org, "recent@analytics.co", User.Role.EMPLOYEE,
+            department=cls.eng, gender=User.Gender.MALE,
+            employment_type=User.EmploymentType.FULL_TIME,
+            date_of_joining=cls.today - timedelta(days=40),
+            reporting_manager=cls.hr,
+        )
+        cls.leaver = _make_user(
+            cls.org, "gone@analytics.co", User.Role.EMPLOYEE,
+            department=cls.ops, gender=User.Gender.MALE,
+            date_of_joining=cls.today - timedelta(days=200), is_active=False,
+        )
+        OffboardingWorkflow.objects.create(
+            organization=cls.org, user=cls.leaver,
+            last_working_day=cls.today - timedelta(days=20),
+            resignation_reason=OffboardingWorkflow.ResignationReason.BETTER_OPPORTUNITY,
+            status=OffboardingWorkflow.Status.COMPLETED,
+        )
+        # Someone else's employee must never leak into this org's numbers.
+        _make_user(cls.other_org, "outsider@rival.co", User.Role.EMPLOYEE)
+
+    def _filters(self, months_back=11, **kwargs):
+        from datetime import timedelta
+
+        start = (self.today - timedelta(days=30 * months_back)).replace(day=1)
+        return HA.HRFilters(date_from=start, date_to=self.today, period="last_12m", **kwargs)
+
+    # ── engine ────────────────────────────────────────────────────────────
+
+    def test_workforce_excludes_other_orgs_and_admins(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        emails = {r.name for r in wf.rows}
+        self.assertEqual(len(wf.rows), 5)  # hr + 3 employees + the leaver's peer
+        self.assertNotIn("outsider@rival.co", emails)
+
+    def test_headcount_excludes_people_who_have_left(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        active_ids = {r.id for r in wf.active(self.today)}
+        self.assertNotIn(str(self.leaver.pk), active_ids)
+        self.assertIn(str(self.staying.pk), active_ids)
+
+    def test_headcount_is_measured_as_of_a_date(self):
+        from datetime import timedelta
+
+        wf = HA.load_workforce(self.org, self._filters())
+        before_exit = self.today - timedelta(days=30)
+        self.assertIn(str(self.leaver.pk), {r.id for r in wf.active(before_exit)})
+        self.assertNotIn(str(self.leaver.pk), {r.id for r in wf.active(self.today)})
+        # And someone hired after that date is not counted retrospectively.
+        long_ago = self.today - timedelta(days=500)
+        self.assertNotIn(str(self.recent.pk), {r.id for r in wf.active(long_ago)})
+
+    def test_attrition_rate_and_annualisation(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        rate = wf.attrition_rate(wf.filters.date_from, wf.filters.date_to)
+        annual = wf.attrition_rate(wf.filters.date_from, wf.filters.date_to, annualised=True)
+        self.assertGreater(rate, 0)
+        self.assertGreaterEqual(annual, rate)
+
+    def test_every_section_builds_and_is_json_serialisable(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        for section in HA.SECTIONS:
+            with self.subTest(section=section):
+                data = HA.section_data(wf, section)
+                self.assertIsInstance(data, dict)
+                json.dumps(data)  # must survive JsonResponse
+
+    def test_overview_kpis_cover_the_headline_metrics(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        keys = {k["key"] for k in HA.section_data(wf, "overview")["kpis"]}
+        self.assertTrue(
+            {"headcount", "attrition", "retention", "hires", "cost", "diversity"} <= keys
+        )
+
+    def test_attrition_section_records_the_separation(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        data = HA.section_data(wf, "attrition")
+        self.assertEqual(data["kpis"]["separations"], 1)
+        self.assertEqual(data["recent"][0]["reason"], "Better opportunity")
+        self.assertEqual(data["kpis"]["voluntary_share"], 100.0)
+
+    def test_scorecard_has_one_row_per_department(self):
+        wf = HA.load_workforce(self.org, self._filters())
+        rows = HA.section_data(wf, "scorecard")["rows"]
+        names = {r["department"] for r in rows}
+        self.assertIn("Engineering", names)
+        self.assertIn("Operations", names)
+
+    def test_department_filter_narrows_the_population(self):
+        filters = self._filters(department=str(self.eng.pk))
+        wf = HA.load_workforce(self.org, filters)
+        self.assertTrue(all(r.department == "Engineering" for r in wf.rows))
+
+    def test_zero_denominators_do_not_raise(self):
+        empty_org = _make_org("Empty Co", "ANL3")
+        wf = HA.load_workforce(empty_org, self._filters())
+        self.assertEqual(wf.headcount(), 0)
+        for section in HA.SECTIONS:
+            with self.subTest(section=section):
+                json.dumps(HA.section_data(wf, section))
+
+    def test_period_presets_resolve(self):
+        for period, _label in HA.PERIOD_CHOICES:
+            if period == "custom":
+                continue
+            with self.subTest(period=period):
+                resolved = HA.resolve_period(period, self.today)
+                if period == "fy":
+                    self.assertIsNone(resolved)  # needs an FY dict
+                    continue
+                self.assertIsNotNone(resolved)
+                self.assertLessEqual(resolved[0], resolved[1])
+
+    # ── views ─────────────────────────────────────────────────────────────
+
+    def test_page_renders_for_admin(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("dashboard:hr_analytics"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "HR Analytics")
+
+    def test_page_renders_for_hr(self):
+        self.client.force_login(self.hr)
+        self.assertEqual(
+            self.client.get(reverse("dashboard:hr_analytics")).status_code, 200
+        )
+
+    def test_employees_are_redirected_away(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse("dashboard:hr_analytics"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_data_endpoint_returns_each_section(self):
+        self.client.force_login(self.admin)
+        for section in HA.SECTIONS:
+            with self.subTest(section=section):
+                response = self.client.get(
+                    reverse("dashboard:hr_analytics_data"), {"section": section}
+                )
+                self.assertEqual(response.status_code, 200)
+                payload = response.json()
+                self.assertEqual(payload["section"], section)
+                self.assertIn("filters", payload["data"])
+
+    def test_data_endpoint_rejects_an_unknown_section(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            reverse("dashboard:hr_analytics_data"), {"section": "nope"}
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_csv_export(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("dashboard:hr_analytics"), {"export": "csv"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("Engineering", response.content.decode())
+
+    def test_xlsx_export(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("dashboard:hr_analytics"), {"export": "xlsx"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("spreadsheetml", response["Content-Type"])
+        self.assertTrue(response.content.startswith(b"PK"))
+
+    def test_view_is_audited(self):
+        self.client.force_login(self.admin)
+        self.client.get(reverse("dashboard:hr_analytics"))
+        self.assertTrue(
+            AttendanceReportAudit.objects.filter(
+                organization=self.org, report="hr_analytics"
+            ).exists()
+        )

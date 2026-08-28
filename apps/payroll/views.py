@@ -1325,18 +1325,36 @@ class PayrollSettingsView(PlanFeatureRequiredMixin, AdminRequiredMixin, Template
         org = request.user.organization
         settings_obj, _ = PayrollSettings.objects.get_or_create(organization=org)
         form = PayrollSettingsForm(request.POST, instance=settings_obj, organization=org)
+
+        # The LOP policy lives on Organization, not on PayrollSettings, and is
+        # validated on its own. Apply it independently of the form: it decides how
+        # unmarked days are paid, and silently dropping it because an unrelated
+        # PayrollSettings field failed validation loses a pay-affecting change.
+        policy = request.POST.get("payroll_lop_policy")
+        policy_saved = False
+        if policy is not None:
+            if policy in Organization.PayrollLopPolicy.values:
+                if org.payroll_lop_policy != policy:
+                    org.payroll_lop_policy = policy
+                    org.save(update_fields=["payroll_lop_policy", "updated_at"])
+                policy_saved = True
+            else:
+                messages.error(request, "Invalid payroll pay policy.")
+
         if form.is_valid():
             form.save()
-            policy = request.POST.get("payroll_lop_policy")
-            if policy in Organization.PayrollLopPolicy.values:
-                org.payroll_lop_policy = policy
-                org.save(update_fields=["payroll_lop_policy", "updated_at"])
             record_payroll_action(
                 org, request.user, PayrollAuditLog.Action.SETTINGS_UPDATED,
                 "Payroll settings updated", request=request,
             )
             messages.success(request, "Payroll settings saved.")
         else:
+            if policy_saved:
+                record_payroll_action(
+                    org, request.user, PayrollAuditLog.Action.SETTINGS_UPDATED,
+                    "Payroll pay policy updated", request=request,
+                )
+                messages.success(request, "Payroll pay policy saved.")
             messages.error(request, "Please correct the errors below.")
         return redirect("payroll:settings")
 

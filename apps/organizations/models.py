@@ -3,6 +3,8 @@ import uuid
 
 from django.db import models
 
+from apps.subscriptions import plan_features as _plan_tiers
+
 _MONTH_CHOICES = [(i, _calendar.month_name[i]) for i in range(1, 13)]
 
 
@@ -41,9 +43,12 @@ class Organization(models.Model):
         ENTERPRISE = "ENTERPRISE", "Enterprise"
 
     class SubscriptionPlan(models.TextChoices):
-        BASIC = "BASIC", "Basic"
-        PROFESSIONAL = "PROFESSIONAL", "Professional"
-        GROWTH = "GROWTH", "Growth"
+        # Labels come from apps/subscriptions/plan_features.py so renaming a plan
+        # there renames it here too. Values are the stored column data — changing
+        # one of those needs a data migration.
+        BASIC = "BASIC", _plan_tiers.BASIC.name
+        PROFESSIONAL = "PROFESSIONAL", _plan_tiers.PROFESSIONAL.name
+        GROWTH = "GROWTH", _plan_tiers.GROWTH.name
 
     class OnboardingStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"

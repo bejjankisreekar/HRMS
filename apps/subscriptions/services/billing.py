@@ -23,6 +23,7 @@ from apps.subscriptions.models import (
     Subscription,
     SubscriptionStatus,
 )
+from apps.subscriptions import plan_features
 from apps.subscriptions.plan_defaults import get_default_plan
 from apps.subscriptions.services.feature_control import invalidate_org_entitlements
 from apps.subscriptions.services.audit import log_financial_action
@@ -52,7 +53,7 @@ def get_or_create_subscription(org: Organization) -> Subscription:
         return sub
     plan = Plan.objects.filter(is_active=True).order_by("sort_order").first()
     if not plan:
-        basic = get_default_plan("basic")
+        basic = get_default_plan(plan_features.BASIC_SLUG)
         billing_settings = BillingSettings.get_solo()
         plan = Plan.objects.create(
             slug=basic["slug"],
@@ -114,23 +115,13 @@ def upgrade_plan(*, org: Organization, plan: Plan, actor, billing_interval: str 
 
 
 def _map_plan_to_org_field(slug: str) -> str:
-    slug_map = {
-        "basic": Organization.SubscriptionPlan.BASIC,
-        "essential": Organization.SubscriptionPlan.BASIC,
-        "professional": Organization.SubscriptionPlan.PROFESSIONAL,
-        "growth": Organization.SubscriptionPlan.GROWTH,
-        "business": Organization.SubscriptionPlan.GROWTH,
-    }
-    return slug_map.get(slug.lower(), Organization.SubscriptionPlan.BASIC)
+    """Plan slug → Organization.subscription_plan. Historic slugs ("essential",
+    "business") resolve via the tier aliases in plan_features."""
+    return plan_features.slug_to_enum(slug)
 
 
 def _org_field_to_plan_slug(subscription_plan: str) -> str:
-    mapping = {
-        Organization.SubscriptionPlan.BASIC: "basic",
-        Organization.SubscriptionPlan.PROFESSIONAL: "professional",
-        Organization.SubscriptionPlan.GROWTH: "growth",
-    }
-    return mapping.get(subscription_plan, "basic")
+    return plan_features.enum_to_slug(subscription_plan)
 
 
 def plan_for_org_subscription_field(org: Organization) -> Plan | None:
@@ -388,8 +379,8 @@ def organization_billing_rows(filters: dict | None = None) -> list[dict]:
         qs = qs.filter(is_active=False)
     elif status_filter == "past_due":
         qs = qs.filter(subscription_status=Organization.SubscriptionStatus.PAST_DUE)
-    elif status_filter == "growth":
-        qs = qs.filter(subscription__plan__slug="growth")
+    elif status_filter == plan_features.GROWTH_SLUG:
+        qs = qs.filter(subscription__plan__slug=plan_features.GROWTH_SLUG)
 
     plan_filter = filters.get("plan")
     if plan_filter:

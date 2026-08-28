@@ -191,7 +191,13 @@ def payslips_for(viewer: User, filters: DeductionFilters):
     return qs.select_related(
         "user", "user__department", "payroll_run"
     ).prefetch_related("lines__component").order_by(
-        "-payroll_run__year", "-payroll_run__month", "user__first_name"
+        # first_name alone is not a unique key - employees share first names, and
+        # it is blank on records that never captured one. Without a unique final
+        # tie-break Postgres is free to return tied rows in any order, so the
+        # statutory reports and their CSV/Excel exports come out in a different
+        # order run to run and cannot be diffed against a previous filing.
+        "-payroll_run__year", "-payroll_run__month",
+        "user__first_name", "user__last_name", "user_id",
     )
 
 

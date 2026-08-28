@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from apps.subscriptions import plan_features
 from apps.subscriptions.models import (
     AddOnCatalog,
     BillingSettings,
@@ -13,7 +14,7 @@ from apps.subscriptions.models import (
 )
 
 # Plan slug shown as "Most popular" on marketing site
-FEATURED_PLAN_SLUG = "growth"
+FEATURED_PLAN_SLUG = plan_features.FEATURED_TIER.slug
 
 
 def _plan_enabled_map() -> dict:
@@ -118,12 +119,11 @@ def _employee_limit_label(plan: Plan) -> str:
 
 
 def _plan_tagline(plan: Plan) -> str:
-    taglines = {
-        "basic": "Basic — small teams",
-        "professional": "Professional — growing companies",
-        "growth": "Growth — scaling organizations",
-    }
-    return taglines.get(plan.slug, plan.name)
+    """e.g. "Growth — scaling organizations", built from plan_features."""
+    tier = plan_features.get_tier(plan.slug)
+    if not tier:
+        return plan.name
+    return f"{tier.name} — {tier.tagline}"
 
 
 def plan_to_marketing_card(plan: Plan, enabled_map: dict) -> dict:
@@ -252,7 +252,7 @@ _TRUST_ITEMS = [
     ("Secure payments", "PCI-compliant payment processing via Razorpay / Stripe.", "shield-check"),
     ("Cloud hosting", "Hosted on secure cloud infrastructure with daily backups.", "cloud"),
     ("Data privacy", "Tenant-isolated data with encryption at rest and in transit.", "lock"),
-    ("Uptime guarantee", "99.9% uptime SLA on Growth plan.", "activity"),
+    ("Uptime guarantee", f"99.9% uptime SLA on {plan_features.GROWTH.name} plan.", "activity"),
 ]
 
 _PRICING_TESTIMONIALS = [
@@ -262,7 +262,7 @@ _PRICING_TESTIMONIALS = [
         "role": "HR Director, NovaTech",
     },
     {
-        "quote": "We started on Basic and upgraded to Growth as we scaled — predictable costs throughout.",
+        "quote": f"We started on {plan_features.BASIC.name} and upgraded to {plan_features.GROWTH.name} as we scaled — predictable costs throughout.",
         "name": "Michael Chen",
         "role": "Finance Lead, GreenLeaf",
     },

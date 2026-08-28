@@ -1,0 +1,141 @@
+{% extends "dashboard/_shell.html" %}
+{% load static static_extras humanize %}
+{% block title %}Form 16 · {{ f16.employee.name }}{% endblock %}
+{% block dashboard_extra_head %}
+<link rel="stylesheet" href="{% static_v 'payroll.css' %}">
+<link rel="stylesheet" href="{% static_v 'tax-declaration.css' %}">
+{% endblock %}
+{% block page_back %}
+<div class="hrms-page-back">
+  {% if can_manage %}
+    {% url 'payroll:form16' as back_url %}
+    {% include "dashboard/_back_button.html" with back_url=back_url back_label="Form 16" %}
+  {% else %}
+    {% url 'payroll:dashboard' as back_url %}
+    {% include "dashboard/_back_button.html" with back_url=back_url back_label="Payroll" %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tx-page">
+  <header class="tx-hero">
+    <div>
+      <p class="tx-eyebrow">FY {{ f16.fy_label }} · Assessment year {{ f16.assessment_year }}</p>
+      <h1 class="tx-title">Form 16 — {{ f16.employee.name }}</h1>
+      <p class="tx-subtitle">
+        {% if certificate %}Issued as {{ certificate.certificate_number }} on {{ certificate.issued_at|date:"d M Y" }}.
+        {% else %}Not yet issued — these are the current working figures.{% endif %}
+      </p>
+    </div>
+    <div class="tx-hero-actions">
+      <form method="get" class="tx-fy-form">
+        <select name="fy" class="tx-select" onchange="this.form.submit()">
+          {% for year, label in fy_choices %}
+          <option value="{{ year }}" {% if fy_start.year == year %}selected{% endif %}>FY {{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="{% if is_self %}{% url 'payroll:form16_mine_pdf' %}{% else %}{% url 'payroll:form16_pdf' target.pk %}{% endif %}?fy={{ fy_start.year }}" class="tx-btn tx-btn--soft">Download PDF</a>
+    </div>
+  </header>
+
+  {% if f16.config_estimated %}
+  <div class="tx-note">
+    <strong>No tax slabs configured for FY {{ f16.fy_label }}.</strong>
+    Figures below use the nearest available slab set{% if f16.config_fy %} (FY starting {{ f16.config_fy|date:"Y" }}){% endif %},
+    so the computed liability is an estimate. Add slabs for this year in Tax Management before issuing.
+  </div>
+  {% endif %}
+
+  {% if not f16.is_complete %}
+  <div class="tx-note">
+    Only {{ f16.months_paid }} month{{ f16.months_paid|pluralize }} of payroll exist for this financial year. The certificate covers the period actually paid.
+  </div>
+  {% endif %}
+
+  <div class="tx-grid">
+    <section class="tx-panel">
+      <h2 class="tx-panel__title">Part B — salary annexure</h2>
+      <dl class="tx-summary tx-summary--wide">
+        <div><dt>1. Gross salary</dt><dd>₹{{ f16.gross_salary|floatformat:2|intcomma }}</dd></div>
+        {% if f16.exemption_detail.hra_exemption %}
+        <div><dt>2. Less: HRA exemption u/s 10(13A)</dt><dd>−₹{{ f16.exemption_detail.hra_exemption|floatformat:2|intcomma }}</dd></div>
+        {% endif %}
+        <div><dt>3. Less: standard deduction u/s 16(ia)</dt><dd>−₹{{ f16.standard_deduction|floatformat:2|intcomma }}</dd></div>
+        <div><dt>4. Less: professional tax u/s 16(iii)</dt><dd>−₹{{ f16.professional_tax|floatformat:2|intcomma }}</dd></div>
+        {% if f16.exemption_detail.section_80c %}
+        <div><dt>5. Less: deduction u/s 80C</dt><dd>−₹{{ f16.exemption_detail.section_80c|floatformat:2|intcomma }}</dd></div>
+        {% endif %}
+        {% if f16.exemption_detail.section_80d %}
+        <div><dt>6. Less: deduction u/s 80D</dt><dd>−₹{{ f16.exemption_detail.section_80d|floatformat:2|intcomma }}</dd></div>
+        {% endif %}
+        {% if f16.exemption_detail.section_80ccd_1b %}
+        <div><dt>7. Less: deduction u/s 80CCD(1B)</dt><dd>−₹{{ f16.exemption_detail.section_80ccd_1b|floatformat:2|intcomma }}</dd></div>
+        {% endif %}
+        {% if f16.exemption_detail.home_loan_interest %}
+        <div><dt>8. Less: interest on housing loan u/s 24(b)</dt><dd>−₹{{ f16.exemption_detail.home_loan_interest|floatformat:2|intcomma }}</dd></div>
+        {% endif %}
+        <div class="tx-summary__rule"><dt><strong>Total taxable income</strong></dt><dd><strong>₹{{ f16.taxable_income|floatformat:2|intcomma }}</strong></dd></div>
+        <div><dt>Tax on total income</dt><dd>₹{{ f16.tax_before_rebate|floatformat:2|intcomma }}</dd></div>
+        {% if f16.rebate_87a %}
+        <div><dt>Less: rebate u/s 87A</dt><dd>−₹{{ f16.rebate_87a|floatformat:2|intcomma }}</dd></div>
+        {% endif %}
+        <div><dt>Health &amp; education cess</dt><dd>₹{{ f16.cess|floatformat:2|intcomma }}</dd></div>
+        <div class="tx-summary__rule"><dt><strong>Total tax payable</strong></dt><dd><strong>₹{{ f16.total_tax|floatformat:2|intcomma }}</strong></dd></div>
+        <div><dt>Less: TDS deducted</dt><dd>−₹{{ f16.tds_deducted|floatformat:2|intcomma }}</dd></div>
+        <div class="tx-summary__rule">
+          <dt><strong>{% if f16.balance_payable > 0 %}Balance payable{% else %}Excess deducted{% endif %}</strong></dt>
+          <dd><strong>₹{{ f16.balance_payable|floatformat:2|intcomma }}</strong></dd>
+        </div>
+      </dl>
+    </section>
+
+    <aside class="tx-panel tx-panel--side">
+      <h2 class="tx-panel__title">Certificate details</h2>
+      <dl class="tx-summary">
+        <div><dt>Employee</dt><dd>{{ f16.employee.name }}</dd></div>
+        <div><dt>PAN</dt><dd>{% if f16.employee.pan %}{{ f16.employee.pan }}{% else %}<span class="tx-warn">Missing</span>{% endif %}</dd></div>
+        <div><dt>Employee ID</dt><dd>{{ f16.employee.employee_id|default:"—" }}</dd></div>
+        <div class="tx-summary__rule"><dt>Deductor</dt><dd>{{ f16.employer.name }}</dd></div>
+        <div><dt>TAN</dt><dd>{% if f16.employer.tan %}{{ f16.employer.tan }}{% else %}<span class="tx-warn">Not set</span>{% endif %}</dd></div>
+        <div><dt>Employer PAN</dt><dd>{{ f16.employer.pan|default:"—" }}</dd></div>
+        <div class="tx-summary__rule"><dt>Tax regime</dt><dd>{{ f16.regime }}</dd></div>
+        <div><dt>Months paid</dt><dd>{{ f16.months_paid }}</dd></div>
+      </dl>
+
+      <h2 class="tx-panel__title">TDS deducted by quarter</h2>
+      <table class="tx-table tx-table--mini">
+        <thead><tr><th>Quarter</th><th>Period</th><th>Amount</th></tr></thead>
+        <tbody>
+          {% for q in f16.quarters %}
+          <tr><td>{{ q.code }}</td><td>{{ q.label }}</td><td>₹{{ q.amount|floatformat:2|intcomma }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="tx-hint">Reconcile these against the Part A downloaded from TRACES.</p>
+    </aside>
+  </div>
+
+  <section class="tx-panel">
+    <h2 class="tx-panel__title">Month-by-month</h2>
+    <div class="overflow-x-auto">
+      <table class="tx-table">
+        <thead><tr><th>Period</th><th>Gross</th><th>TDS</th><th>Net paid</th></tr></thead>
+        <tbody>
+          {% for row in f16.monthly_rows %}
+          <tr>
+            <td>{{ row.period }}</td>
+            <td>₹{{ row.gross|floatformat:2|intcomma }}</td>
+            <td>₹{{ row.tds|floatformat:2|intcomma }}</td>
+            <td>₹{{ row.net|floatformat:2|intcomma }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="tx-empty">No payslips in this financial year.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

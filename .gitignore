@@ -6,6 +6,7 @@ __pycache__/
 *.sqlite3
 *.log
 .env
+config.json
 media/
 staticfiles/
 .pytest_cache/

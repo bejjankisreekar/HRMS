@@ -84,3 +84,14 @@ def hrms_sidebar(request):
         pass
 
     return ctx
+
+
+def plan_identity(request):
+    """Plan names/branding for every template, signed in or not.
+
+    Exposes `plan_names` (slug → display name), `plan_tiers`, `plan_by_slug`
+    and `featured_plan`, all sourced from apps/subscriptions/plan_features.py.
+    """
+    from apps.subscriptions import plan_features
+
+    return plan_features.template_context()

@@ -4,7 +4,7 @@
 <section class="fin-panel">
   <div class="fin-panel__head">
     <h2 class="fin-panel__title">Subscription plans</h2>
-    <p class="fin-muted">Basic · Professional · Growth — fully configurable without code changes.</p>
+    <p class="fin-muted">{% for t in plan_tiers %}{{ t.name }}{% if not forloop.last %} · {% endif %}{% endfor %} — fully configurable without code changes.</p>
   </div>
   <div class="fin-plan-grid">
     {% for plan in plans %}
